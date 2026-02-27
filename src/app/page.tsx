@@ -1,0 +1,713 @@
+"use client";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import {
+  Search,
+  BookOpen,
+  FileText,
+  ArrowRight,
+  Check,
+  Sparkles,
+  Zap,
+} from "lucide-react";
+
+const EXAMPLES = [
+  "How does dopamine regulate reward & motivation?",
+  "CRISPR gene editing in cancer treatment",
+  "Large language model alignment techniques",
+  "Climate tipping points and feedback loops",
+];
+
+const FEATURES = [
+  {
+    icon: Search,
+    bg: "rgba(92,154,224,.1)",
+    ic: "#5c9ae0",
+    title: "AI Research Search",
+    desc: "Ask anything in plain English. Get synthesised answers from 200M+ papers with inline citations.",
+  },
+  {
+    icon: BookOpen,
+    bg: "rgba(93,184,122,.1)",
+    ic: "#5db87a",
+    title: "Literature Reviews",
+    desc: "Full structured reviews — intro, methodology, findings, gaps — generated in under 30 seconds.",
+  },
+  {
+    icon: FileText,
+    bg: "rgba(232,160,69,.1)",
+    ic: "#e8a045",
+    title: "PDF Chat",
+    desc: "Upload any paper. Ask about methods, results, stats. Understands context across 30 pages.",
+  },
+  {
+    icon: Zap,
+    bg: "rgba(173,115,224,.1)",
+    ic: "#ad73e0",
+    title: "Citation Export",
+    desc: "APA, MLA, IEEE, Chicago, Vancouver, BibTeX — formatted perfectly, copy or download in one click.",
+  },
+];
+
+export default function Home() {
+  const [q, setQ] = useState("");
+  const router = useRouter();
+  const go = (val: string) => {
+    if (val.trim()) router.push(`/search?q=${encodeURIComponent(val.trim())}`);
+  };
+
+  return (
+    <div style={{ background: "var(--bg)", minHeight: "100vh" }}>
+      {/* Nav */}
+      <nav className="landing-nav">
+        <Link
+          href="/"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 9,
+            textDecoration: "none",
+          }}
+        >
+          <div className="logo-mark">
+            <BookOpen size={13} color="#000" strokeWidth={2.5} />
+          </div>
+          <span
+            style={{
+              fontWeight: 700,
+              fontSize: 14,
+              color: "var(--text-primary)",
+              fontFamily: "var(--font-ui)",
+            }}
+          >
+            ScholarAI
+          </span>
+        </Link>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <Link
+            href="/search"
+            style={{
+              fontSize: 12.5,
+              color: "var(--text-secondary)",
+              padding: "5px 10px",
+              textDecoration: "none",
+            }}
+          >
+            Search
+          </Link>
+          <Link
+            href="/pricing"
+            style={{
+              fontSize: 12.5,
+              color: "var(--text-secondary)",
+              padding: "5px 10px",
+              textDecoration: "none",
+            }}
+          >
+            Pricing
+          </Link>
+          <Link
+            href="/auth/signin"
+            className="btn btn-brand"
+            style={{
+              padding: "7px 16px",
+              fontSize: 12.5,
+              textDecoration: "none",
+            }}
+          >
+            Get Started
+          </Link>
+        </div>
+      </nav>
+
+      {/* Hero */}
+      <section
+        style={{
+          maxWidth: 760,
+          margin: "0 auto",
+          padding: "88px 24px 64px",
+          textAlign: "center",
+        }}
+      >
+        <div
+          className="anim-up"
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+            padding: "4px 13px",
+            borderRadius: 99,
+            background: "var(--brand-dim)",
+            border: "1px solid var(--brand-border)",
+            marginBottom: 28,
+          }}
+        >
+          <Sparkles size={11} style={{ color: "var(--brand)" }} />
+          <span
+            style={{ fontSize: 11.5, fontWeight: 600, color: "var(--brand)" }}
+          >
+            200M+ papers · Free to start · Made in India 🇮🇳
+          </span>
+        </div>
+
+        <h1
+          className="anim-up d1"
+          style={{
+            fontFamily: "var(--font-display)",
+            fontSize: "clamp(2.6rem,7vw,4rem)",
+            fontWeight: 400,
+            lineHeight: 1.12,
+            color: "var(--text-primary)",
+            marginBottom: 18,
+          }}
+        >
+          The research assistant
+          <br />
+          <em className="glow-text" style={{ fontStyle: "italic" }}>
+            built for curious minds
+          </em>
+        </h1>
+
+        <p
+          className="anim-up d2"
+          style={{
+            fontSize: 15.5,
+            color: "var(--text-secondary)",
+            lineHeight: 1.7,
+            maxWidth: 490,
+            margin: "0 auto 40px",
+          }}
+        >
+          Search 200M+ academic papers, generate literature reviews, and chat
+          with PDFs — powered by Claude AI.
+        </p>
+
+        {/* Search box */}
+        <form
+          className="anim-up d3"
+          onSubmit={(e) => {
+            e.preventDefault();
+            go(q);
+          }}
+          style={{ position: "relative", maxWidth: 600, margin: "0 auto 18px" }}
+        >
+          <div
+            style={{
+              background: "var(--bg-input)",
+              border: "1px solid var(--border-mid)",
+              borderRadius: 16,
+              padding: "13px 13px 13px 48px",
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              transition: "border-color .15s, box-shadow .15s",
+            }}
+            onFocus={(e) => {
+              e.currentTarget.style.borderColor = "var(--brand-border)";
+              e.currentTarget.style.boxShadow = "var(--brand-glow)";
+            }}
+            onBlur={(e) => {
+              e.currentTarget.style.borderColor = "var(--border-mid)";
+              e.currentTarget.style.boxShadow = "none";
+            }}
+          >
+            <Search
+              size={16}
+              style={{
+                position: "absolute",
+                left: 16,
+                top: "50%",
+                transform: "translateY(-50%)",
+                color: "var(--text-faint)",
+                pointerEvents: "none",
+              }}
+            />
+            <input
+              type="text"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Ask any research question…"
+              style={{
+                flex: 1,
+                background: "transparent",
+                border: "none",
+                outline: "none",
+                fontFamily: "var(--font-ui)",
+                fontSize: 14.5,
+                color: "var(--text-primary)",
+                padding: 0,
+              }}
+            />
+            <button
+              type="submit"
+              className="btn btn-brand"
+              style={{ padding: "7px 16px", flexShrink: 0 }}
+              disabled={!q.trim()}
+            >
+              Search <ArrowRight size={13} />
+            </button>
+          </div>
+        </form>
+
+        {/* Chips */}
+        <div
+          className="anim-up d4"
+          style={{
+            display: "flex",
+            flexWrap: "wrap",
+            justifyContent: "center",
+            gap: 6,
+          }}
+        >
+          {EXAMPLES.map((ex) => (
+            <button
+              key={ex}
+              onClick={() => go(ex)}
+              style={{
+                padding: "5px 11px",
+                borderRadius: 99,
+                fontSize: 12,
+                background: "var(--bg-raised)",
+                border: "1px solid var(--border)",
+                color: "var(--text-muted)",
+                cursor: "pointer",
+                fontFamily: "var(--font-ui)",
+                transition: "all .14s",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = "var(--brand-border)";
+                e.currentTarget.style.color = "var(--text-primary)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = "var(--border)";
+                e.currentTarget.style.color = "var(--text-muted)";
+              }}
+            >
+              {ex}
+            </button>
+          ))}
+        </div>
+      </section>
+
+      {/* Stats */}
+      <div
+        style={{
+          borderTop: "1px solid var(--border)",
+          borderBottom: "1px solid var(--border)",
+          background: "var(--bg-raised)",
+          padding: "16px 24px",
+        }}
+      >
+        <div
+          style={{
+            maxWidth: 640,
+            margin: "0 auto",
+            display: "grid",
+            gridTemplateColumns: "repeat(4,1fr)",
+            gap: 8,
+            textAlign: "center",
+          }}
+        >
+          {[
+            ["200M+", "Papers indexed"],
+            ["3", "Live APIs"],
+            ["6", "Citation formats"],
+            ["<15s", "Answer time"],
+          ].map(([n, l]) => (
+            <div key={l}>
+              <p
+                style={{
+                  fontSize: 20,
+                  fontWeight: 700,
+                  color: "var(--brand)",
+                  fontFamily: "var(--font-display)",
+                }}
+              >
+                {n}
+              </p>
+              <p
+                style={{
+                  fontSize: 10.5,
+                  color: "var(--text-faint)",
+                  marginTop: 2,
+                }}
+              >
+                {l}
+              </p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Features */}
+      <section
+        style={{ maxWidth: 920, margin: "0 auto", padding: "72px 24px" }}
+      >
+        <p
+          className="label-xs"
+          style={{ textAlign: "center", marginBottom: 10 }}
+        >
+          What you can do
+        </p>
+        <h2
+          style={{
+            textAlign: "center",
+            fontFamily: "var(--font-display)",
+            fontSize: "clamp(1.6rem,4vw,2.2rem)",
+            fontWeight: 400,
+            color: "var(--text-primary)",
+            marginBottom: 44,
+          }}
+        >
+          Four powerful tools.
+          <br />
+          One research workflow.
+        </h2>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit,minmax(200px,1fr))",
+            gap: 14,
+          }}
+        >
+          {FEATURES.map(({ icon: Icon, bg, ic, title, desc }, i) => (
+            <div
+              key={title}
+              className={`card anim-up d${i + 1}`}
+              style={{ padding: 22 }}
+            >
+              <div
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: 9,
+                  background: bg,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  marginBottom: 13,
+                }}
+              >
+                <Icon size={17} style={{ color: ic }} />
+              </div>
+              <h3
+                style={{
+                  fontFamily: "var(--font-display)",
+                  fontSize: 14.5,
+                  fontWeight: 600,
+                  color: "var(--text-primary)",
+                  marginBottom: 7,
+                }}
+              >
+                {title}
+              </h3>
+              <p
+                style={{
+                  fontSize: 12.5,
+                  color: "var(--text-secondary)",
+                  lineHeight: 1.6,
+                }}
+              >
+                {desc}
+              </p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Pricing */}
+      <section
+        style={{
+          background: "var(--bg-raised)",
+          borderTop: "1px solid var(--border)",
+          borderBottom: "1px solid var(--border)",
+          padding: "72px 24px",
+        }}
+      >
+        <div style={{ maxWidth: 860, margin: "0 auto" }}>
+          <p
+            className="label-xs"
+            style={{ textAlign: "center", marginBottom: 10 }}
+          >
+            Pricing
+          </p>
+          <h2
+            style={{
+              textAlign: "center",
+              fontFamily: "var(--font-display)",
+              fontSize: "clamp(1.5rem,4vw,2rem)",
+              fontWeight: 400,
+              marginBottom: 10,
+            }}
+          >
+            Simple. Transparent.
+          </h2>
+          <p
+            style={{
+              textAlign: "center",
+              fontSize: 13,
+              color: "var(--text-secondary)",
+              marginBottom: 44,
+            }}
+          >
+            Pay via UPI, card or net banking — powered by Razorpay. No hidden
+            fees.
+          </p>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit,minmax(240px,1fr))",
+              gap: 14,
+            }}
+          >
+            {[
+              {
+                n: "Free",
+                p: "₹0",
+                period: "",
+                hi: false,
+                cta: "Get Started",
+                href: "/auth/signin",
+                fs: [
+                  "10 searches/day",
+                  "AI cited answers",
+                  "APA & MLA export",
+                  "Save 20 papers",
+                ],
+              },
+              {
+                n: "Student",
+                p: "₹199",
+                period: "/month",
+                hi: true,
+                cta: "Subscribe Now",
+                href: "/pricing",
+                fs: [
+                  "Unlimited searches",
+                  "Literature reviews",
+                  "All 6 citation formats",
+                  "20 PDF uploads/month",
+                  "Full library",
+                ],
+              },
+              {
+                n: "Pro",
+                p: "₹499",
+                period: "/month",
+                hi: false,
+                cta: "Subscribe Now",
+                href: "/pricing",
+                fs: [
+                  "Everything in Student",
+                  "Unlimited PDF uploads",
+                  "API access",
+                  "Team sharing (5 seats)",
+                  "Priority support",
+                ],
+              },
+            ].map(({ n, p, period, hi, cta, href, fs }) => (
+              <div
+                key={n}
+                className="card"
+                style={{
+                  padding: 24,
+                  background: hi ? "var(--surface)" : "var(--bg-overlay)",
+                  borderColor: hi ? "var(--brand-border)" : "var(--border)",
+                  borderWidth: hi ? 1.5 : 1,
+                  position: "relative",
+                  display: "flex",
+                  flexDirection: "column",
+                  transition: "transform .18s, box-shadow .18s",
+                }}
+                onMouseEnter={(e) => {
+                  (e.currentTarget as HTMLDivElement).style.transform =
+                    "translateY(-3px)";
+                  (e.currentTarget as HTMLDivElement).style.boxShadow =
+                    "0 8px 28px rgba(0,0,0,.4)";
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLDivElement).style.transform = "";
+                  (e.currentTarget as HTMLDivElement).style.boxShadow = "";
+                }}
+              >
+                {hi && (
+                  <div
+                    style={{
+                      position: "absolute",
+                      top: -10,
+                      left: "50%",
+                      transform: "translateX(-50%)",
+                      padding: "2px 12px",
+                      borderRadius: 99,
+                      background: "var(--brand)",
+                      color: "#000",
+                      fontSize: 10,
+                      fontWeight: 700,
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    Popular
+                  </div>
+                )}
+
+                <p
+                  style={{
+                    fontSize: 12,
+                    color: "var(--text-muted)",
+                    marginBottom: 6,
+                  }}
+                >
+                  {n}
+                </p>
+
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "baseline",
+                    gap: 4,
+                    marginBottom: 18,
+                  }}
+                >
+                  <span
+                    style={{
+                      fontFamily: "var(--font-display)",
+                      fontSize: 32,
+                      fontWeight: 700,
+                      color: hi ? "var(--brand)" : "var(--text-primary)",
+                      lineHeight: 1,
+                    }}
+                  >
+                    {p}
+                  </span>
+                  {period && (
+                    <span style={{ fontSize: 12, color: "var(--text-faint)" }}>
+                      {period}
+                    </span>
+                  )}
+                </div>
+
+                <div className="divider" style={{ marginBottom: 18 }} />
+
+                <ul
+                  style={{
+                    listStyle: "none",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 9,
+                    flex: 1,
+                    marginBottom: 22,
+                  }}
+                >
+                  {fs.map((f) => (
+                    <li
+                      key={f}
+                      style={{
+                        display: "flex",
+                        alignItems: "flex-start",
+                        gap: 8,
+                        fontSize: 13,
+                        color: "var(--text-secondary)",
+                        lineHeight: 1.4,
+                      }}
+                    >
+                      <Check
+                        size={12}
+                        style={{
+                          color: hi ? "var(--brand)" : "var(--green)",
+                          flexShrink: 0,
+                          marginTop: 2,
+                        }}
+                      />
+                      {f}
+                    </li>
+                  ))}
+                </ul>
+
+                <Link
+                  href={href}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 6,
+                    padding: "11px 16px",
+                    borderRadius: 10,
+                    background: hi ? "var(--brand)" : "var(--surface-2)",
+                    color: hi ? "#000" : "var(--text-secondary)",
+                    border: hi ? "none" : "1px solid var(--border-mid)",
+                    fontFamily: "var(--font-ui)",
+                    fontSize: 13,
+                    fontWeight: 600,
+                    textDecoration: "none",
+                    transition: "all .14s",
+                  }}
+                >
+                  {cta} <ArrowRight size={12} />
+                </Link>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* CTA */}
+      <div style={{ padding: "60px 24px", textAlign: "center" }}>
+        <h2
+          style={{
+            fontFamily: "var(--font-display)",
+            fontSize: "clamp(1.4rem,4vw,1.9rem)",
+            fontWeight: 400,
+            marginBottom: 14,
+          }}
+        >
+          Start researching smarter today
+        </h2>
+        <p
+          style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 26 }}
+        >
+          Free forever. No credit card. No Stripe. Just research.
+        </p>
+        <Link
+          href="/auth/signin"
+          className="btn btn-brand"
+          style={{ padding: "11px 26px", fontSize: 14, textDecoration: "none" }}
+        >
+          Get started free <ArrowRight size={14} />
+        </Link>
+      </div>
+
+      {/* Footer */}
+      <footer
+        style={{
+          borderTop: "1px solid var(--border)",
+          padding: "18px 24px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          flexWrap: "wrap",
+          gap: 10,
+        }}
+      >
+        <span style={{ fontSize: 11.5, color: "var(--text-faint)" }}>
+          © 2025 ScholarAI · Made with ❤️ in India 🇮🇳
+        </span>
+        <div style={{ display: "flex", gap: 14 }}>
+          {["Search", "Review", "PDF Chat", "Pricing"].map((l) => (
+            <Link
+              key={l}
+              href={`/${l.toLowerCase().replace(/ /g, "-").replace("pdf-chat", "upload")}`}
+              style={{
+                fontSize: 11.5,
+                color: "var(--text-faint)",
+                textDecoration: "none",
+              }}
+            >
+              {l}
+            </Link>
+          ))}
+        </div>
+      </footer>
+    </div>
+  );
+}
