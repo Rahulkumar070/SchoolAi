@@ -1,7 +1,9 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useSession, signOut } from "next-auth/react";
 import Link from "next/link";
+import Image from "next/image";
 import {
   Search,
   BookOpen,
@@ -10,6 +12,10 @@ import {
   Check,
   Sparkles,
   Zap,
+  Crown,
+  LogOut,
+  LayoutDashboard,
+  ChevronDown,
 } from "lucide-react";
 
 const EXAMPLES = [
@@ -50,9 +56,303 @@ const FEATURES = [
   },
 ];
 
+const PLANS = [
+  {
+    n: "Free",
+    p: "₹0",
+    period: "",
+    hi: false,
+    fs: [
+      "10 searches/day",
+      "AI cited answers",
+      "APA & MLA export",
+      "Save 20 papers",
+    ],
+    cta: "Get Started",
+    href: "/auth/signin",
+  },
+  {
+    n: "Student",
+    p: "₹199",
+    period: "/month",
+    hi: true,
+    fs: [
+      "Unlimited searches",
+      "Literature reviews",
+      "All 6 citation formats",
+      "20 PDF uploads/month",
+      "Full library",
+    ],
+    cta: "Subscribe Now",
+    href: "/pricing",
+  },
+  {
+    n: "Pro",
+    p: "₹499",
+    period: "/month",
+    hi: false,
+    fs: [
+      "Everything in Student",
+      "Unlimited PDF uploads",
+      "API access",
+      "Team sharing (5 seats)",
+      "Priority support",
+    ],
+    cta: "Subscribe Now",
+    href: "/pricing",
+  },
+];
+
+function UserMenu({
+  session,
+}: {
+  session: {
+    user?: {
+      name?: string | null;
+      email?: string | null;
+      image?: string | null;
+      plan?: string;
+    };
+  };
+}) {
+  const [open, setOpen] = useState(false);
+  const plan = session.user?.plan ?? "free";
+  const planLabel =
+    plan === "pro" ? "Pro" : plan === "student" ? "Student" : "Free";
+  const planColor =
+    plan === "pro"
+      ? "#5c9ae0"
+      : plan === "student"
+        ? "var(--brand)"
+        : "var(--text-muted)";
+
+  return (
+    <div style={{ position: "relative" }}>
+      <button
+        onClick={() => setOpen((o) => !o)}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          padding: "5px 10px 5px 6px",
+          borderRadius: 99,
+          background: "var(--surface)",
+          border: "1px solid var(--border-mid)",
+          cursor: "pointer",
+        }}
+      >
+        {session.user?.image ? (
+          <Image
+            src={session.user.image}
+            alt="av"
+            width={24}
+            height={24}
+            style={{ borderRadius: "50%" }}
+          />
+        ) : (
+          <div
+            style={{
+              width: 24,
+              height: 24,
+              borderRadius: "50%",
+              background: "var(--brand)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: 10,
+              fontWeight: 700,
+              color: "#000",
+            }}
+          >
+            {(session.user?.name?.[0] ?? "U").toUpperCase()}
+          </div>
+        )}
+        <span
+          style={{
+            fontSize: 12.5,
+            color: "var(--text-primary)",
+            fontWeight: 500,
+            maxWidth: 120,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {session.user?.name?.split(" ")[0] ?? "User"}
+        </span>
+        <span
+          style={{
+            fontSize: 10,
+            fontWeight: 700,
+            color: planColor,
+            background: `${planColor}1a`,
+            padding: "1px 7px",
+            borderRadius: 99,
+          }}
+        >
+          {planLabel}
+        </span>
+        <ChevronDown size={11} style={{ color: "var(--text-faint)" }} />
+      </button>
+
+      {open && (
+        <>
+          <div
+            onClick={() => setOpen(false)}
+            style={{ position: "fixed", inset: 0, zIndex: 49 }}
+          />
+          <div
+            style={{
+              position: "absolute",
+              top: "calc(100% + 6px)",
+              right: 0,
+              minWidth: 200,
+              background: "var(--bg-overlay)",
+              border: "1px solid var(--border-mid)",
+              borderRadius: 12,
+              padding: 8,
+              zIndex: 50,
+              boxShadow: "0 8px 24px rgba(0,0,0,.5)",
+            }}
+          >
+            <div
+              style={{
+                padding: "8px 10px 10px",
+                borderBottom: "1px solid var(--border)",
+                marginBottom: 6,
+              }}
+            >
+              <p
+                style={{
+                  fontSize: 12.5,
+                  fontWeight: 600,
+                  color: "var(--text-primary)",
+                }}
+              >
+                {session.user?.name ?? "Researcher"}
+              </p>
+              <p
+                style={{
+                  fontSize: 11,
+                  color: "var(--text-faint)",
+                  marginTop: 2,
+                }}
+              >
+                {session.user?.email}
+              </p>
+            </div>
+            <Link
+              href="/dashboard"
+              onClick={() => setOpen(false)}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                padding: "7px 10px",
+                borderRadius: 8,
+                fontSize: 12.5,
+                color: "var(--text-secondary)",
+                textDecoration: "none",
+              }}
+              onMouseEnter={(e) =>
+                (e.currentTarget.style.background = "var(--surface)")
+              }
+              onMouseLeave={(e) =>
+                (e.currentTarget.style.background = "transparent")
+              }
+            >
+              <LayoutDashboard size={13} /> My Dashboard
+            </Link>
+            <Link
+              href="/search"
+              onClick={() => setOpen(false)}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                padding: "7px 10px",
+                borderRadius: 8,
+                fontSize: 12.5,
+                color: "var(--text-secondary)",
+                textDecoration: "none",
+              }}
+              onMouseEnter={(e) =>
+                (e.currentTarget.style.background = "var(--surface)")
+              }
+              onMouseLeave={(e) =>
+                (e.currentTarget.style.background = "transparent")
+              }
+            >
+              <Search size={13} /> Research Search
+            </Link>
+            <Link
+              href="/pricing"
+              onClick={() => setOpen(false)}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                padding: "7px 10px",
+                borderRadius: 8,
+                fontSize: 12.5,
+                color: "var(--text-secondary)",
+                textDecoration: "none",
+              }}
+              onMouseEnter={(e) =>
+                (e.currentTarget.style.background = "var(--surface)")
+              }
+              onMouseLeave={(e) =>
+                (e.currentTarget.style.background = "transparent")
+              }
+            >
+              <Crown size={13} /> Upgrade Plan
+            </Link>
+            <div
+              style={{
+                borderTop: "1px solid var(--border)",
+                marginTop: 6,
+                paddingTop: 6,
+              }}
+            >
+              <button
+                onClick={() => {
+                  setOpen(false);
+                  void signOut();
+                }}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  padding: "7px 10px",
+                  borderRadius: 8,
+                  fontSize: 12.5,
+                  color: "var(--red)",
+                  width: "100%",
+                  background: "transparent",
+                  border: "none",
+                  cursor: "pointer",
+                }}
+                onMouseEnter={(e) =>
+                  (e.currentTarget.style.background = "rgba(224,92,92,.08)")
+                }
+                onMouseLeave={(e) =>
+                  (e.currentTarget.style.background = "transparent")
+                }
+              >
+                <LogOut size={13} /> Sign out
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 export default function Home() {
   const [q, setQ] = useState("");
   const router = useRouter();
+  const { data: session, status } = useSession();
   const go = (val: string) => {
     if (val.trim()) router.push(`/search?q=${encodeURIComponent(val.trim())}`);
   };
@@ -107,26 +407,103 @@ export default function Home() {
           >
             Pricing
           </Link>
-          <Link
-            href="/auth/signin"
-            className="btn btn-brand"
-            style={{
-              padding: "7px 16px",
-              fontSize: 12.5,
-              textDecoration: "none",
-            }}
-          >
-            Get Started
-          </Link>
+          {status === "loading" ? (
+            <div
+              style={{
+                width: 80,
+                height: 32,
+                borderRadius: 99,
+                background: "var(--surface)",
+                opacity: 0.5,
+              }}
+            />
+          ) : session ? (
+            <UserMenu session={session} />
+          ) : (
+            <Link
+              href="/auth/signin"
+              className="btn btn-brand"
+              style={{
+                padding: "7px 16px",
+                fontSize: 12.5,
+                textDecoration: "none",
+              }}
+            >
+              Get Started
+            </Link>
+          )}
         </div>
       </nav>
+
+      {/* Logged-in welcome banner */}
+      {session && (
+        <div
+          style={{
+            background: "var(--bg-raised)",
+            borderBottom: "1px solid var(--border)",
+            padding: "10px 24px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            flexWrap: "wrap",
+            gap: 8,
+          }}
+        >
+          <p style={{ fontSize: 12.5, color: "var(--text-secondary)" }}>
+            👋 Welcome back,{" "}
+            <strong style={{ color: "var(--text-primary)" }}>
+              {session.user?.name?.split(" ")[0]}
+            </strong>
+            !
+            {session.user?.plan === "free" && (
+              <span style={{ color: "var(--text-muted)" }}>
+                {" "}
+                &nbsp;·&nbsp; Free plan: 10 searches/day
+              </span>
+            )}
+            {session.user?.plan !== "free" && (
+              <span style={{ color: "var(--green)" }}>
+                {" "}
+                &nbsp;·&nbsp; {session.user?.plan === "pro"
+                  ? "Pro"
+                  : "Student"}{" "}
+                plan — unlimited searches ✨
+              </span>
+            )}
+          </p>
+          <div style={{ display: "flex", gap: 8 }}>
+            <Link
+              href="/search"
+              className="btn btn-brand"
+              style={{
+                textDecoration: "none",
+                padding: "5px 14px",
+                fontSize: 12,
+              }}
+            >
+              Start Researching →
+            </Link>
+            <Link
+              href="/dashboard"
+              className="btn btn-outline"
+              style={{
+                textDecoration: "none",
+                padding: "5px 14px",
+                fontSize: 12,
+              }}
+            >
+              My Dashboard
+            </Link>
+          </div>
+        </div>
+      )}
 
       {/* Hero */}
       <section
         style={{
           maxWidth: 760,
           margin: "0 auto",
-          padding: "88px 24px 64px",
+          padding: "72px 24px 56px",
           textAlign: "center",
         }}
       >
@@ -183,7 +560,6 @@ export default function Home() {
           with PDFs — powered by Claude AI.
         </p>
 
-        {/* Search box */}
         <form
           className="anim-up d3"
           onSubmit={(e) => {
@@ -250,7 +626,6 @@ export default function Home() {
           </div>
         </form>
 
-        {/* Chips */}
         <div
           className="anim-up d4"
           style={{
@@ -290,7 +665,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Stats */}
+      {/* Stats bar */}
       <div
         style={{
           borderTop: "1px solid var(--border)",
@@ -461,52 +836,7 @@ export default function Home() {
               gap: 14,
             }}
           >
-            {[
-              {
-                n: "Free",
-                p: "₹0",
-                period: "",
-                hi: false,
-                cta: "Get Started",
-                href: "/auth/signin",
-                fs: [
-                  "10 searches/day",
-                  "AI cited answers",
-                  "APA & MLA export",
-                  "Save 20 papers",
-                ],
-              },
-              {
-                n: "Student",
-                p: "₹199",
-                period: "/month",
-                hi: true,
-                cta: "Subscribe Now",
-                href: "/pricing",
-                fs: [
-                  "Unlimited searches",
-                  "Literature reviews",
-                  "All 6 citation formats",
-                  "20 PDF uploads/month",
-                  "Full library",
-                ],
-              },
-              {
-                n: "Pro",
-                p: "₹499",
-                period: "/month",
-                hi: false,
-                cta: "Subscribe Now",
-                href: "/pricing",
-                fs: [
-                  "Everything in Student",
-                  "Unlimited PDF uploads",
-                  "API access",
-                  "Team sharing (5 seats)",
-                  "Priority support",
-                ],
-              },
-            ].map(({ n, p, period, hi, cta, href, fs }) => (
+            {PLANS.map(({ n, p, period, hi, fs, cta, href }) => (
               <div
                 key={n}
                 className="card"
@@ -550,7 +880,6 @@ export default function Home() {
                     Popular
                   </div>
                 )}
-
                 <p
                   style={{
                     fontSize: 12,
@@ -560,7 +889,6 @@ export default function Home() {
                 >
                   {n}
                 </p>
-
                 <div
                   style={{
                     display: "flex",
@@ -586,9 +914,7 @@ export default function Home() {
                     </span>
                   )}
                 </div>
-
                 <div className="divider" style={{ marginBottom: 18 }} />
-
                 <ul
                   style={{
                     listStyle: "none",
@@ -623,7 +949,6 @@ export default function Home() {
                     </li>
                   ))}
                 </ul>
-
                 <Link
                   href={href}
                   style={{
@@ -666,15 +991,33 @@ export default function Home() {
         <p
           style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 26 }}
         >
-          Free forever. No credit card. No Stripe. Just research.
+          Free forever. No credit card needed to start.
         </p>
-        <Link
-          href="/auth/signin"
-          className="btn btn-brand"
-          style={{ padding: "11px 26px", fontSize: 14, textDecoration: "none" }}
-        >
-          Get started free <ArrowRight size={14} />
-        </Link>
+        {session ? (
+          <Link
+            href="/search"
+            className="btn btn-brand"
+            style={{
+              padding: "11px 26px",
+              fontSize: 14,
+              textDecoration: "none",
+            }}
+          >
+            Continue Researching <ArrowRight size={14} />
+          </Link>
+        ) : (
+          <Link
+            href="/auth/signin"
+            className="btn btn-brand"
+            style={{
+              padding: "11px 26px",
+              fontSize: 14,
+              textDecoration: "none",
+            }}
+          >
+            Get started free <ArrowRight size={14} />
+          </Link>
+        )}
       </div>
 
       {/* Footer */}
