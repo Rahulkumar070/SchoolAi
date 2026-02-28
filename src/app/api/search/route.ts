@@ -7,7 +7,6 @@ import { connectDB } from "@/lib/mongodb";
 import { UserModel } from "@/models/User";
 import { getCachedResult, saveToCache } from "@/lib/cache";
 
-// ── Plan limits ───────────────────────────────
 const FREE_DAILY_LIMIT = 5;
 const STUDENT_MONTHLY_LIMIT = 500;
 
@@ -20,14 +19,13 @@ export async function POST(req: NextRequest) {
     const q = query.trim();
     const session = await getServerSession(authOptions);
 
-    // ── STEP 1: Check cache FIRST (before any DB user lookup) ──
+    // ── STEP 1: Check global cache first ──
     const cached = await getCachedResult(q);
 
     if (session?.user?.email) {
       await connectDB();
       const now = new Date();
 
-      // Find or create user
       let u = await UserModel.findOne({ email: session.user.email });
       if (!u) {
         u = await UserModel.create({
@@ -44,7 +42,7 @@ export async function POST(req: NextRequest) {
 
       const plan = u.plan ?? "free";
 
-      // ── STEP 2: Check limits ──
+      // ── STEP 2: Enforce limits ──
       if (plan === "free") {
         if (now.toDateString() !== new Date(u.searchDateReset).toDateString()) {
           u.searchesToday = 0;
@@ -53,7 +51,7 @@ export async function POST(req: NextRequest) {
         if (u.searchesToday >= FREE_DAILY_LIMIT) {
           return NextResponse.json(
             {
-              error: `Daily limit reached (${FREE_DAILY_LIMIT}/day on free plan). Upgrade to Student plan for 500 searches/month.`,
+              error: `You've used all ${FREE_DAILY_LIMIT} free searches today. Upgrade to Student plan for 500 searches/month at ₹199.`,
             },
             { status: 429 },
           );
@@ -70,47 +68,33 @@ export async function POST(req: NextRequest) {
         if (u.searchesThisMonth >= STUDENT_MONTHLY_LIMIT) {
           return NextResponse.json(
             {
-              error: `Monthly limit reached (${STUDENT_MONTHLY_LIMIT}/month on Student plan). Upgrade to Pro for unlimited searches.`,
+              error: `You've used all ${STUDENT_MONTHLY_LIMIT} searches this month. Upgrade to Pro for unlimited searches at ₹499.`,
             },
             { status: 429 },
           );
         }
       }
-      // Pro = no limit check needed
 
-      // ── STEP 3: If CACHED — save history but DON'T deduct credits ──
+      // ── STEP 3: Get result (from cache or AI) ──
+      let answer: string;
+      let papers: unknown[];
+
       if (cached) {
-        // Save to history + increment counter (but much cheaper — no AI call)
-        const updateFields: Record<string, unknown> = {};
-        if (plan === "free") {
-          updateFields.searchesToday = u.searchesToday + 1;
-          updateFields.searchDateReset = u.searchDateReset;
-        } else if (plan === "student") {
-          updateFields.searchesThisMonth = u.searchesThisMonth + 1;
-          updateFields.searchMonthReset = u.searchMonthReset;
-        }
-
-        await UserModel.findByIdAndUpdate(u._id, {
-          $set: updateFields,
-          $push: {
-            searchHistory: {
-              $each: [{ query: q, searchedAt: now }],
-              $position: 0,
-              $slice: 50,
-            },
-          },
-        });
-
-        // Return cached result — NO AI API called, cost = ₹0
-        return NextResponse.json({
-          papers: cached.papers,
-          answer: cached.answer,
-          query: q,
-          fromCache: true, // flag so frontend knows
-        });
+        answer = cached.answer;
+        papers = cached.papers;
+      } else {
+        const fetchedPapers = await searchAll(q);
+        if (!fetchedPapers.length)
+          return NextResponse.json(
+            { error: "No papers found. Try different keywords." },
+            { status: 404 },
+          );
+        answer = await generateAnswer(q, fetchedPapers);
+        papers = fetchedPapers;
+        void saveToCache(q, answer, papers);
       }
 
-      // ── STEP 4: Not cached — call AI API and deduct credits ──
+      // ── STEP 4: Update counter + save full answer to history ──
       const updateFields: Record<string, unknown> = {};
       if (plan === "free") {
         updateFields.searchesToday = u.searchesToday + 1;
@@ -120,40 +104,46 @@ export async function POST(req: NextRequest) {
         updateFields.searchMonthReset = u.searchMonthReset;
       }
 
+      // Save full answer + papers to history so user can read later for free
       await UserModel.findByIdAndUpdate(u._id, {
         $set: updateFields,
         $push: {
           searchHistory: {
-            $each: [{ query: q, searchedAt: now }],
+            $each: [{ query: q, answer, papers, searchedAt: now }],
             $position: 0,
             $slice: 50,
           },
         },
       });
-    } else if (cached) {
-      // Unauthenticated user — still serve cache
+
+      return NextResponse.json({
+        papers,
+        answer,
+        query: q,
+        fromCache: !!cached,
+      });
+    }
+
+    // ── Unauthenticated user ──
+    if (cached)
       return NextResponse.json({
         papers: cached.papers,
         answer: cached.answer,
         query: q,
         fromCache: true,
       });
-    }
 
-    // ── STEP 5: Call AI API ──
-    const papers = await searchAll(q);
-    if (!papers.length)
-      return NextResponse.json(
-        { error: "No papers found. Try different keywords." },
-        { status: 404 },
-      );
-
-    const answer = await generateAnswer(q, papers);
-
-    // ── STEP 6: Save to cache for future users ──
-    void saveToCache(q, answer, papers); // fire and forget — don't await
-
-    return NextResponse.json({ papers, answer, query: q, fromCache: false });
+    const fetchedPapers = await searchAll(q);
+    if (!fetchedPapers.length)
+      return NextResponse.json({ error: "No papers found." }, { status: 404 });
+    const answer = await generateAnswer(q, fetchedPapers);
+    void saveToCache(q, answer, fetchedPapers);
+    return NextResponse.json({
+      papers: fetchedPapers,
+      answer,
+      query: q,
+      fromCache: false,
+    });
   } catch (e) {
     return NextResponse.json(
       { error: (e as Error).message || "Search failed" },

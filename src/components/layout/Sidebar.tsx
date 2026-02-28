@@ -83,6 +83,8 @@ export default function Sidebar({
   };
   const handleHistoryClick = (query: string) => {
     onClose?.();
+    // No autorun=1 — just pre-fills the input box, user presses Enter themselves
+    // This prevents accidental credit consumption
     window.location.href = `/search?q=${encodeURIComponent(query)}`;
   };
 
