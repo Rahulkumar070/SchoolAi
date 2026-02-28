@@ -28,13 +28,12 @@ export const metadata: Metadata = {
       { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
       { url: "/favicon-48x48.png", sizes: "48x48", type: "image/png" },
     ],
-    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180" }],
+    apple: [{ url: "/public/apple-touch-icon.png", sizes: "180x180" }],
     other: [
       { rel: "mask-icon", url: "/icon-maskable-512.png" },
       { rel: "msapplication-TileImage", url: "/mstile-150x150.png" },
     ],
   },
-  manifest: "/site.webmanifest",
   openGraph: {
     title: "ScholarAI — AI Research Assistant",
     description:
@@ -95,7 +94,6 @@ export default function RootLayout({
         />
 
         {/* Android / PWA */}
-        <link rel="manifest" href="/site.webmanifest" />
         <meta name="theme-color" content="#e8a045" />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
