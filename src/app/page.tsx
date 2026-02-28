@@ -77,7 +77,7 @@ const PLANS = [
     period: "/month",
     hi: true,
     fs: [
-      "Unlimited searches",
+      "500 searches/month",
       "Literature reviews",
       "All 6 citation formats",
       "20 PDF uploads/month",
@@ -92,7 +92,7 @@ const PLANS = [
     period: "/month",
     hi: false,
     fs: [
-      "Everything in Student",
+      "Unlimited searches",
       "Unlimited PDF uploads",
       "API access",
       "Team sharing (5 seats)",
@@ -457,20 +457,19 @@ export default function Home() {
             !
             {session.user?.plan === "free" && (
               <span style={{ color: "var(--text-muted)" }}>
-                {" "}
                 &nbsp;·&nbsp; Free plan: 5 searches/day
               </span>
             )}
             {session.user?.plan !== "free" && (
               <span style={{ color: "var(--green)" }}>
-                {" "}
-                &nbsp;·&nbsp; {session.user?.plan === "pro"
+                &nbsp;·&nbsp;
+                {session.user?.plan === "pro"
                   ? "Pro"
-                  : "Student"}{" "}
-                plan — unlimited searches ✨
+                  : "Student plan — 500 searches/month ✨"}
               </span>
             )}
           </p>
+
           <div style={{ display: "flex", gap: 8 }}>
             <Link
               href="/search"

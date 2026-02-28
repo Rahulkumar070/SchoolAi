@@ -28,9 +28,13 @@ const User = new Schema(
       default: "",
     },
     planExpiresAt: Date,
-    // Usage
+    // Usage — free plan (daily)
     searchesToday: { type: Number, default: 0 },
     searchDateReset: { type: Date, default: Date.now },
+    // Usage — student plan (monthly)
+    searchesThisMonth: { type: Number, default: 0 },
+    searchMonthReset: { type: Date, default: Date.now },
+    // History & saved
     savedPapers: { type: [SavedPaper], default: [] },
     searchHistory: {
       type: [{ query: String, searchedAt: { type: Date, default: Date.now } }],

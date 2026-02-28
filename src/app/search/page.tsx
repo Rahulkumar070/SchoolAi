@@ -34,6 +34,7 @@ function SearchApp() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [searchesToday, setSearchesToday] = useState(0);
+  const [searchesThisMonth, setSearchesThisMonth] = useState(0);
   const [panelTurn, setPanelTurn] = useState<Turn | null>(null);
   const [panelTab, setPanelTab] = useState<"sources" | "cite">("sources");
 
@@ -42,15 +43,29 @@ function SearchApp() {
 
   const plan = session?.user?.plan ?? "free";
   const isFree = plan === "free";
-  const atLimit = isFree && searchesToday >= 5;
+  const isStudent = plan === "student";
+  const isPro = plan === "pro";
+
+  const atLimit = isFree
+    ? searchesToday >= 5
+    : isStudent
+      ? searchesThisMonth >= 500
+      : false; // pro = never limited
+
+  const counterText = isFree
+    ? `${searchesToday}/5 searches today`
+    : isStudent
+      ? `${searchesThisMonth}/500 searches this month`
+      : "";
 
   useEffect(() => {
     if (!session?.user?.email) return;
     fetch("/api/user/history")
       .then((r) => r.json())
-      .then((d: { searchesToday?: number }) =>
-        setSearchesToday(d.searchesToday ?? 0),
-      )
+      .then((d: { searchesToday?: number; searchesThisMonth?: number }) => {
+        setSearchesToday(d.searchesToday ?? 0);
+        setSearchesThisMonth(d.searchesThisMonth ?? 0);
+      })
       .catch(() => {});
   }, [session]);
 
@@ -87,7 +102,6 @@ function SearchApp() {
         };
         if (!r.ok) {
           setError(d.error ?? "Search failed");
-          if (r.status !== 429) toast.error(d.error ?? "Search failed");
           return;
         }
         const turn: Turn = {
@@ -97,7 +111,8 @@ function SearchApp() {
         };
         setTurns((prev) => [...prev, turn]);
         setPanelTurn(turn);
-        if (isFree) setSearchesToday((c) => Math.min(c + 1, 10));
+        if (isFree) setSearchesToday((c) => Math.min(c + 1, 5));
+        if (isStudent) setSearchesThisMonth((c) => Math.min(c + 1, 500));
         scrollDown();
       } catch {
         setError("Network error. Please try again.");
@@ -106,7 +121,7 @@ function SearchApp() {
         setLoading(false);
       }
     },
-    [loading, isFree],
+    [loading, isFree, isStudent],
   );
 
   useEffect(() => {
@@ -150,10 +165,16 @@ function SearchApp() {
     </div>
   ) : undefined;
 
+  // Counter bar — show for free and student
+  const showCounter = session && (isFree || isStudent);
+  const counterMax = isFree ? 5 : 500;
+  const counterUsed = isFree ? searchesToday : searchesThisMonth;
+  const warnAt = isFree ? 4 : 450;
+
   return (
     <Shell rightPanel={RightPanel}>
-      {/* ── Counter bar (free users only) — sits below mobile header ── */}
-      {session && isFree && (
+      {/* Counter bar */}
+      {showCounter && (
         <div
           className="search-counter-bar"
           data-limit={atLimit ? "true" : undefined}
@@ -164,9 +185,9 @@ function SearchApp() {
                 <div
                   className="search-counter-fill"
                   style={{
-                    width: `${Math.min((searchesToday / 5) * 100, 100)}%`,
+                    width: `${Math.min((counterUsed / counterMax) * 100, 100)}%`,
                   }}
-                  data-warn={searchesToday >= 4 ? "true" : undefined}
+                  data-warn={counterUsed >= warnAt ? "true" : undefined}
                   data-limit={atLimit ? "true" : undefined}
                 />
               </div>
@@ -174,10 +195,10 @@ function SearchApp() {
                 className="search-counter-text"
                 data-limit={atLimit ? "true" : undefined}
               >
-                {searchesToday}/5 searches today
+                {counterText}
               </span>
             </div>
-            {searchesToday >= 3 && (
+            {counterUsed >= warnAt && (
               <Link href="/pricing" className="search-counter-cta">
                 Upgrade <ArrowRight size={10} />
               </Link>
@@ -186,24 +207,28 @@ function SearchApp() {
         </div>
       )}
 
-      {/* ── Limit reached banner ── */}
+      {/* Limit reached banner */}
       {atLimit && (
         <div className="limit-banner">
           <div className="limit-banner-inner">
             <div>
-              <p className="limit-banner-title">Daily limit reached</p>
+              <p className="limit-banner-title">
+                {isFree ? "Daily limit reached" : "Monthly limit reached"}
+              </p>
               <p className="limit-banner-desc">
-                Upgrade to Student plan for unlimited searches.
+                {isFree
+                  ? "Upgrade to Student plan for 500 searches/month."
+                  : "Upgrade to Pro for truly unlimited searches."}
               </p>
             </div>
             <Link href="/pricing" className="btn btn-brand limit-banner-btn">
-              Upgrade ₹199/mo →
+              {isFree ? "Upgrade ₹199/mo →" : "Upgrade to Pro ₹499/mo →"}
             </Link>
           </div>
         </div>
       )}
 
-      {/* ── Chat column ── */}
+      {/* Chat column */}
       <div className="chat-col">
         {turns.length === 0 && !loading ? (
           <div className="welcome">
@@ -218,6 +243,11 @@ function SearchApp() {
             {session && isFree && (
               <p className="welcome-quota">
                 {searchesToday}/5 free searches used today
+              </p>
+            )}
+            {session && isStudent && (
+              <p className="welcome-quota">
+                {searchesThisMonth}/500 searches used this month
               </p>
             )}
             <div className="suggestion-grid">
@@ -236,11 +266,9 @@ function SearchApp() {
           <div className="messages-wrap">
             {turns.map((turn, i) => (
               <div key={i}>
-                {/* User bubble */}
                 <div className="msg-row user">
                   <div className="msg-bubble">{turn.query}</div>
                 </div>
-                {/* AI answer */}
                 <div className="msg-row">
                   <div className="msg-avatar">
                     <BookOpen size={12} style={{ color: "var(--brand)" }} />
@@ -345,7 +373,6 @@ function SearchApp() {
                     >
                       {turn.answer}
                     </ReactMarkdown>
-
                     {turn.papers.length > 0 && (
                       <button
                         onClick={() => {
@@ -361,8 +388,6 @@ function SearchApp() {
                 </div>
               </div>
             ))}
-
-            {/* Loading */}
             {loading && (
               <>
                 <div className="msg-row user">
@@ -382,8 +407,6 @@ function SearchApp() {
                 </div>
               </>
             )}
-
-            {/* Error */}
             {error && !loading && (
               <div className="error-card">
                 <AlertCircle
@@ -395,9 +418,7 @@ function SearchApp() {
                     style={{
                       fontSize: 13.5,
                       color: "var(--red)",
-                      marginBottom: error.toLowerCase().includes("limit")
-                        ? 6
-                        : 0,
+                      marginBottom: 6,
                     }}
                   >
                     {error}
@@ -411,19 +432,20 @@ function SearchApp() {
                         fontWeight: 600,
                       }}
                     >
-                      Upgrade to Student plan ₹199/mo →
+                      {isFree
+                        ? "Upgrade to Student ₹199/mo →"
+                        : "Upgrade to Pro ₹499/mo →"}
                     </Link>
                   )}
                 </div>
               </div>
             )}
-
             <div ref={endRef} style={{ height: 8 }} />
           </div>
         )}
       </div>
 
-      {/* ── Input bar ── */}
+      {/* Input bar */}
       <div className="input-bar-wrap">
         <div className="input-bar">
           <textarea
@@ -441,7 +463,7 @@ function SearchApp() {
             }}
             placeholder={
               atLimit
-                ? "Upgrade for unlimited searches…"
+                ? "Limit reached — upgrade for more searches…"
                 : "Ask a research question…"
             }
             className="input-textarea"
@@ -452,7 +474,6 @@ function SearchApp() {
             onClick={() => void doSearch(input)}
             disabled={loading || !input.trim() || atLimit}
             className={`send-btn${input.trim() && !loading && !atLimit ? " ready" : " idle"}`}
-            aria-label="Send"
           >
             {loading ? (
               <span className="spinner" />
@@ -468,7 +489,7 @@ function SearchApp() {
           </button>
         </div>
         <p className="input-hint">
-          {session && isFree ? `${searchesToday}/5 searches · ` : ""}
+          {session && !isPro ? `${counterText} · ` : ""}
           Semantic Scholar · OpenAlex · arXiv
         </p>
       </div>

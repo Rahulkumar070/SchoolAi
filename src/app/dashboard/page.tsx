@@ -67,11 +67,16 @@ function DashContent() {
       .then(
         ([papersData, historyData]: [
           { papers: SavedPaper[] },
-          { history: HistoryItem[]; searchesToday: number },
+          {
+            history: HistoryItem[];
+            searchesToday: number;
+            searchesThisMonth: number;
+          },
         ]) => {
           setPapers(papersData.papers ?? []);
           setHistory(historyData.history ?? []);
           setSearchesToday(historyData.searchesToday ?? 0);
+          setSearchesThisMonth(historyData.searchesThisMonth ?? 0);
         },
       )
       .catch(() => toast.error("Failed to load data"))
@@ -132,6 +137,8 @@ function DashContent() {
   const plan = session?.user?.plan ?? "free";
   const isPaid = plan !== "free";
   const isFree = plan === "free";
+  const isStudent = plan === "student";
+  const [searchesThisMonth, setSearchesThisMonth] = useState(0);
 
   const planMeta = {
     free: {
@@ -513,9 +520,21 @@ function DashContent() {
             {[
               { v: papers.length, l: "Saved Papers", c: planMeta.color },
               {
-                v: isFree ? `${searchesToday}/5` : "∞",
-                l: "Today's Searches",
-                c: isFree && searchesToday >= 5 ? "var(--red)" : "var(--green)",
+                v: isFree
+                  ? `${searchesToday}/5`
+                  : isStudent
+                    ? `${searchesThisMonth}/500`
+                    : "∞",
+                l: isFree
+                  ? "Today's Searches"
+                  : isStudent
+                    ? "Monthly Searches"
+                    : "Searches",
+                c:
+                  (isFree && searchesToday >= 5) ||
+                  (isStudent && searchesThisMonth >= 500)
+                    ? "var(--red)"
+                    : "var(--green)",
               },
               { v: history.length, l: "Total Searches", c: "#5c9ae0" },
             ].map(({ v, l, c }) => (

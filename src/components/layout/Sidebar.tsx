@@ -44,44 +44,64 @@ export default function Sidebar({
   const path = usePathname();
   const { data: session } = useSession();
   const [history, setHistory] = useState<HistoryItem[]>([]);
-  const [searchCount, setSearchCount] = useState(0);
+  const [searchesToday, setSearchesToday] = useState(0);
+  const [searchesThisMonth, setSearchesThisMonth] = useState(0);
   const [showHistory, setShowHistory] = useState(false);
 
   const plan = session?.user?.plan ?? "free";
   const isFree = plan === "free";
-  const planLabel =
-    plan === "pro" ? "Pro" : plan === "student" ? "Student" : "Free";
-  const PlanIcon = plan === "pro" ? Crown : plan === "student" ? Sparkles : Zap;
-  const planColor =
-    plan === "pro"
-      ? "#5c9ae0"
-      : plan === "student"
-        ? "var(--brand)"
-        : "var(--text-muted)";
+  const isStudent = plan === "student";
+  const isPro = plan === "pro";
+  const planLabel = isPro ? "Pro" : isStudent ? "Student" : "Free";
+  const PlanIcon = isPro ? Crown : isStudent ? Sparkles : Zap;
+  const planColor = isPro
+    ? "#5c9ae0"
+    : isStudent
+      ? "var(--brand)"
+      : "var(--text-muted)";
 
   useEffect(() => {
     if (!session?.user?.email) return;
     fetch("/api/user/history")
       .then((r) => r.json())
-      .then((d: { history?: HistoryItem[]; searchesToday?: number }) => {
-        setHistory(d.history ?? []);
-        setSearchCount(d.searchesToday ?? 0);
-      })
+      .then(
+        (d: {
+          history?: HistoryItem[];
+          searchesToday?: number;
+          searchesThisMonth?: number;
+        }) => {
+          setHistory(d.history ?? []);
+          setSearchesToday(d.searchesToday ?? 0);
+          setSearchesThisMonth(d.searchesThisMonth ?? 0);
+        },
+      )
       .catch(() => {});
   }, [session]);
 
   const handleNavClick = () => {
     onClose?.();
   };
-
   const handleHistoryClick = (query: string) => {
     onClose?.();
     window.location.href = `/search?q=${encodeURIComponent(query)}`;
   };
 
+  // Counter config per plan
+  const counter = isFree
+    ? { used: searchesToday, max: 5, label: "Daily", warn: 4, period: "today" }
+    : isStudent
+      ? {
+          used: searchesThisMonth,
+          max: 500,
+          label: "Monthly",
+          warn: 450,
+          period: "this month",
+        }
+      : null;
+
   return (
     <div className="sidebar-inner">
-      {/* ── Logo row ── */}
+      {/* Logo */}
       <div className="sidebar-logo">
         <Link href="/" onClick={handleNavClick} className="sidebar-brand">
           <div className="logo-mark">
@@ -90,19 +110,14 @@ export default function Sidebar({
           <span className="sidebar-brand-text">ScholarAI</span>
         </Link>
         {onClose && (
-          <button
-            className="icon-btn sidebar-close-btn"
-            onClick={onClose}
-            aria-label="Close menu"
-          >
+          <button className="icon-btn sidebar-close-btn" onClick={onClose}>
             <X size={16} />
           </button>
         )}
       </div>
 
-      {/* ── Scrollable body ── */}
+      {/* Body */}
       <div className="sidebar-body">
-        {/* New Research button */}
         <button
           className="new-chat-btn"
           onClick={onNewSearch ?? handleNavClick}
@@ -110,29 +125,33 @@ export default function Sidebar({
           <Plus size={14} style={{ color: "var(--brand)" }} /> New Research
         </button>
 
-        {/* Search counter — free users */}
-        {session && isFree && (
+        {/* Search counter */}
+        {session && counter && (
           <div className="sidebar-counter">
             <div className="sidebar-counter-top">
-              <span className="sidebar-counter-label">Daily Searches</span>
+              <span className="sidebar-counter-label">
+                {counter.label} Searches
+              </span>
               <span
                 className="sidebar-counter-num"
-                data-warn={searchCount >= 4 ? "true" : undefined}
-                data-limit={searchCount >= 5 ? "true" : undefined}
+                data-warn={counter.used >= counter.warn ? "true" : undefined}
+                data-limit={counter.used >= counter.max ? "true" : undefined}
               >
-                {searchCount} / 5
+                {counter.used} / {counter.max}
               </span>
             </div>
             <div className="sidebar-counter-track">
               <div
                 className="sidebar-counter-fill"
-                style={{ width: `${Math.min((searchCount / 5) * 100, 100)}%` }}
-                data-warn={searchCount >= 4 ? "true" : undefined}
-                data-limit={searchCount >= 5 ? "true" : undefined}
+                style={{
+                  width: `${Math.min((counter.used / counter.max) * 100, 100)}%`,
+                }}
+                data-warn={counter.used >= counter.warn ? "true" : undefined}
+                data-limit={counter.used >= counter.max ? "true" : undefined}
               />
             </div>
             <p className="sidebar-counter-hint">
-              {searchCount >= 5 ? (
+              {counter.used >= counter.max ? (
                 <>
                   <span style={{ color: "var(--red)" }}>Limit reached</span> ·{" "}
                   <Link
@@ -145,7 +164,7 @@ export default function Sidebar({
                 </>
               ) : (
                 <>
-                  {5 - searchCount} left today ·{" "}
+                  {counter.max - counter.used} left {counter.period} ·{" "}
                   <Link
                     href="/pricing"
                     onClick={handleNavClick}
@@ -159,15 +178,17 @@ export default function Sidebar({
           </div>
         )}
 
-        {/* Paid plan badge */}
-        {session && !isFree && (
+        {/* Pro badge — unlimited */}
+        {session && isPro && (
           <div className="sidebar-plan-badge">
-            <PlanIcon size={11} style={{ color: planColor, flexShrink: 0 }} />
-            <span style={{ color: planColor }}>{planLabel} — Unlimited ✨</span>
+            <Crown size={11} style={{ color: "#5c9ae0", flexShrink: 0 }} />
+            <span style={{ color: "#5c9ae0" }}>
+              Pro — Unlimited searches ✨
+            </span>
           </div>
         )}
 
-        {/* Nav links */}
+        {/* Nav */}
         <p className="sidebar-section-label">Tools</p>
         {NAV.map(({ href, label, icon: Icon }) => (
           <Link
@@ -186,7 +207,6 @@ export default function Sidebar({
             <button
               className="sidebar-history-toggle"
               onClick={() => setShowHistory((h) => !h)}
-              aria-expanded={showHistory}
             >
               <span className="sidebar-history-toggle-label">
                 <History size={12} /> Recent Searches
@@ -200,7 +220,6 @@ export default function Sidebar({
                 }}
               />
             </button>
-
             {showHistory && (
               <div className="sidebar-history-list">
                 {history.slice(0, 12).map((h, i) => (
@@ -227,7 +246,7 @@ export default function Sidebar({
         )}
       </div>
 
-      {/* ── Footer ── */}
+      {/* Footer */}
       <div className="sidebar-footer">
         {session ? (
           <>
