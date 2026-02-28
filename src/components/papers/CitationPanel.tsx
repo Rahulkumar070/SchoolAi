@@ -1,40 +1,311 @@
 "use client";
 import { useState } from "react";
-import { Copy, Download, Check } from "lucide-react";
-import { citeAll } from "@/lib/citations";
+import { Copy, Download, Check, FileText } from "lucide-react";
+import { citeAll, cite } from "@/lib/citations";
 import { Paper, CitationFormat } from "@/types";
 import toast from "react-hot-toast";
 
 const FMTS: { v: CitationFormat; l: string }[] = [
-  {v:"apa",l:"APA"},{v:"mla",l:"MLA"},{v:"ieee",l:"IEEE"},
-  {v:"chicago",l:"Chicago"},{v:"vancouver",l:"Vancouver"},{v:"bibtex",l:"BibTeX"},
+  { v: "apa", l: "APA" },
+  { v: "mla", l: "MLA" },
+  { v: "ieee", l: "IEEE" },
+  { v: "chicago", l: "Chicago" },
+  { v: "vancouver", l: "Vancouver" },
+  { v: "bibtex", l: "BibTeX" },
 ];
 
 export default function CitationPanel({ papers }: { papers: Paper[] }) {
   const [fmt, setFmt] = useState<CitationFormat>("apa");
-  const [ok, setOk]   = useState(false);
+  const [ok, setOk] = useState(false);
   const text = citeAll(papers, fmt);
 
-  const copy = () => { void navigator.clipboard.writeText(text); setOk(true); toast.success("Copied"); setTimeout(()=>setOk(false),2000); };
-  const dl   = () => {
-    const a = Object.assign(document.createElement("a"), { href: URL.createObjectURL(new Blob([text],{type:"text/plain"})), download:`refs.${fmt==="bibtex"?"bib":"txt"}` });
-    a.click(); toast.success("Downloaded");
+  const copy = () => {
+    void navigator.clipboard.writeText(text);
+    setOk(true);
+    toast.success("Copied to clipboard");
+    setTimeout(() => setOk(false), 2000);
+  };
+
+  // Download as .txt or .bib
+  const dlText = () => {
+    const ext = fmt === "bibtex" ? "bib" : "txt";
+    const a = Object.assign(document.createElement("a"), {
+      href: URL.createObjectURL(new Blob([text], { type: "text/plain" })),
+      download: `references-${fmt}.${ext}`,
+    });
+    a.click();
+    toast.success("Downloaded as text file");
+  };
+
+  // Download as PDF using browser print
+  const dlPDF = () => {
+    const now = new Date().toLocaleDateString("en-IN", {
+      day: "2-digit",
+      month: "long",
+      year: "numeric",
+    });
+    const fmtLabel = FMTS.find((f) => f.v === fmt)?.l ?? fmt.toUpperCase();
+
+    // Build HTML rows
+    const rows = papers
+      .map(
+        (p, i) => `
+      <div class="ref">
+        <span class="ref-num">[${i + 1}]</span>
+        <span class="ref-text">${cite(p, fmt)
+          .replace(/\*(.*?)\*/g, "<em>$1</em>")
+          .replace(/\n/g, "<br/>")}</span>
+      </div>
+    `,
+      )
+      .join("");
+
+    const html = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8"/>
+  <title>ScholarAI — References (${fmtLabel})</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: "Times New Roman", Times, serif;
+      font-size: 12pt;
+      color: #111;
+      background: #fff;
+      padding: 0;
+    }
+    .page {
+      max-width: 210mm;
+      margin: 0 auto;
+      padding: 20mm 25mm;
+    }
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 2px solid #111;
+      padding-bottom: 10px;
+      margin-bottom: 24px;
+    }
+    .logo {
+      font-family: Georgia, serif;
+      font-size: 18pt;
+      font-weight: bold;
+      letter-spacing: -0.5px;
+    }
+    .logo span { color: #c97a1a; }
+    .meta {
+      font-size: 9pt;
+      color: #555;
+      text-align: right;
+      line-height: 1.5;
+    }
+    h1 {
+      font-family: Georgia, serif;
+      font-size: 15pt;
+      font-weight: bold;
+      margin-bottom: 6px;
+      color: #111;
+    }
+    .subtitle {
+      font-size: 10pt;
+      color: #666;
+      margin-bottom: 20px;
+      padding-bottom: 14px;
+      border-bottom: 1px solid #ddd;
+    }
+    .ref {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 14px;
+      line-height: 1.6;
+    }
+    .ref-num {
+      font-weight: bold;
+      color: #c97a1a;
+      flex-shrink: 0;
+      min-width: 28px;
+      font-size: 11pt;
+    }
+    .ref-text {
+      font-size: 11pt;
+      color: #222;
+      flex: 1;
+    }
+    .ref-text em { font-style: italic; }
+    .footer {
+      margin-top: 30px;
+      padding-top: 10px;
+      border-top: 1px solid #ddd;
+      font-size: 9pt;
+      color: #999;
+      display: flex;
+      justify-content: space-between;
+    }
+    @media print {
+      body { padding: 0; }
+      .page { padding: 15mm 20mm; }
+      @page { margin: 0; size: A4; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="header">
+      <div class="logo">Scholar<span>AI</span></div>
+      <div class="meta">
+        Generated on ${now}<br/>
+        school-ai-sage.vercel.app
+      </div>
+    </div>
+    <h1>References</h1>
+    <div class="subtitle">
+      Format: ${fmtLabel} &nbsp;·&nbsp; ${papers.length} source${papers.length !== 1 ? "s" : ""}
+    </div>
+    ${rows}
+    <div class="footer">
+      <span>Generated by ScholarAI &nbsp;·&nbsp; Academic Research Assistant</span>
+      <span>${fmtLabel} Citation Format</span>
+    </div>
+  </div>
+  <script>
+    window.onload = function() {
+      window.print();
+      setTimeout(function() { window.close(); }, 1000);
+    };
+  </script>
+</body>
+</html>`;
+
+    const win = window.open("", "_blank", "width=900,height=700");
+    if (!win) {
+      toast.error("Please allow popups to download PDF");
+      return;
+    }
+    win.document.write(html);
+    win.document.close();
+    toast.success("Opening PDF — click Save as PDF in print dialog");
   };
 
   return (
-    <div style={{ padding:14 }}>
-      <p className="label-xs" style={{ marginBottom:10 }}>Citation Format</p>
-      <div style={{ display:"flex", flexWrap:"wrap", gap:4, marginBottom:12 }}>
-        {FMTS.map(f => (
-          <button key={f.v} onClick={() => setFmt(f.v)} style={{ padding:"3px 9px", borderRadius:6, fontSize:11, fontWeight:600, fontFamily:"var(--font-ui)", cursor:"pointer", border:"1px solid", background:fmt===f.v?"var(--brand)":"var(--surface-2)", color:fmt===f.v?"#000":"var(--text-muted)", borderColor:fmt===f.v?"var(--brand)":"var(--border-mid)", transition:"all 0.14s" }}>{f.l}</button>
+    <div style={{ padding: 14 }}>
+      <p className="label-xs" style={{ marginBottom: 10 }}>
+        Citation Format
+      </p>
+
+      {/* Format selector */}
+      <div
+        style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: 12 }}
+      >
+        {FMTS.map((f) => (
+          <button
+            key={f.v}
+            onClick={() => setFmt(f.v)}
+            style={{
+              padding: "3px 10px",
+              borderRadius: 6,
+              fontSize: 11,
+              fontWeight: 600,
+              fontFamily: "var(--font-ui)",
+              cursor: "pointer",
+              border: "1px solid",
+              background: fmt === f.v ? "var(--brand)" : "var(--surface-2)",
+              color: fmt === f.v ? "#000" : "var(--text-muted)",
+              borderColor: fmt === f.v ? "var(--brand)" : "var(--border-mid)",
+              transition: "all 0.14s",
+            }}
+          >
+            {f.l}
+          </button>
         ))}
       </div>
-      <div style={{ background:"var(--bg)", border:"1px solid var(--border)", borderRadius:8, padding:10, maxHeight:100, overflowY:"auto", marginBottom:10 }}>
-        <pre style={{ fontFamily:"var(--font-mono)", fontSize:10, color:"var(--text-secondary)", whiteSpace:"pre-wrap" }}>{text.slice(0,350)}{text.length>350?"…":""}</pre>
+
+      {/* Preview */}
+      <div
+        style={{
+          background: "var(--bg)",
+          border: "1px solid var(--border)",
+          borderRadius: 8,
+          padding: 10,
+          maxHeight: 110,
+          overflowY: "auto",
+          marginBottom: 12,
+        }}
+      >
+        <pre
+          style={{
+            fontFamily: "var(--font-mono)",
+            fontSize: 10,
+            color: "var(--text-secondary)",
+            whiteSpace: "pre-wrap",
+            lineHeight: 1.6,
+          }}
+        >
+          {text.slice(0, 380)}
+          {text.length > 380 ? "…" : ""}
+        </pre>
       </div>
-      <div style={{ display:"flex", gap:6 }}>
-        <button onClick={copy} className="btn btn-outline" style={{ flex:1, padding:"6px 8px", fontSize:11 }}>{ok?<Check size={11}/>:<Copy size={11}/>} Copy</button>
-        <button onClick={dl}   className="btn btn-outline" style={{ flex:1, padding:"6px 8px", fontSize:11 }}><Download size={11}/> Save</button>
+
+      {/* Action buttons */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        {/* Copy + TXT row */}
+        <div style={{ display: "flex", gap: 6 }}>
+          <button
+            onClick={copy}
+            className="btn btn-outline"
+            style={{ flex: 1, padding: "7px 8px", fontSize: 11.5 }}
+          >
+            {ok ? <Check size={11} /> : <Copy size={11} />}
+            {ok ? "Copied!" : "Copy"}
+          </button>
+          <button
+            onClick={dlText}
+            className="btn btn-outline"
+            style={{ flex: 1, padding: "7px 8px", fontSize: 11.5 }}
+          >
+            <Download size={11} />
+            {fmt === "bibtex" ? "Save .bib" : "Save .txt"}
+          </button>
+        </div>
+
+        {/* PDF download — prominent */}
+        <button
+          onClick={dlPDF}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 7,
+            width: "100%",
+            padding: "9px 12px",
+            background: "var(--brand)",
+            color: "#000",
+            border: "none",
+            borderRadius: 9,
+            fontSize: 12.5,
+            fontWeight: 700,
+            fontFamily: "var(--font-ui)",
+            cursor: "pointer",
+            transition: "background 0.14s",
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.background = "#d4903a")}
+          onMouseLeave={(e) =>
+            (e.currentTarget.style.background = "var(--brand)")
+          }
+        >
+          <FileText size={13} /> Download as PDF
+        </button>
+
+        <p
+          style={{
+            fontSize: 10,
+            color: "var(--text-faint)",
+            textAlign: "center",
+            lineHeight: 1.4,
+          }}
+        >
+          PDF opens print dialog → select &quot;Save as PDF&quot;
+        </p>
       </div>
     </div>
   );

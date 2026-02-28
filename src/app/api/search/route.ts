@@ -37,11 +37,11 @@ export async function POST(req: NextRequest) {
       }
 
       // Enforce free limit
-      if (u.plan === "free" && u.searchesToday >= 10) {
+      if (u.plan === "free" && u.searchesToday >= 5) {
         return NextResponse.json(
           {
             error:
-              "Daily limit reached (10/day on free plan). Upgrade for unlimited searches.",
+              "Daily limit reached (5/day on free plan). Upgrade for unlimited searches.",
           },
           { status: 429 },
         );

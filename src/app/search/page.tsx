@@ -42,7 +42,7 @@ function SearchApp() {
 
   const plan = session?.user?.plan ?? "free";
   const isFree = plan === "free";
-  const atLimit = isFree && searchesToday >= 10;
+  const atLimit = isFree && searchesToday >= 5;
 
   useEffect(() => {
     if (!session?.user?.email) return;
@@ -164,9 +164,9 @@ function SearchApp() {
                 <div
                   className="search-counter-fill"
                   style={{
-                    width: `${Math.min((searchesToday / 10) * 100, 100)}%`,
+                    width: `${Math.min((searchesToday / 5) * 100, 100)}%`,
                   }}
-                  data-warn={searchesToday >= 7 ? "true" : undefined}
+                  data-warn={searchesToday >= 4 ? "true" : undefined}
                   data-limit={atLimit ? "true" : undefined}
                 />
               </div>
@@ -174,10 +174,10 @@ function SearchApp() {
                 className="search-counter-text"
                 data-limit={atLimit ? "true" : undefined}
               >
-                {searchesToday}/10 searches today
+                {searchesToday}/5 searches today
               </span>
             </div>
-            {searchesToday >= 6 && (
+            {searchesToday >= 3 && (
               <Link href="/pricing" className="search-counter-cta">
                 Upgrade <ArrowRight size={10} />
               </Link>
@@ -217,7 +217,7 @@ function SearchApp() {
             </p>
             {session && isFree && (
               <p className="welcome-quota">
-                {searchesToday}/10 free searches used today
+                {searchesToday}/5 free searches used today
               </p>
             )}
             <div className="suggestion-grid">
@@ -468,7 +468,7 @@ function SearchApp() {
           </button>
         </div>
         <p className="input-hint">
-          {session && isFree ? `${searchesToday}/10 searches · ` : ""}
+          {session && isFree ? `${searchesToday}/5 searches · ` : ""}
           Semantic Scholar · OpenAlex · arXiv
         </p>
       </div>
