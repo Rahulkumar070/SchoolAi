@@ -22,6 +22,7 @@ import {
   Lock,
   ChevronLeft,
   FileText,
+  BookOpen,
 } from "lucide-react";
 import Link from "next/link";
 import ReactMarkdown from "react-markdown";
@@ -40,6 +41,12 @@ interface Paper {
   doi?: string;
   url?: string;
 }
+interface ReviewItem {
+  topic: string;
+  review?: string;
+  papers?: Paper[];
+  reviewedAt: string;
+}
 interface HistoryItem {
   query: string;
   answer?: string;
@@ -57,8 +64,12 @@ function DashContent() {
   const [searchesToday, setSearchesToday] = useState(0);
   const [searchesThisMonth, setSearchesThisMonth] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"library" | "history">("library");
+  const [activeTab, setActiveTab] = useState<"library" | "history" | "reviews">(
+    "library",
+  );
   const [selectedItem, setSelectedItem] = useState<HistoryItem | null>(null);
+  const [reviewHistory, setReviewHistory] = useState<ReviewItem[]>([]);
+  const [selectedReview, setSelectedReview] = useState<ReviewItem | null>(null);
   const [cancelling, setCancelling] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
 
@@ -90,12 +101,14 @@ function DashContent() {
           { papers: SavedPaper[] },
           {
             history: HistoryItem[];
+            reviewHistory?: ReviewItem[];
             searchesToday: number;
             searchesThisMonth: number;
           },
         ]) => {
           setPapers(pd.papers ?? []);
           setHistory(hd.history ?? []);
+          setReviewHistory(hd.reviewHistory ?? []);
           setSearchesToday(hd.searchesToday ?? 0);
           setSearchesThisMonth(hd.searchesThisMonth ?? 0);
         },
@@ -207,6 +220,333 @@ function DashContent() {
     if (s < 3600) return `${Math.floor(s / 60)}m ago`;
     if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
     return `${Math.floor(s / 86400)}d ago`;
+  }
+
+  // ── REVIEW DETAIL VIEW ──────────────────────────────────
+  if (activeTab === "reviews" && selectedReview) {
+    return (
+      <Shell>
+        <div style={{ flex: 1, overflowY: "auto" }}>
+          <div
+            style={{
+              maxWidth: 820,
+              margin: "0 auto",
+              padding: "28px 20px 60px",
+            }}
+          >
+            <button
+              onClick={() => setSelectedReview(null)}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+                padding: "6px 12px",
+                background: "var(--surface)",
+                border: "1px solid var(--border-mid)",
+                borderRadius: 8,
+                cursor: "pointer",
+                fontSize: 12.5,
+                color: "var(--text-secondary)",
+                marginBottom: 20,
+                fontFamily: "var(--font-ui)",
+              }}
+            >
+              <ChevronLeft size={14} /> Back to Reviews
+            </button>
+
+            {/* Topic header */}
+            <div
+              style={{
+                background: "rgba(93,184,122,.07)",
+                borderLeft: "4px solid #5db87a",
+                borderRadius: "0 12px 12px 0",
+                padding: "16px 20px",
+                marginBottom: 20,
+              }}
+            >
+              <p
+                style={{
+                  fontSize: 9.5,
+                  fontWeight: 700,
+                  letterSpacing: "0.1em",
+                  textTransform: "uppercase",
+                  color: "#5db87a",
+                  marginBottom: 5,
+                }}
+              >
+                Literature Review
+              </p>
+              <p
+                style={{
+                  fontSize: 16,
+                  fontWeight: 600,
+                  color: "var(--text-primary)",
+                  lineHeight: 1.45,
+                }}
+              >
+                {selectedReview.topic}
+              </p>
+              <p
+                style={{
+                  fontSize: 11,
+                  color: "var(--text-faint)",
+                  marginTop: 8,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                }}
+              >
+                <Clock size={10} /> {timeAgo(selectedReview.reviewedAt)}
+                {selectedReview.papers && selectedReview.papers.length > 0 && (
+                  <span style={{ color: "#5db87a" }}>
+                    · {selectedReview.papers.length} sources
+                  </span>
+                )}
+              </p>
+            </div>
+
+            {selectedReview.review ? (
+              <>
+                <div
+                  style={{
+                    background: "var(--bg-raised)",
+                    border: "1px solid var(--border)",
+                    borderRadius: 12,
+                    padding: "20px 22px",
+                    marginBottom: 20,
+                  }}
+                >
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
+                    components={{
+                      h2: ({ children }) => (
+                        <h2
+                          style={{
+                            fontFamily: "var(--font-display)",
+                            fontSize: "1rem",
+                            color: "var(--text-primary)",
+                            margin: "1.3em 0 .45em",
+                            fontWeight: 600,
+                          }}
+                        >
+                          {children}
+                        </h2>
+                      ),
+                      h3: ({ children }) => (
+                        <h3
+                          style={{
+                            fontSize: ".92rem",
+                            color: "var(--text-primary)",
+                            fontWeight: 600,
+                            margin: ".9em 0 .3em",
+                          }}
+                        >
+                          {children}
+                        </h3>
+                      ),
+                      p: ({ children }) => (
+                        <p
+                          style={{
+                            marginBottom: ".75em",
+                            lineHeight: 1.78,
+                            fontSize: 14,
+                            color: "var(--text-secondary)",
+                          }}
+                        >
+                          {children}
+                        </p>
+                      ),
+                      strong: ({ children }) => (
+                        <strong
+                          style={{
+                            color: "var(--text-primary)",
+                            fontWeight: 600,
+                          }}
+                        >
+                          {children}
+                        </strong>
+                      ),
+                      ul: ({ children }) => (
+                        <ul
+                          style={{
+                            paddingLeft: "1.4em",
+                            marginBottom: ".75em",
+                          }}
+                        >
+                          {children}
+                        </ul>
+                      ),
+                      li: ({ children }) => (
+                        <li
+                          style={{
+                            marginBottom: ".3em",
+                            fontSize: 14,
+                            color: "var(--text-secondary)",
+                          }}
+                        >
+                          {children}
+                        </li>
+                      ),
+                    }}
+                  >
+                    {selectedReview.review}
+                  </ReactMarkdown>
+                </div>
+
+                {selectedReview.papers && selectedReview.papers.length > 0 && (
+                  <div style={{ marginBottom: 24 }}>
+                    <p
+                      style={{
+                        fontSize: 9.5,
+                        fontWeight: 700,
+                        letterSpacing: "0.1em",
+                        textTransform: "uppercase",
+                        color: "var(--text-faint)",
+                        marginBottom: 12,
+                      }}
+                    >
+                      Sources ({selectedReview.papers.length})
+                    </p>
+                    <div
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 7,
+                      }}
+                    >
+                      {selectedReview.papers.map((p, i) => (
+                        <div
+                          key={i}
+                          className="card"
+                          style={{
+                            padding: "12px 15px",
+                            display: "flex",
+                            gap: 10,
+                          }}
+                        >
+                          <span
+                            style={{
+                              width: 24,
+                              height: 24,
+                              borderRadius: 6,
+                              background: "#5db87a",
+                              color: "#000",
+                              fontSize: 10,
+                              fontWeight: 700,
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              flexShrink: 0,
+                            }}
+                          >
+                            {i + 1}
+                          </span>
+                          <div style={{ minWidth: 0, flex: 1 }}>
+                            <p
+                              style={{
+                                fontSize: 12.5,
+                                fontWeight: 600,
+                                color: "var(--text-primary)",
+                                marginBottom: 2,
+                                lineHeight: 1.4,
+                              }}
+                            >
+                              {p.title}
+                            </p>
+                            <p
+                              style={{
+                                fontSize: 11,
+                                color: "var(--text-faint)",
+                              }}
+                            >
+                              {p.authors?.slice(0, 3).join(", ")}
+                              {(p.authors?.length ?? 0) > 3 ? " et al." : ""}
+                              {p.year ? ` · ${p.year}` : ""}
+                            </p>
+                            {p.url && (
+                              <a
+                                href={p.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                style={{
+                                  fontSize: 11,
+                                  color: "var(--brand)",
+                                  textDecoration: "none",
+                                }}
+                              >
+                                View paper →
+                              </a>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div style={{ display: "flex", gap: 8 }}>
+                  <Link
+                    href="/review"
+                    className="btn btn-brand"
+                    style={{
+                      textDecoration: "none",
+                      padding: "9px 18px",
+                      fontSize: 13,
+                    }}
+                  >
+                    <BookOpen size={12} /> New Review
+                  </Link>
+                  <button
+                    onClick={() => setSelectedReview(null)}
+                    className="btn btn-outline"
+                    style={{ padding: "9px 18px", fontSize: 13 }}
+                  >
+                    ← Back
+                  </button>
+                </div>
+              </>
+            ) : (
+              <div
+                style={{
+                  textAlign: "center",
+                  padding: "40px 20px",
+                  background: "var(--bg-overlay)",
+                  border: "1px solid var(--border)",
+                  borderRadius: 12,
+                }}
+              >
+                <FileText
+                  size={28}
+                  style={{
+                    color: "var(--text-faint)",
+                    opacity: 0.4,
+                    margin: "0 auto 12px",
+                    display: "block",
+                  }}
+                />
+                <p
+                  style={{
+                    fontSize: 14,
+                    fontWeight: 600,
+                    color: "var(--text-primary)",
+                    marginBottom: 6,
+                  }}
+                >
+                  Review not available
+                </p>
+                <Link
+                  href="/review"
+                  className="btn btn-brand"
+                  style={{ textDecoration: "none", padding: "9px 20px" }}
+                >
+                  Generate Again
+                </Link>
+              </div>
+            )}
+          </div>
+        </div>
+      </Shell>
+    );
   }
 
   // ── HISTORY DETAIL VIEW ──────────────────────────────────
@@ -1132,56 +1472,65 @@ function DashContent() {
               border: "1px solid var(--border)",
             }}
           >
-            {(["library", "history"] as const).map((tab) => (
+            {(
+              [
+                {
+                  id: "library",
+                  label: "Saved Papers",
+                  icon: BookmarkCheck,
+                  count: papers.length,
+                },
+                {
+                  id: "history",
+                  label: "Search History",
+                  icon: History,
+                  count: history.length,
+                },
+                {
+                  id: "reviews",
+                  label: "Lit. Reviews",
+                  icon: BookOpen,
+                  count: reviewHistory.length,
+                },
+              ] as const
+            ).map(({ id, label, icon: Icon, count }) => (
               <button
-                key={tab}
+                key={id}
                 onClick={() => {
-                  setActiveTab(tab);
+                  setActiveTab(id);
                   setSelectedItem(null);
+                  setSelectedReview(null);
                 }}
                 style={{
                   flex: 1,
-                  padding: "8px 12px",
+                  padding: "8px 10px",
                   borderRadius: 7,
                   border: "none",
                   cursor: "pointer",
-                  fontSize: 12.5,
+                  fontSize: 12,
                   fontWeight: 600,
                   fontFamily: "var(--font-ui)",
                   transition: "all .15s",
                   background:
-                    activeTab === tab ? "var(--surface)" : "transparent",
+                    activeTab === id ? "var(--surface)" : "transparent",
                   color:
-                    activeTab === tab
+                    activeTab === id
                       ? "var(--text-primary)"
                       : "var(--text-muted)",
                   boxShadow:
-                    activeTab === tab ? "0 1px 4px rgba(0,0,0,.3)" : "none",
+                    activeTab === id ? "0 1px 4px rgba(0,0,0,.3)" : "none",
                 }}
               >
-                {tab === "library" ? (
-                  <span
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      gap: 6,
-                    }}
-                  >
-                    <BookmarkCheck size={12} /> Saved Papers ({papers.length})
-                  </span>
-                ) : (
-                  <span
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      gap: 6,
-                    }}
-                  >
-                    <History size={12} /> Search History ({history.length})
-                  </span>
-                )}
+                <span
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 5,
+                  }}
+                >
+                  <Icon size={11} /> {label} ({count})
+                </span>
               </button>
             ))}
           </div>
@@ -1554,6 +1903,218 @@ function DashContent() {
                         </div>
                       </div>
 
+                      <ArrowRight
+                        size={13}
+                        style={{ color: "var(--text-faint)", flexShrink: 0 }}
+                      />
+                    </button>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+          {/* ── Literature Reviews Tab ── */}
+          {activeTab === "reviews" && (
+            <>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  marginBottom: 8,
+                }}
+              >
+                <h2
+                  style={{
+                    fontFamily: "var(--font-display)",
+                    fontSize: 15,
+                    fontWeight: 600,
+                    color: "var(--text-primary)",
+                  }}
+                >
+                  Literature Reviews
+                </h2>
+                <Link
+                  href="/review"
+                  className="btn btn-outline"
+                  style={{
+                    padding: "5px 11px",
+                    fontSize: 12,
+                    textDecoration: "none",
+                  }}
+                >
+                  <BookOpen size={11} /> New Review
+                </Link>
+              </div>
+
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  padding: "9px 13px",
+                  background: "var(--bg-overlay)",
+                  border: "1px solid var(--border)",
+                  borderRadius: 9,
+                  marginBottom: 14,
+                }}
+              >
+                <BookOpen
+                  size={12}
+                  style={{ color: "#5db87a", flexShrink: 0 }}
+                />
+                <p
+                  style={{ fontSize: 12, color: "var(--text-muted)", flex: 1 }}
+                >
+                  Tap any review to read its full saved content. Available on
+                  Student and Pro plans.
+                </p>
+              </div>
+
+              {loading ? (
+                [1, 2, 3].map((i) => (
+                  <div
+                    key={i}
+                    className="shimmer-line"
+                    style={{ height: 60, borderRadius: 10, marginBottom: 6 }}
+                  />
+                ))
+              ) : reviewHistory.length === 0 ? (
+                <div
+                  className="card"
+                  style={{
+                    padding: 44,
+                    textAlign: "center",
+                    borderStyle: "dashed",
+                  }}
+                >
+                  <BookOpen
+                    size={26}
+                    style={{
+                      color: "var(--text-faint)",
+                      opacity: 0.4,
+                      margin: "0 auto 12px",
+                      display: "block",
+                    }}
+                  />
+                  <p
+                    style={{
+                      fontSize: 15,
+                      color: "var(--text-primary)",
+                      marginBottom: 6,
+                      fontFamily: "var(--font-display)",
+                    }}
+                  >
+                    No reviews yet
+                  </p>
+                  <p
+                    style={{
+                      fontSize: 12.5,
+                      color: "var(--text-secondary)",
+                      marginBottom: 20,
+                    }}
+                  >
+                    Generate your first literature review from the Literature
+                    Review page
+                  </p>
+                  <Link
+                    href="/review"
+                    className="btn btn-brand"
+                    style={{ textDecoration: "none", padding: "8px 18px" }}
+                  >
+                    <BookOpen size={12} /> Go to Literature Review
+                  </Link>
+                </div>
+              ) : (
+                <div
+                  style={{ display: "flex", flexDirection: "column", gap: 6 }}
+                >
+                  {reviewHistory.map((r, i) => (
+                    <button
+                      key={i}
+                      onClick={() => setSelectedReview(r)}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 12,
+                        padding: "13px 15px",
+                        background: "var(--bg-raised)",
+                        border: "1px solid var(--border)",
+                        borderRadius: 10,
+                        cursor: "pointer",
+                        textAlign: "left",
+                        width: "100%",
+                        transition: "all .14s",
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.borderColor =
+                          "rgba(93,184,122,.4)";
+                        e.currentTarget.style.background = "var(--surface)";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.borderColor = "var(--border)";
+                        e.currentTarget.style.background = "var(--bg-raised)";
+                      }}
+                    >
+                      <div
+                        style={{
+                          width: 34,
+                          height: 34,
+                          borderRadius: 9,
+                          background: "rgba(93,184,122,.1)",
+                          border: "1px solid rgba(93,184,122,.2)",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          flexShrink: 0,
+                        }}
+                      >
+                        <BookOpen size={13} style={{ color: "#5db87a" }} />
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <p
+                          className="truncate-1"
+                          style={{
+                            fontSize: 13.5,
+                            color: "var(--text-primary)",
+                            fontWeight: 500,
+                            marginBottom: 3,
+                          }}
+                        >
+                          {r.topic}
+                        </p>
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 8,
+                          }}
+                        >
+                          <span
+                            style={{
+                              fontSize: 10.5,
+                              color: "var(--text-faint)",
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 3,
+                            }}
+                          >
+                            <Clock size={9} /> {timeAgo(r.reviewedAt)}
+                          </span>
+                          {r.papers && r.papers.length > 0 && (
+                            <span style={{ fontSize: 10.5, color: "#5db87a" }}>
+                              {r.papers.length} sources
+                            </span>
+                          )}
+                          {r.review && (
+                            <span
+                              style={{ fontSize: 10.5, color: "var(--green)" }}
+                            >
+                              ✓ Saved
+                            </span>
+                          )}
+                        </div>
+                      </div>
                       <ArrowRight
                         size={13}
                         style={{ color: "var(--text-faint)", flexShrink: 0 }}
