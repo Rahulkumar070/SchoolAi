@@ -304,7 +304,7 @@ function DashContent() {
                   You&apos;re on the Free plan
                 </p>
                 <p style={{ fontSize: 12, color: "var(--text-secondary)" }}>
-                  {searchesToday}/10 searches used today · Upgrade for unlimited
+                  {searchesToday}/5 searches used today · Upgrade for unlimited
                   searches, literature reviews & PDF chat
                 </p>
               </div>
@@ -465,7 +465,7 @@ function DashContent() {
                     >
                       You&apos;ll keep full access until the end of your current
                       billing period. After that, your account reverts to Free
-                      (10 searches/day).
+                      (5 searches/day).
                     </p>
                   </div>
                 </div>
@@ -513,10 +513,9 @@ function DashContent() {
             {[
               { v: papers.length, l: "Saved Papers", c: planMeta.color },
               {
-                v: isFree ? `${searchesToday}/10` : "∞",
+                v: isFree ? `${searchesToday}/5` : "∞",
                 l: "Today's Searches",
-                c:
-                  isFree && searchesToday >= 10 ? "var(--red)" : "var(--green)",
+                c: isFree && searchesToday >= 5 ? "var(--red)" : "var(--green)",
               },
               { v: history.length, l: "Total Searches", c: "#5c9ae0" },
             ].map(({ v, l, c }) => (
@@ -569,14 +568,14 @@ function DashContent() {
                     fontSize: 12,
                     fontWeight: 700,
                     color:
-                      searchesToday >= 10
+                      searchesToday >= 5
                         ? "var(--red)"
-                        : searchesToday >= 7
+                        : searchesToday >= 4
                           ? "var(--brand)"
                           : "var(--green)",
                   }}
                 >
-                  {searchesToday} / 10 used
+                  {searchesToday} / 5 used
                 </span>
               </div>
               <div
@@ -591,11 +590,11 @@ function DashContent() {
                 <div
                   style={{
                     height: "100%",
-                    width: `${Math.min((searchesToday / 10) * 100, 100)}%`,
+                    width: `${Math.min((searchesToday / 5) * 100, 100)}%`,
                     background:
-                      searchesToday >= 10
+                      searchesToday >= 5
                         ? "var(--red)"
-                        : searchesToday >= 7
+                        : searchesToday >= 4
                           ? "var(--brand)"
                           : "var(--green)",
                     borderRadius: 99,
@@ -604,9 +603,9 @@ function DashContent() {
                 />
               </div>
               <p style={{ fontSize: 11.5, color: "var(--text-faint)" }}>
-                {searchesToday >= 10
+                {searchesToday >= 5
                   ? "Daily limit reached. Resets at midnight. "
-                  : `${10 - searchesToday} searches remaining today. Resets daily at midnight. `}
+                  : `${5 - searchesToday} searches remaining today. Resets daily at midnight. `}
                 <Link
                   href="/pricing"
                   style={{ color: "var(--brand)", textDecoration: "none" }}

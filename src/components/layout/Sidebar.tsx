@@ -117,22 +117,22 @@ export default function Sidebar({
               <span className="sidebar-counter-label">Daily Searches</span>
               <span
                 className="sidebar-counter-num"
-                data-warn={searchCount >= 7 ? "true" : undefined}
-                data-limit={searchCount >= 10 ? "true" : undefined}
+                data-warn={searchCount >= 4 ? "true" : undefined}
+                data-limit={searchCount >= 5 ? "true" : undefined}
               >
-                {searchCount} / 10
+                {searchCount} / 5
               </span>
             </div>
             <div className="sidebar-counter-track">
               <div
                 className="sidebar-counter-fill"
-                style={{ width: `${Math.min((searchCount / 10) * 100, 100)}%` }}
-                data-warn={searchCount >= 7 ? "true" : undefined}
-                data-limit={searchCount >= 10 ? "true" : undefined}
+                style={{ width: `${Math.min((searchCount / 5) * 100, 100)}%` }}
+                data-warn={searchCount >= 4 ? "true" : undefined}
+                data-limit={searchCount >= 5 ? "true" : undefined}
               />
             </div>
             <p className="sidebar-counter-hint">
-              {searchCount >= 10 ? (
+              {searchCount >= 5 ? (
                 <>
                   <span style={{ color: "var(--red)" }}>Limit reached</span> ·{" "}
                   <Link
@@ -145,7 +145,7 @@ export default function Sidebar({
                 </>
               ) : (
                 <>
-                  {10 - searchCount} left today ·{" "}
+                  {5 - searchCount} left today ·{" "}
                   <Link
                     href="/pricing"
                     onClick={handleNavClick}

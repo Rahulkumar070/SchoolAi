@@ -63,7 +63,7 @@ const PLANS = [
     period: "",
     hi: false,
     fs: [
-      "10 searches/day",
+      "5 searches/day",
       "AI cited answers",
       "APA & MLA export",
       "Save 20 papers",
@@ -458,7 +458,7 @@ export default function Home() {
             {session.user?.plan === "free" && (
               <span style={{ color: "var(--text-muted)" }}>
                 {" "}
-                &nbsp;·&nbsp; Free plan: 10 searches/day
+                &nbsp;·&nbsp; Free plan: 5 searches/day
               </span>
             )}
             {session.user?.plan !== "free" && (
