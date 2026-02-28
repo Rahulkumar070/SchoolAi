@@ -19,7 +19,9 @@ import {
   Sparkles,
   Crown,
   Zap,
+  FileDown,
 } from "lucide-react";
+import { downloadResearchPDF } from "@/lib/downloadPDF";
 import { Paper } from "@/types";
 import toast from "react-hot-toast";
 import Link from "next/link";
@@ -760,17 +762,44 @@ function SearchApp() {
                     >
                       {turn.answer}
                     </ReactMarkdown>
-                    {turn.papers.length > 0 && (
+                    <div
+                      style={{
+                        display: "flex",
+                        gap: 8,
+                        marginTop: 10,
+                        flexWrap: "wrap",
+                      }}
+                    >
+                      {turn.papers.length > 0 && (
+                        <button
+                          onClick={() => {
+                            setPanelTurn(turn);
+                            setPanelTab("sources");
+                          }}
+                          className="sources-chip"
+                        >
+                          <Layers size={11} /> {turn.papers.length} sources
+                        </button>
+                      )}
                       <button
-                        onClick={() => {
-                          setPanelTurn(turn);
-                          setPanelTab("sources");
-                        }}
+                        onClick={() =>
+                          downloadResearchPDF(
+                            turn.query,
+                            turn.answer,
+                            turn.papers,
+                            session?.user?.name ?? undefined,
+                          )
+                        }
                         className="sources-chip"
+                        style={{
+                          color: "var(--brand)",
+                          borderColor: "var(--brand-border)",
+                        }}
+                        title="Download full research report as PDF"
                       >
-                        <Layers size={11} /> {turn.papers.length} sources
+                        <FileDown size={11} /> Download PDF
                       </button>
-                    )}
+                    </div>
                   </div>
                 </div>
               </div>
