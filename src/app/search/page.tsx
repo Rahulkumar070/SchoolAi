@@ -13,6 +13,12 @@ import {
   ArrowUp,
   Layers,
   ArrowRight,
+  Lock,
+  History,
+  Clock,
+  Sparkles,
+  Crown,
+  Zap,
 } from "lucide-react";
 import { Paper } from "@/types";
 import toast from "react-hot-toast";
@@ -22,6 +28,10 @@ interface Turn {
   query: string;
   answer: string;
   papers: Paper[];
+}
+interface HistItem {
+  query: string;
+  searchedAt: string;
 }
 
 function SearchApp() {
@@ -35,6 +45,7 @@ function SearchApp() {
   const [error, setError] = useState("");
   const [searchesToday, setSearchesToday] = useState(0);
   const [searchesThisMonth, setSearchesThisMonth] = useState(0);
+  const [recentHistory, setRecentHistory] = useState<HistItem[]>([]);
   const [panelTurn, setPanelTurn] = useState<Turn | null>(null);
   const [panelTab, setPanelTab] = useState<"sources" | "cite">("sources");
 
@@ -50,22 +61,36 @@ function SearchApp() {
     ? searchesToday >= 5
     : isStudent
       ? searchesThisMonth >= 500
-      : false; // pro = never limited
+      : false;
 
+  const counterMax = isFree ? 5 : isStudent ? 500 : 0;
+  const counterUsed = isFree
+    ? searchesToday
+    : isStudent
+      ? searchesThisMonth
+      : 0;
+  const warnAt = isFree ? 4 : isStudent ? 450 : 0;
   const counterText = isFree
     ? `${searchesToday}/5 searches today`
     : isStudent
-      ? `${searchesThisMonth}/500 searches this month`
+      ? `${searchesThisMonth}/500 this month`
       : "";
 
   useEffect(() => {
     if (!session?.user?.email) return;
     fetch("/api/user/history")
       .then((r) => r.json())
-      .then((d: { searchesToday?: number; searchesThisMonth?: number }) => {
-        setSearchesToday(d.searchesToday ?? 0);
-        setSearchesThisMonth(d.searchesThisMonth ?? 0);
-      })
+      .then(
+        (d: {
+          searchesToday?: number;
+          searchesThisMonth?: number;
+          history?: HistItem[];
+        }) => {
+          setSearchesToday(d.searchesToday ?? 0);
+          setSearchesThisMonth(d.searchesThisMonth ?? 0);
+          setRecentHistory(d.history ?? []);
+        },
+      )
       .catch(() => {});
   }, [session]);
 
@@ -99,6 +124,7 @@ function SearchApp() {
           papers?: Paper[];
           answer?: string;
           error?: string;
+          fromCache?: boolean;
         };
         if (!r.ok) {
           setError(d.error ?? "Search failed");
@@ -113,6 +139,11 @@ function SearchApp() {
         setPanelTurn(turn);
         if (isFree) setSearchesToday((c) => Math.min(c + 1, 5));
         if (isStudent) setSearchesThisMonth((c) => Math.min(c + 1, 500));
+        // Add to recent history locally
+        setRecentHistory((prev) => [
+          { query: q.trim(), searchedAt: new Date().toISOString() },
+          ...prev.slice(0, 11),
+        ]);
         scrollDown();
       } catch {
         setError("Network error. Please try again.");
@@ -134,6 +165,16 @@ function SearchApp() {
     "RLHF for language model alignment",
     "Long COVID mechanisms and treatments",
   ];
+
+  function timeAgo(dateStr: string) {
+    const diff = Date.now() - new Date(dateStr).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return "just now";
+    if (mins < 60) return `${mins}m ago`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `${hrs}h ago`;
+    return `${Math.floor(hrs / 24)}d ago`;
+  }
 
   const RightPanel = panelTurn ? (
     <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
@@ -165,20 +206,307 @@ function SearchApp() {
     </div>
   ) : undefined;
 
-  // Counter bar — show for free and student
-  const showCounter = session && (isFree || isStudent);
-  const counterMax = isFree ? 5 : 500;
-  const counterUsed = isFree ? searchesToday : searchesThisMonth;
-  const warnAt = isFree ? 4 : 450;
+  // ── LIMIT REACHED SCREEN ──────────────────────────────────
+  if (atLimit) {
+    const upgradeTarget = isFree
+      ? {
+          plan: "Student",
+          price: "₹199/mo",
+          searches: "500 searches/month",
+          icon: Sparkles,
+          color: "var(--brand)",
+        }
+      : {
+          plan: "Pro",
+          price: "₹499/mo",
+          searches: "Unlimited searches",
+          icon: Crown,
+          color: "#5c9ae0",
+        };
+    const UpgradeIcon = upgradeTarget.icon;
 
+    return (
+      <Shell>
+        <div style={{ flex: 1, overflowY: "auto" }}>
+          <div
+            style={{ maxWidth: 600, margin: "0 auto", padding: "40px 20px" }}
+          >
+            {/* Lock icon */}
+            <div style={{ textAlign: "center", marginBottom: 32 }}>
+              <div
+                style={{
+                  width: 64,
+                  height: 64,
+                  borderRadius: 16,
+                  background: "rgba(224,92,92,.1)",
+                  border: "1px solid rgba(224,92,92,.2)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  margin: "0 auto 16px",
+                }}
+              >
+                <Lock size={28} style={{ color: "var(--red)" }} />
+              </div>
+              <h2
+                style={{
+                  fontFamily: "var(--font-display)",
+                  fontSize: 22,
+                  fontWeight: 400,
+                  color: "var(--text-primary)",
+                  marginBottom: 8,
+                }}
+              >
+                {isFree ? "Daily limit reached" : "Monthly limit reached"}
+              </h2>
+              <p
+                style={{
+                  fontSize: 14,
+                  color: "var(--text-secondary)",
+                  lineHeight: 1.65,
+                }}
+              >
+                {isFree
+                  ? "You've used all 5 free searches today. Your limit resets at midnight."
+                  : "You've used all 500 searches this month. Upgrade to Pro for unlimited access."}
+              </p>
+            </div>
+
+            {/* Upgrade card */}
+            <div
+              style={{
+                background: "var(--surface)",
+                border: `1px solid ${upgradeTarget.color}40`,
+                borderRadius: 16,
+                padding: 24,
+                marginBottom: 16,
+                textAlign: "center",
+              }}
+            >
+              <div
+                style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 10,
+                  background: `${upgradeTarget.color}1a`,
+                  border: `1px solid ${upgradeTarget.color}30`,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  margin: "0 auto 12px",
+                }}
+              >
+                <UpgradeIcon size={18} style={{ color: upgradeTarget.color }} />
+              </div>
+              <p
+                style={{
+                  fontSize: 13,
+                  color: "var(--text-muted)",
+                  marginBottom: 4,
+                }}
+              >
+                Upgrade to
+              </p>
+              <p
+                style={{
+                  fontSize: 22,
+                  fontWeight: 700,
+                  color: upgradeTarget.color,
+                  marginBottom: 4,
+                }}
+              >
+                {upgradeTarget.plan}
+              </p>
+              <p
+                style={{
+                  fontSize: 13,
+                  color: "var(--text-secondary)",
+                  marginBottom: 20,
+                }}
+              >
+                {upgradeTarget.searches}
+              </p>
+              <Link
+                href="/pricing"
+                className="btn btn-brand"
+                style={{
+                  textDecoration: "none",
+                  padding: "12px 32px",
+                  fontSize: 14,
+                  fontWeight: 700,
+                  width: "100%",
+                  justifyContent: "center",
+                }}
+              >
+                Upgrade for {upgradeTarget.price} <ArrowRight size={14} />
+              </Link>
+            </div>
+
+            {/* Reset info for free users */}
+            {isFree && (
+              <div
+                style={{
+                  background: "var(--bg-overlay)",
+                  border: "1px solid var(--border)",
+                  borderRadius: 12,
+                  padding: "14px 16px",
+                  marginBottom: 20,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                }}
+              >
+                <Clock
+                  size={14}
+                  style={{ color: "var(--text-muted)", flexShrink: 0 }}
+                />
+                <p style={{ fontSize: 12.5, color: "var(--text-secondary)" }}>
+                  Free limit resets every day at midnight. Come back tomorrow
+                  for 5 more searches — or upgrade now for 500/month.
+                </p>
+              </div>
+            )}
+
+            {/* History section — always accessible even at limit */}
+            {recentHistory.length > 0 && (
+              <div>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    marginBottom: 12,
+                  }}
+                >
+                  <p
+                    style={{
+                      fontSize: 13,
+                      fontWeight: 600,
+                      color: "var(--text-primary)",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 7,
+                    }}
+                  >
+                    <History size={13} style={{ color: "var(--brand)" }} /> Your
+                    Recent Searches
+                  </p>
+                  <Link
+                    href="/dashboard"
+                    style={{
+                      fontSize: 11.5,
+                      color: "var(--brand)",
+                      textDecoration: "none",
+                    }}
+                  >
+                    View all →
+                  </Link>
+                </div>
+                <p
+                  style={{
+                    fontSize: 12,
+                    color: "var(--text-muted)",
+                    marginBottom: 12,
+                  }}
+                >
+                  You can still browse your previous searches below.
+                </p>
+                <div
+                  style={{ display: "flex", flexDirection: "column", gap: 6 }}
+                >
+                  {recentHistory.slice(0, 8).map((h, i) => (
+                    <Link
+                      key={i}
+                      href={`/search?q=${encodeURIComponent(h.query)}`}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 10,
+                        padding: "11px 14px",
+                        background: "var(--bg-raised)",
+                        border: "1px solid var(--border)",
+                        borderRadius: 10,
+                        textDecoration: "none",
+                        transition: "border-color .14s",
+                      }}
+                      onMouseEnter={(e) =>
+                        (e.currentTarget.style.borderColor =
+                          "var(--brand-border)")
+                      }
+                      onMouseLeave={(e) =>
+                        (e.currentTarget.style.borderColor = "var(--border)")
+                      }
+                    >
+                      <div
+                        style={{
+                          width: 28,
+                          height: 28,
+                          borderRadius: 7,
+                          background: "var(--surface)",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          flexShrink: 0,
+                        }}
+                      >
+                        <History
+                          size={11}
+                          style={{ color: "var(--text-muted)" }}
+                        />
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <p
+                          style={{
+                            fontSize: 13,
+                            color: "var(--text-primary)",
+                            fontWeight: 500,
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          {h.query}
+                        </p>
+                        <p
+                          style={{
+                            fontSize: 10.5,
+                            color: "var(--text-faint)",
+                            marginTop: 2,
+                          }}
+                        >
+                          {timeAgo(h.searchedAt)}
+                        </p>
+                      </div>
+                      <ArrowRight
+                        size={11}
+                        style={{ color: "var(--text-faint)", flexShrink: 0 }}
+                      />
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* No history yet */}
+            {recentHistory.length === 0 && (
+              <div style={{ textAlign: "center", padding: "20px 0" }}>
+                <p style={{ fontSize: 12.5, color: "var(--text-muted)" }}>
+                  No search history yet.
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      </Shell>
+    );
+  }
+
+  // ── NORMAL SEARCH SCREEN ─────────────────────────────────
   return (
     <Shell rightPanel={RightPanel}>
       {/* Counter bar */}
-      {showCounter && (
-        <div
-          className="search-counter-bar"
-          data-limit={atLimit ? "true" : undefined}
-        >
+      {session && !isPro && (
+        <div className="search-counter-bar">
           <div className="search-counter-inner">
             <div className="search-counter-track-wrap">
               <div className="search-counter-track">
@@ -188,42 +516,15 @@ function SearchApp() {
                     width: `${Math.min((counterUsed / counterMax) * 100, 100)}%`,
                   }}
                   data-warn={counterUsed >= warnAt ? "true" : undefined}
-                  data-limit={atLimit ? "true" : undefined}
                 />
               </div>
-              <span
-                className="search-counter-text"
-                data-limit={atLimit ? "true" : undefined}
-              >
-                {counterText}
-              </span>
+              <span className="search-counter-text">{counterText}</span>
             </div>
             {counterUsed >= warnAt && (
               <Link href="/pricing" className="search-counter-cta">
                 Upgrade <ArrowRight size={10} />
               </Link>
             )}
-          </div>
-        </div>
-      )}
-
-      {/* Limit reached banner */}
-      {atLimit && (
-        <div className="limit-banner">
-          <div className="limit-banner-inner">
-            <div>
-              <p className="limit-banner-title">
-                {isFree ? "Daily limit reached" : "Monthly limit reached"}
-              </p>
-              <p className="limit-banner-desc">
-                {isFree
-                  ? "Upgrade to Student plan for 500 searches/month."
-                  : "Upgrade to Pro for truly unlimited searches."}
-              </p>
-            </div>
-            <Link href="/pricing" className="btn btn-brand limit-banner-btn">
-              {isFree ? "Upgrade ₹199/mo →" : "Upgrade to Pro ₹499/mo →"}
-            </Link>
           </div>
         </div>
       )}
@@ -250,7 +551,93 @@ function SearchApp() {
                 {searchesThisMonth}/500 searches used this month
               </p>
             )}
-            <div className="suggestion-grid">
+            {session && isPro && (
+              <p className="welcome-quota" style={{ color: "var(--green)" }}>
+                Pro plan — unlimited searches ✨
+              </p>
+            )}
+
+            {/* Recent history chips when no searches yet */}
+            {recentHistory.length > 0 && turns.length === 0 && (
+              <div style={{ marginTop: 24, width: "100%", maxWidth: 520 }}>
+                <p
+                  style={{
+                    fontSize: 11,
+                    color: "var(--text-faint)",
+                    marginBottom: 8,
+                    textAlign: "center",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.07em",
+                    fontWeight: 600,
+                  }}
+                >
+                  Recent
+                </p>
+                <div
+                  style={{ display: "flex", flexDirection: "column", gap: 5 }}
+                >
+                  {recentHistory.slice(0, 4).map((h, i) => (
+                    <button
+                      key={i}
+                      onClick={() => void doSearch(h.query)}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 9,
+                        padding: "8px 12px",
+                        background: "var(--bg-raised)",
+                        border: "1px solid var(--border)",
+                        borderRadius: 9,
+                        cursor: "pointer",
+                        textAlign: "left",
+                        transition: "all .13s",
+                      }}
+                      onMouseEnter={(e) => {
+                        (
+                          e.currentTarget as HTMLButtonElement
+                        ).style.borderColor = "var(--brand-border)";
+                      }}
+                      onMouseLeave={(e) => {
+                        (
+                          e.currentTarget as HTMLButtonElement
+                        ).style.borderColor = "var(--border)";
+                      }}
+                    >
+                      <History
+                        size={10}
+                        style={{ color: "var(--text-faint)", flexShrink: 0 }}
+                      />
+                      <span
+                        style={{
+                          fontSize: 12.5,
+                          color: "var(--text-secondary)",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                          flex: 1,
+                        }}
+                      >
+                        {h.query}
+                      </span>
+                      <span
+                        style={{
+                          fontSize: 10,
+                          color: "var(--text-faint)",
+                          flexShrink: 0,
+                        }}
+                      >
+                        {timeAgo(h.searchedAt)}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div
+              className="suggestion-grid"
+              style={{ marginTop: recentHistory.length > 0 ? 16 : 24 }}
+            >
               {SUGGESTIONS.map((s) => (
                 <button
                   key={s}
@@ -388,6 +775,7 @@ function SearchApp() {
                 </div>
               </div>
             ))}
+
             {loading && (
               <>
                 <div className="msg-row user">
@@ -407,6 +795,7 @@ function SearchApp() {
                 </div>
               </>
             )}
+
             {error && !loading && (
               <div className="error-card">
                 <AlertCircle
@@ -461,29 +850,22 @@ function SearchApp() {
                 void doSearch(input);
               }
             }}
-            placeholder={
-              atLimit
-                ? "Limit reached — upgrade for more searches…"
-                : "Ask a research question…"
-            }
+            placeholder="Ask a research question…"
             className="input-textarea"
             rows={1}
-            disabled={loading || atLimit}
+            disabled={loading}
           />
           <button
             onClick={() => void doSearch(input)}
-            disabled={loading || !input.trim() || atLimit}
-            className={`send-btn${input.trim() && !loading && !atLimit ? " ready" : " idle"}`}
+            disabled={loading || !input.trim()}
+            className={`send-btn${input.trim() && !loading ? " ready" : " idle"}`}
           >
             {loading ? (
               <span className="spinner" />
             ) : (
               <ArrowUp
                 size={14}
-                style={{
-                  color:
-                    input.trim() && !atLimit ? "#000" : "var(--text-faint)",
-                }}
+                style={{ color: input.trim() ? "#000" : "var(--text-faint)" }}
               />
             )}
           </button>

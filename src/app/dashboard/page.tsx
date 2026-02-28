@@ -19,6 +19,7 @@ import {
   Clock,
   ArrowRight,
   TrendingUp,
+  Lock,
 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
@@ -34,9 +35,11 @@ function DashContent() {
   const { data: session, status, update } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
+
   const [papers, setPapers] = useState<SavedPaper[]>([]);
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [searchesToday, setSearchesToday] = useState(0);
+  const [searchesThisMonth, setSearchesThisMonth] = useState(0);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"library" | "history">("library");
   const [cancelling, setCancelling] = useState(false);
@@ -49,7 +52,7 @@ function DashContent() {
   useEffect(() => {
     if (searchParams.get("upgraded") === "1") {
       void update();
-      toast.success("Plan upgraded! Welcome to ScholarAI.", {
+      toast.success("🎉 Plan upgraded! Welcome to ScholarAI.", {
         id: "upgraded",
         duration: 5000,
       });
@@ -65,7 +68,7 @@ function DashContent() {
       fetch("/api/user/history").then((r) => r.json()),
     ])
       .then(
-        ([papersData, historyData]: [
+        ([papersData, histData]: [
           { papers: SavedPaper[] },
           {
             history: HistoryItem[];
@@ -74,9 +77,9 @@ function DashContent() {
           },
         ]) => {
           setPapers(papersData.papers ?? []);
-          setHistory(historyData.history ?? []);
-          setSearchesToday(historyData.searchesToday ?? 0);
-          setSearchesThisMonth(historyData.searchesThisMonth ?? 0);
+          setHistory(histData.history ?? []);
+          setSearchesToday(histData.searchesToday ?? 0);
+          setSearchesThisMonth(histData.searchesThisMonth ?? 0);
         },
       )
       .catch(() => toast.error("Failed to load data"))
@@ -135,10 +138,17 @@ function DashContent() {
   }
 
   const plan = session?.user?.plan ?? "free";
-  const isPaid = plan !== "free";
   const isFree = plan === "free";
   const isStudent = plan === "student";
-  const [searchesThisMonth, setSearchesThisMonth] = useState(0);
+  const isPro = plan === "pro";
+  const isPaid = !isFree;
+
+  // Is user at their search limit?
+  const atLimit = isFree
+    ? searchesToday >= 5
+    : isStudent
+      ? searchesThisMonth >= 500
+      : false;
 
   const planMeta = {
     free: {
@@ -179,17 +189,23 @@ function DashContent() {
     if (mins < 60) return `${mins}m ago`;
     const hrs = Math.floor(mins / 60);
     if (hrs < 24) return `${hrs}h ago`;
-    const days = Math.floor(hrs / 24);
-    return `${days}d ago`;
+    return `${Math.floor(hrs / 24)}d ago`;
   }
+
+  const counterUsed = isFree
+    ? searchesToday
+    : isStudent
+      ? searchesThisMonth
+      : 0;
+  const counterMax = isFree ? 5 : isStudent ? 500 : 0;
 
   return (
     <Shell>
       <div style={{ flex: 1, overflowY: "auto" }}>
         <div
-          style={{ maxWidth: 820, margin: "0 auto", padding: "28px 20px 48px" }}
+          style={{ maxWidth: 820, margin: "0 auto", padding: "28px 20px 60px" }}
         >
-          {/* Header */}
+          {/* ── Header ── */}
           <div
             style={{
               display: "flex",
@@ -224,7 +240,7 @@ function DashContent() {
             </h1>
           </div>
 
-          {/* Profile card */}
+          {/* ── Profile card ── */}
           <div
             className="card"
             style={{
@@ -283,8 +299,83 @@ function DashContent() {
             </span>
           </div>
 
-          {/* Free plan upgrade banner */}
-          {isFree && (
+          {/* ── LIMIT REACHED BANNER (most prominent) ── */}
+          {atLimit && (
+            <div
+              style={{
+                background: "rgba(224,92,92,.07)",
+                border: "1px solid rgba(224,92,92,.22)",
+                borderRadius: 14,
+                padding: "18px 20px",
+                marginBottom: 14,
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "flex-start",
+                  gap: 12,
+                  flexWrap: "wrap",
+                }}
+              >
+                <div
+                  style={{
+                    width: 38,
+                    height: 38,
+                    borderRadius: 10,
+                    background: "rgba(224,92,92,.12)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    flexShrink: 0,
+                  }}
+                >
+                  <Lock size={17} style={{ color: "var(--red)" }} />
+                </div>
+                <div style={{ flex: 1, minWidth: 200 }}>
+                  <p
+                    style={{
+                      fontSize: 13.5,
+                      fontWeight: 700,
+                      color: "var(--red)",
+                      marginBottom: 4,
+                    }}
+                  >
+                    {isFree
+                      ? "Daily limit reached — 5/5 searches used"
+                      : "Monthly limit reached — 500/500 searches used"}
+                  </p>
+                  <p
+                    style={{
+                      fontSize: 12.5,
+                      color: "var(--text-secondary)",
+                      lineHeight: 1.6,
+                    }}
+                  >
+                    {isFree
+                      ? "You cannot make new AI searches until midnight. You can still view your search history below."
+                      : "You cannot make new AI searches until next month. Upgrade to Pro for unlimited searches."}
+                  </p>
+                </div>
+                <Link
+                  href="/pricing"
+                  className="btn btn-brand"
+                  style={{
+                    textDecoration: "none",
+                    padding: "9px 20px",
+                    fontSize: 13,
+                    flexShrink: 0,
+                  }}
+                >
+                  {isFree ? "Upgrade ₹199/mo" : "Upgrade to Pro ₹499/mo"}{" "}
+                  <ArrowRight size={12} />
+                </Link>
+              </div>
+            </div>
+          )}
+
+          {/* ── Free plan upgrade banner (not at limit) ── */}
+          {isFree && !atLimit && (
             <div
               style={{
                 display: "flex",
@@ -311,8 +402,8 @@ function DashContent() {
                   You&apos;re on the Free plan
                 </p>
                 <p style={{ fontSize: 12, color: "var(--text-secondary)" }}>
-                  {searchesToday}/5 searches used today · Upgrade for unlimited
-                  searches, literature reviews & PDF chat
+                  {searchesToday}/5 searches used today · Upgrade for 500
+                  searches/month
                 </p>
               </div>
               <Link
@@ -330,8 +421,8 @@ function DashContent() {
             </div>
           )}
 
-          {/* Paid plan status */}
-          {isPaid && (
+          {/* ── Paid plan active banner ── */}
+          {isPaid && !atLimit && (
             <div
               style={{
                 background: "rgba(93,184,122,.06)",
@@ -377,8 +468,10 @@ function DashContent() {
                         lineHeight: 1.5,
                       }}
                     >
-                      Renews automatically each month. Cancel anytime — you keep
-                      access until end of billing period.
+                      {isPro
+                        ? "Unlimited searches · "
+                        : `${searchesThisMonth}/500 searches this month · `}
+                      Renews automatically each month.
                     </p>
                   </div>
                 </div>
@@ -415,7 +508,7 @@ function DashContent() {
                       </>
                     ) : (
                       <>
-                        <XCircle size={12} /> Cancel Plan
+                        <XCircle size={12} /> Cancel
                       </>
                     )}
                   </button>
@@ -424,7 +517,7 @@ function DashContent() {
             </div>
           )}
 
-          {/* Cancel confirm */}
+          {/* Cancel confirm modal */}
           {showConfirm && (
             <div
               style={{
@@ -470,9 +563,8 @@ function DashContent() {
                         lineHeight: 1.6,
                       }}
                     >
-                      You&apos;ll keep full access until the end of your current
-                      billing period. After that, your account reverts to Free
-                      (5 searches/day).
+                      You&apos;ll keep full access until end of billing period.
+                      After that, your account reverts to Free (5 searches/day).
                     </p>
                   </div>
                 </div>
@@ -508,33 +600,25 @@ function DashContent() {
             </div>
           )}
 
-          {/* Stats */}
+          {/* ── Stats ── */}
           <div
             style={{
               display: "grid",
               gridTemplateColumns: "repeat(3,1fr)",
               gap: 10,
-              marginBottom: 22,
+              marginBottom: 16,
             }}
           >
             {[
               { v: papers.length, l: "Saved Papers", c: planMeta.color },
               {
-                v: isFree
-                  ? `${searchesToday}/5`
-                  : isStudent
-                    ? `${searchesThisMonth}/500`
-                    : "∞",
+                v: isPro ? "∞" : `${counterUsed}/${counterMax}`,
                 l: isFree
                   ? "Today's Searches"
                   : isStudent
                     ? "Monthly Searches"
                     : "Searches",
-                c:
-                  (isFree && searchesToday >= 5) ||
-                  (isStudent && searchesThisMonth >= 500)
-                    ? "var(--red)"
-                    : "var(--green)",
+                c: atLimit ? "var(--red)" : "var(--green)",
               },
               { v: history.length, l: "Total Searches", c: "#5c9ae0" },
             ].map(({ v, l, c }) => (
@@ -555,11 +639,11 @@ function DashContent() {
             ))}
           </div>
 
-          {/* Free search progress bar */}
-          {isFree && (
+          {/* ── Usage progress bar ── */}
+          {!isPro && (
             <div
               className="card"
-              style={{ padding: "14px 18px", marginBottom: 22 }}
+              style={{ padding: "14px 18px", marginBottom: 20 }}
             >
               <div
                 style={{
@@ -580,21 +664,20 @@ function DashContent() {
                   }}
                 >
                   <TrendingUp size={13} style={{ color: "var(--brand)" }} />{" "}
-                  Daily Search Usage
+                  {isFree ? "Daily" : "Monthly"} Search Usage
                 </span>
                 <span
                   style={{
                     fontSize: 12,
                     fontWeight: 700,
-                    color:
-                      searchesToday >= 5
-                        ? "var(--red)"
-                        : searchesToday >= 4
-                          ? "var(--brand)"
-                          : "var(--green)",
+                    color: atLimit
+                      ? "var(--red)"
+                      : counterUsed >= counterMax * 0.8
+                        ? "var(--brand)"
+                        : "var(--green)",
                   }}
                 >
-                  {searchesToday} / 5 used
+                  {counterUsed} / {counterMax} used
                 </span>
               </div>
               <div
@@ -609,33 +692,47 @@ function DashContent() {
                 <div
                   style={{
                     height: "100%",
-                    width: `${Math.min((searchesToday / 5) * 100, 100)}%`,
-                    background:
-                      searchesToday >= 5
-                        ? "var(--red)"
-                        : searchesToday >= 4
-                          ? "var(--brand)"
-                          : "var(--green)",
+                    width: `${Math.min((counterUsed / counterMax) * 100, 100)}%`,
+                    background: atLimit
+                      ? "var(--red)"
+                      : counterUsed >= counterMax * 0.8
+                        ? "var(--brand)"
+                        : "var(--green)",
                     borderRadius: 99,
                     transition: "width .4s",
                   }}
                 />
               </div>
               <p style={{ fontSize: 11.5, color: "var(--text-faint)" }}>
-                {searchesToday >= 5
-                  ? "Daily limit reached. Resets at midnight. "
-                  : `${5 - searchesToday} searches remaining today. Resets daily at midnight. `}
-                <Link
-                  href="/pricing"
-                  style={{ color: "var(--brand)", textDecoration: "none" }}
-                >
-                  Upgrade for unlimited →
-                </Link>
+                {atLimit ? (
+                  <>
+                    {isFree ? "Resets at midnight." : "Resets next month."}{" "}
+                    <Link
+                      href="/pricing"
+                      style={{ color: "var(--brand)", textDecoration: "none" }}
+                    >
+                      Upgrade now →
+                    </Link>
+                  </>
+                ) : (
+                  <>
+                    {counterMax - counterUsed} remaining.{" "}
+                    <Link
+                      href="/pricing"
+                      style={{
+                        color: "var(--text-faint)",
+                        textDecoration: "none",
+                      }}
+                    >
+                      Upgrade for {isFree ? "500/month" : "unlimited"} →
+                    </Link>
+                  </>
+                )}
               </p>
             </div>
           )}
 
-          {/* Tabs */}
+          {/* ── Tabs ── */}
           <div
             style={{
               display: "flex",
@@ -653,7 +750,7 @@ function DashContent() {
                 onClick={() => setActiveTab(tab)}
                 style={{
                   flex: 1,
-                  padding: "7px 12px",
+                  padding: "8px 12px",
                   borderRadius: 7,
                   border: "none",
                   cursor: "pointer",
@@ -698,7 +795,7 @@ function DashContent() {
             ))}
           </div>
 
-          {/* Library tab */}
+          {/* ── Saved Papers tab ── */}
           {activeTab === "library" && (
             <>
               <div
@@ -719,19 +816,20 @@ function DashContent() {
                 >
                   Saved Papers
                 </h2>
-                <Link
-                  href="/search"
-                  className="btn btn-outline"
-                  style={{
-                    padding: "5px 11px",
-                    fontSize: 12,
-                    textDecoration: "none",
-                  }}
-                >
-                  <Search size={11} /> New Search
-                </Link>
+                {!atLimit && (
+                  <Link
+                    href="/search"
+                    className="btn btn-outline"
+                    style={{
+                      padding: "5px 11px",
+                      fontSize: 12,
+                      textDecoration: "none",
+                    }}
+                  >
+                    <Search size={11} /> New Search
+                  </Link>
+                )}
               </div>
-
               {loading ? (
                 <div
                   style={{ display: "flex", flexDirection: "column", gap: 7 }}
@@ -781,13 +879,15 @@ function DashContent() {
                   >
                     Search papers and click the bookmark icon to save them here
                   </p>
-                  <Link
-                    href="/search"
-                    className="btn btn-brand"
-                    style={{ textDecoration: "none", padding: "8px 18px" }}
-                  >
-                    <Search size={12} /> Start Searching
-                  </Link>
+                  {!atLimit && (
+                    <Link
+                      href="/search"
+                      className="btn btn-brand"
+                      style={{ textDecoration: "none", padding: "8px 18px" }}
+                    >
+                      <Search size={12} /> Start Searching
+                    </Link>
+                  )}
                 </div>
               ) : (
                 <div
@@ -867,7 +967,7 @@ function DashContent() {
             </>
           )}
 
-          {/* History tab */}
+          {/* ── Search History tab ── */}
           {activeTab === "history" && (
             <>
               <div
@@ -875,7 +975,7 @@ function DashContent() {
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "space-between",
-                  marginBottom: 12,
+                  marginBottom: 8,
                 }}
               >
                 <h2
@@ -889,8 +989,61 @@ function DashContent() {
                   Search History
                 </h2>
                 <span style={{ fontSize: 11, color: "var(--text-faint)" }}>
-                  Last 50 searches saved
+                  Last 50 searches
                 </span>
+              </div>
+
+              {/* Info bar — different message based on limit */}
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  padding: "10px 14px",
+                  background: atLimit
+                    ? "rgba(224,92,92,.06)"
+                    : "var(--bg-overlay)",
+                  border: `1px solid ${atLimit ? "rgba(224,92,92,.15)" : "var(--border)"}`,
+                  borderRadius: 9,
+                  marginBottom: 14,
+                }}
+              >
+                {atLimit ? (
+                  <Lock
+                    size={12}
+                    style={{ color: "var(--red)", flexShrink: 0 }}
+                  />
+                ) : (
+                  <History
+                    size={12}
+                    style={{ color: "var(--text-muted)", flexShrink: 0 }}
+                  />
+                )}
+                <p
+                  style={{
+                    fontSize: 12,
+                    color: atLimit ? "var(--red)" : "var(--text-muted)",
+                  }}
+                >
+                  {atLimit
+                    ? "Limit reached — you can view history but cannot run new searches. Upgrade to continue."
+                    : 'Click "Search again" to re-run any previous search.'}
+                </p>
+                {atLimit && (
+                  <Link
+                    href="/pricing"
+                    style={{
+                      fontSize: 11.5,
+                      color: "var(--brand)",
+                      fontWeight: 700,
+                      textDecoration: "none",
+                      flexShrink: 0,
+                      marginLeft: "auto",
+                    }}
+                  >
+                    Upgrade →
+                  </Link>
+                )}
               </div>
 
               {loading ? (
@@ -901,7 +1054,7 @@ function DashContent() {
                     <div
                       key={i}
                       className="shimmer-line"
-                      style={{ height: 52, borderRadius: 10 }}
+                      style={{ height: 56, borderRadius: 10 }}
                     />
                   ))}
                 </div>
@@ -943,13 +1096,6 @@ function DashContent() {
                     Your searches will appear here so you can revisit them
                     anytime
                   </p>
-                  <Link
-                    href="/search"
-                    className="btn btn-brand"
-                    style={{ textDecoration: "none", padding: "8px 18px" }}
-                  >
-                    <Search size={12} /> Start Searching
-                  </Link>
                 </div>
               ) : (
                 <div
@@ -960,28 +1106,35 @@ function DashContent() {
                       key={i}
                       className="card"
                       style={{
-                        padding: "11px 14px",
+                        padding: "12px 14px",
                         display: "flex",
                         alignItems: "center",
                         gap: 12,
+                        opacity: atLimit ? 0.85 : 1,
                       }}
                     >
                       <div
                         style={{
-                          width: 28,
-                          height: 28,
-                          borderRadius: 7,
-                          background: "var(--surface-2)",
+                          width: 30,
+                          height: 30,
+                          borderRadius: 8,
+                          background: atLimit
+                            ? "rgba(224,92,92,.08)"
+                            : "var(--surface-2)",
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "center",
                           flexShrink: 0,
                         }}
                       >
-                        <Search
-                          size={11}
-                          style={{ color: "var(--text-muted)" }}
-                        />
+                        {atLimit ? (
+                          <Lock size={11} style={{ color: "var(--red)" }} />
+                        ) : (
+                          <Search
+                            size={11}
+                            style={{ color: "var(--text-muted)" }}
+                          />
+                        )}
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <p
@@ -1007,39 +1160,63 @@ function DashContent() {
                           <Clock size={9} /> {timeAgo(h.searchedAt)}
                         </p>
                       </div>
-                      <Link
-                        href={`/search?q=${encodeURIComponent(h.query)}`}
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 4,
-                          padding: "5px 10px",
-                          borderRadius: 7,
-                          background: "var(--surface)",
-                          border: "1px solid var(--border-mid)",
-                          color: "var(--text-secondary)",
-                          fontSize: 11.5,
-                          textDecoration: "none",
-                          flexShrink: 0,
-                          fontWeight: 500,
-                        }}
-                        onMouseEnter={(e) => {
-                          (
-                            e.currentTarget as HTMLAnchorElement
-                          ).style.borderColor = "var(--brand-border)";
-                          (e.currentTarget as HTMLAnchorElement).style.color =
-                            "var(--brand)";
-                        }}
-                        onMouseLeave={(e) => {
-                          (
-                            e.currentTarget as HTMLAnchorElement
-                          ).style.borderColor = "var(--border-mid)";
-                          (e.currentTarget as HTMLAnchorElement).style.color =
-                            "var(--text-secondary)";
-                        }}
-                      >
-                        Research again <ArrowRight size={10} />
-                      </Link>
+
+                      {/* Show upgrade button if at limit, else show search again */}
+                      {atLimit ? (
+                        <Link
+                          href="/pricing"
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 5,
+                            padding: "5px 11px",
+                            borderRadius: 7,
+                            background: "var(--brand)",
+                            color: "#000",
+                            fontSize: 11.5,
+                            textDecoration: "none",
+                            flexShrink: 0,
+                            fontWeight: 700,
+                          }}
+                        >
+                          <Sparkles size={10} /> Upgrade
+                        </Link>
+                      ) : (
+                        <Link
+                          href={`/search?q=${encodeURIComponent(h.query)}`}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 5,
+                            padding: "5px 11px",
+                            borderRadius: 7,
+                            background: "var(--surface)",
+                            border: "1px solid var(--border-mid)",
+                            color: "var(--text-secondary)",
+                            fontSize: 11.5,
+                            textDecoration: "none",
+                            flexShrink: 0,
+                            fontWeight: 500,
+                            transition: "all .13s",
+                          }}
+                          onMouseEnter={(e) => {
+                            (
+                              e.currentTarget as HTMLAnchorElement
+                            ).style.borderColor = "var(--brand-border)";
+                            (e.currentTarget as HTMLAnchorElement).style.color =
+                              "var(--brand)";
+                          }}
+                          onMouseLeave={(e) => {
+                            (
+                              e.currentTarget as HTMLAnchorElement
+                            ).style.borderColor = "var(--border-mid)";
+                            (e.currentTarget as HTMLAnchorElement).style.color =
+                              "var(--text-secondary)";
+                          }}
+                        >
+                          Search again <ArrowRight size={10} />
+                        </Link>
+                      )}
                     </div>
                   ))}
                 </div>
