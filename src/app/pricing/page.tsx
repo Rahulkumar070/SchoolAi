@@ -77,7 +77,7 @@ const PLANS = [
     iconC: "var(--brand)",
     priceC: "var(--brand)",
     features: [
-      "Unlimited AI searches",
+      "500 searches / month",
       "Full literature reviews",
       "All 6 citation formats",
       "20 PDF uploads / month",
@@ -101,7 +101,7 @@ const PLANS = [
     iconC: "#5c9ae0",
     priceC: "#5c9ae0",
     features: [
-      "Everything in Student",
+      "Unlimited searches",
       "Unlimited PDF uploads",
       "Research gap analysis",
       "API access (100 req/day)",
