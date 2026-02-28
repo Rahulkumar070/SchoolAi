@@ -19,7 +19,7 @@ export async function POST(req: NextRequest) {
     const q = query.trim();
     const session = await getServerSession(authOptions);
 
-    // ── STEP 1: Check global cache first ──
+    // ── STEP 1: Check global cache ──
     const cached = await getCachedResult(q);
 
     if (session?.user?.email) {
@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
 
       const plan = u.plan ?? "free";
 
-      // ── STEP 2: Enforce limits ──
+      // ── STEP 2: Check limits ──
       if (plan === "free") {
         if (now.toDateString() !== new Date(u.searchDateReset).toDateString()) {
           u.searchesToday = 0;
@@ -57,11 +57,11 @@ export async function POST(req: NextRequest) {
           );
         }
       } else if (plan === "student") {
-        const resetDate = new Date(u.searchMonthReset ?? now);
-        const isNewMonth =
-          now.getMonth() !== resetDate.getMonth() ||
-          now.getFullYear() !== resetDate.getFullYear();
-        if (isNewMonth) {
+        const rd = new Date(u.searchMonthReset ?? now);
+        if (
+          now.getMonth() !== rd.getMonth() ||
+          now.getFullYear() !== rd.getFullYear()
+        ) {
           u.searchesThisMonth = 0;
           u.searchMonthReset = now;
         }
@@ -75,7 +75,7 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      // ── STEP 3: Get result (from cache or AI) ──
+      // ── STEP 3: Get answer (cache or AI) ──
       let answer: string;
       let papers: unknown[];
 
@@ -94,40 +94,48 @@ export async function POST(req: NextRequest) {
         void saveToCache(q, answer, papers);
       }
 
-      // ── STEP 4: Update counter + save full answer to history ──
-      const updateFields: Record<string, unknown> = {};
+      // ── STEP 4: Update counter ──
+      const counterUpdate: Record<string, unknown> = {};
       if (plan === "free") {
-        updateFields.searchesToday = u.searchesToday + 1;
-        updateFields.searchDateReset = u.searchDateReset;
+        counterUpdate.searchesToday = u.searchesToday + 1;
+        counterUpdate.searchDateReset = u.searchDateReset;
       } else if (plan === "student") {
-        updateFields.searchesThisMonth = u.searchesThisMonth + 1;
-        updateFields.searchMonthReset = u.searchMonthReset;
+        counterUpdate.searchesThisMonth = u.searchesThisMonth + 1;
+        counterUpdate.searchMonthReset = u.searchMonthReset;
       }
 
-      // Only save real research queries to history (skip UI navigation queries)
-      const isRealQuery =
-        q.length > 10 &&
-        !q
-          .toLowerCase()
-          .match(
-            /^(give me|download|pdf|get me|can you|please|help me get|i want to download)/,
-          );
+      // ── STEP 5: Check if this exact query already exists in history ──
+      // If yes → UPDATE that entry with latest answer (don't create duplicate)
+      // If no  → ADD new entry at top
+      const existingIdx = (u.searchHistory ?? []).findIndex(
+        (h: { query: string }) => h.query.toLowerCase() === q.toLowerCase(),
+      );
 
-      // Save full answer + papers to history so user can read later for free
-      await UserModel.findByIdAndUpdate(u._id, {
-        $set: updateFields,
-        ...(isRealQuery
-          ? {
-              $push: {
-                searchHistory: {
-                  $each: [{ query: q, answer, papers, searchedAt: now }],
-                  $position: 0,
-                  $slice: 50,
-                },
-              },
-            }
-          : {}),
-      });
+      if (existingIdx !== -1) {
+        // Update existing history entry with fresh answer + timestamp
+        // Using positional operator to update specific array element
+        const historyKey = `searchHistory.${existingIdx}`;
+        await UserModel.findByIdAndUpdate(u._id, {
+          $set: {
+            ...counterUpdate,
+            [`${historyKey}.answer`]: answer,
+            [`${historyKey}.papers`]: papers,
+            [`${historyKey}.searchedAt`]: now,
+          },
+        });
+      } else {
+        // New query — add to front, keep max 50
+        await UserModel.findByIdAndUpdate(u._id, {
+          $set: counterUpdate,
+          $push: {
+            searchHistory: {
+              $each: [{ query: q, answer, papers, searchedAt: now }],
+              $position: 0,
+              $slice: 50,
+            },
+          },
+        });
+      }
 
       return NextResponse.json({
         papers,
@@ -145,15 +153,14 @@ export async function POST(req: NextRequest) {
         query: q,
         fromCache: true,
       });
-
-    const fetchedPapers = await searchAll(q);
-    if (!fetchedPapers.length)
+    const fp = await searchAll(q);
+    if (!fp.length)
       return NextResponse.json({ error: "No papers found." }, { status: 404 });
-    const answer = await generateAnswer(q, fetchedPapers);
-    void saveToCache(q, answer, fetchedPapers);
+    const ans = await generateAnswer(q, fp);
+    void saveToCache(q, ans, fp);
     return NextResponse.json({
-      papers: fetchedPapers,
-      answer,
+      papers: fp,
+      answer: ans,
       query: q,
       fromCache: false,
     });

@@ -160,10 +160,25 @@ function SearchApp() {
         setPanelTurn(turn);
         if (isFree) setSearchesToday((c) => Math.min(c + 1, 5));
         if (isStudent) setSearchesThisMonth((c) => Math.min(c + 1, 500));
-        setRecentHistory((prev) => [
-          { query: q.trim(), searchedAt: new Date().toISOString() },
-          ...prev.slice(0, 11),
-        ]);
+        // Update or add to local history — no duplicates
+        const newItem = {
+          query: q.trim(),
+          answer: d.answer ?? "",
+          papers: d.papers ?? [],
+          searchedAt: new Date().toISOString(),
+        };
+        setRecentHistory((prev) => {
+          const idx = prev.findIndex(
+            (h) => h.query.toLowerCase() === q.trim().toLowerCase(),
+          );
+          if (idx !== -1) {
+            // Replace existing entry with updated one
+            const updated = [...prev];
+            updated[idx] = newItem;
+            return updated;
+          }
+          return [newItem, ...prev.slice(0, 49)];
+        });
         scrollDown();
       } catch {
         setError("Network error. Please try again.");
@@ -936,6 +951,7 @@ function SearchApp() {
                         gap: 8,
                         marginTop: 10,
                         flexWrap: "wrap",
+                        alignItems: "center",
                       }}
                     >
                       {turn.papers.length > 0 && (
@@ -966,6 +982,20 @@ function SearchApp() {
                       >
                         <FileDown size={11} /> Download PDF
                       </button>
+                      {session && (
+                        <span
+                          style={{
+                            fontSize: 10.5,
+                            color: "var(--green)",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 4,
+                            marginLeft: 4,
+                          }}
+                        >
+                          ✓ Saved to history
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
