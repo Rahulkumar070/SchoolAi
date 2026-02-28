@@ -10,6 +10,7 @@ export async function GET() {
     if (!session?.user?.email)
       return NextResponse.json({
         history: [],
+        reviewHistory: [],
         searchesToday: 0,
         searchesThisMonth: 0,
       });
@@ -25,6 +26,12 @@ export async function GET() {
         papers?: unknown[];
         searchedAt: Date;
       }[];
+      reviewHistory?: {
+        topic: string;
+        review?: string;
+        papers?: unknown[];
+        reviewedAt: Date;
+      }[];
       searchesToday?: number;
       searchDateReset?: Date;
       searchesThisMonth?: number;
@@ -34,6 +41,7 @@ export async function GET() {
     if (!u)
       return NextResponse.json({
         history: [],
+        reviewHistory: [],
         searchesToday: 0,
         searchesThisMonth: 0,
       });
@@ -47,16 +55,19 @@ export async function GET() {
       now.getMonth() !== rd.getMonth() ||
       now.getFullYear() !== rd.getFullYear();
 
-    // Return history with answer and papers included
-    const history = (u.searchHistory ?? []).map((h) => ({
-      query: h.query,
-      answer: h.answer ?? "",
-      papers: h.papers ?? [],
-      searchedAt: h.searchedAt,
-    }));
-
     return NextResponse.json({
-      history,
+      history: (u.searchHistory ?? []).map((h) => ({
+        query: h.query,
+        answer: h.answer ?? "",
+        papers: h.papers ?? [],
+        searchedAt: h.searchedAt,
+      })),
+      reviewHistory: (u.reviewHistory ?? []).map((r) => ({
+        topic: r.topic,
+        review: r.review ?? "",
+        papers: r.papers ?? [],
+        reviewedAt: r.reviewedAt,
+      })),
       searchesToday: isNewDay ? 0 : (u.searchesToday ?? 0),
       searchesThisMonth: isNewMonth ? 0 : (u.searchesThisMonth ?? 0),
       plan: u.plan ?? "free",
@@ -64,6 +75,7 @@ export async function GET() {
   } catch {
     return NextResponse.json({
       history: [],
+      reviewHistory: [],
       searchesToday: 0,
       searchesThisMonth: 0,
     });

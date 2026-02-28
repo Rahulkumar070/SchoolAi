@@ -15,13 +15,23 @@ const SavedPaper = new Schema(
   { _id: false },
 );
 
-// Search history now stores the full answer + papers
 const SearchHistoryItem = new Schema(
   {
     query: { type: String, required: true },
-    answer: { type: String, default: "" }, // full AI answer
-    papers: { type: Schema.Types.Mixed, default: [] }, // paper results
+    answer: { type: String, default: "" },
+    papers: { type: Schema.Types.Mixed, default: [] },
     searchedAt: { type: Date, default: Date.now },
+  },
+  { _id: false },
+);
+
+// Literature review history
+const ReviewHistoryItem = new Schema(
+  {
+    topic: { type: String, required: true },
+    review: { type: String, default: "" },
+    papers: { type: Schema.Types.Mixed, default: [] },
+    reviewedAt: { type: Date, default: Date.now },
   },
   { _id: false },
 );
@@ -46,6 +56,7 @@ const User = new Schema(
     searchMonthReset: { type: Date, default: Date.now },
     savedPapers: { type: [SavedPaper], default: [] },
     searchHistory: { type: [SearchHistoryItem], default: [] },
+    reviewHistory: { type: [ReviewHistoryItem], default: [] },
   },
   { timestamps: true },
 );
