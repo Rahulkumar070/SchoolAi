@@ -104,16 +104,29 @@ export async function POST(req: NextRequest) {
         updateFields.searchMonthReset = u.searchMonthReset;
       }
 
+      // Only save real research queries to history (skip UI navigation queries)
+      const isRealQuery =
+        q.length > 10 &&
+        !q
+          .toLowerCase()
+          .match(
+            /^(give me|download|pdf|get me|can you|please|help me get|i want to download)/,
+          );
+
       // Save full answer + papers to history so user can read later for free
       await UserModel.findByIdAndUpdate(u._id, {
         $set: updateFields,
-        $push: {
-          searchHistory: {
-            $each: [{ query: q, answer, papers, searchedAt: now }],
-            $position: 0,
-            $slice: 50,
-          },
-        },
+        ...(isRealQuery
+          ? {
+              $push: {
+                searchHistory: {
+                  $each: [{ query: q, answer, papers, searchedAt: now }],
+                  $position: 0,
+                  $slice: 50,
+                },
+              },
+            }
+          : {}),
       });
 
       return NextResponse.json({
