@@ -19,6 +19,8 @@ import {
   Sparkles,
   Crown,
   FileDown,
+  ChevronLeft,
+  ExternalLink,
 } from "lucide-react";
 import { Paper } from "@/types";
 import toast from "react-hot-toast";
@@ -53,6 +55,7 @@ function SearchApp() {
   const [recentHistory, setRecentHistory] = useState<HistItem[]>([]);
   const [panelTurn, setPanelTurn] = useState<Turn | null>(null);
   const [panelTab, setPanelTab] = useState<"sources" | "cite">("sources");
+  const [viewingHistory, setViewingHistory] = useState<HistItem | null>(null);
 
   const taRef = useRef<HTMLTextAreaElement>(null);
   const endRef = useRef<HTMLDivElement>(null);
@@ -101,6 +104,7 @@ function SearchApp() {
       setError("");
       setLimitError(false);
       setPanelTurn(null);
+      setViewingHistory(null);
       if (taRef.current) taRef.current.style.height = "auto";
     }
   }, [newKey]);
@@ -177,6 +181,17 @@ function SearchApp() {
     if (initQ && autoRun) void doSearch(initQ);
   }, []); // eslint-disable-line
 
+  // Filter out non-research queries from the recent display
+  const realHistory = recentHistory.filter(
+    (h) =>
+      h.query.length > 10 &&
+      !h.query
+        .toLowerCase()
+        .match(
+          /^(give me|download|pdf|get me|can you|please|help me get|i want to download)/,
+        ),
+  );
+
   function timeAgo(d: string) {
     const s = Math.floor((Date.now() - new Date(d).getTime()) / 1000);
     if (s < 60) return "just now";
@@ -221,6 +236,416 @@ function SearchApp() {
       </div>
     </div>
   ) : undefined;
+
+  // ── HISTORY ANSWER VIEWER ──────────────────────────────
+  if (viewingHistory) {
+    return (
+      <Shell>
+        <div style={{ flex: 1, overflowY: "auto" }}>
+          <div
+            style={{
+              maxWidth: 740,
+              margin: "0 auto",
+              padding: "24px 20px 60px",
+            }}
+          >
+            {/* Back button */}
+            <button
+              onClick={() => setViewingHistory(null)}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 7,
+                padding: "7px 12px",
+                background: "var(--surface)",
+                border: "1px solid var(--border-mid)",
+                borderRadius: 8,
+                cursor: "pointer",
+                fontSize: 12.5,
+                color: "var(--text-secondary)",
+                marginBottom: 20,
+                fontFamily: "var(--font-ui)",
+                transition: "all .13s",
+              }}
+              onMouseEnter={(e) =>
+                (e.currentTarget.style.borderColor = "var(--brand-border)")
+              }
+              onMouseLeave={(e) =>
+                (e.currentTarget.style.borderColor = "var(--border-mid)")
+              }
+            >
+              <ChevronLeft size={14} /> Back to Search
+            </button>
+
+            {/* Query header */}
+            <div
+              style={{
+                background: "var(--brand-dim)",
+                borderLeft: "4px solid var(--brand)",
+                borderRadius: "0 12px 12px 0",
+                padding: "14px 18px",
+                marginBottom: 20,
+              }}
+            >
+              <p
+                style={{
+                  fontSize: 9.5,
+                  fontWeight: 700,
+                  letterSpacing: "0.1em",
+                  textTransform: "uppercase",
+                  color: "var(--brand)",
+                  marginBottom: 5,
+                }}
+              >
+                Saved Research
+              </p>
+              <p
+                style={{
+                  fontSize: 16,
+                  fontWeight: 600,
+                  color: "var(--text-primary)",
+                  lineHeight: 1.45,
+                }}
+              >
+                {viewingHistory.query}
+              </p>
+              <p
+                style={{
+                  fontSize: 11,
+                  color: "var(--text-faint)",
+                  marginTop: 6,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 7,
+                }}
+              >
+                <Clock size={10} /> {timeAgo(viewingHistory.searchedAt)}
+                {viewingHistory.papers && viewingHistory.papers.length > 0 && (
+                  <span style={{ color: "var(--brand)" }}>
+                    · {viewingHistory.papers.length} sources
+                  </span>
+                )}
+              </p>
+            </div>
+
+            {viewingHistory.answer ? (
+              <>
+                {/* Answer */}
+                <div
+                  style={{
+                    background: "var(--bg-raised)",
+                    border: "1px solid var(--border)",
+                    borderRadius: 12,
+                    padding: "20px 22px",
+                    marginBottom: 20,
+                  }}
+                >
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
+                    components={{
+                      h2: ({ children }) => (
+                        <h2
+                          style={{
+                            fontFamily: "var(--font-display)",
+                            fontSize: "1rem",
+                            color: "var(--text-primary)",
+                            margin: "1.3em 0 .45em",
+                            fontWeight: 600,
+                          }}
+                        >
+                          {children}
+                        </h2>
+                      ),
+                      h3: ({ children }) => (
+                        <h3
+                          style={{
+                            fontSize: ".92rem",
+                            color: "var(--text-primary)",
+                            fontWeight: 600,
+                            margin: ".9em 0 .3em",
+                          }}
+                        >
+                          {children}
+                        </h3>
+                      ),
+                      p: ({ children }) => (
+                        <p
+                          style={{
+                            marginBottom: ".75em",
+                            lineHeight: 1.78,
+                            fontSize: 14.5,
+                            color: "var(--text-secondary)",
+                          }}
+                        >
+                          {children}
+                        </p>
+                      ),
+                      strong: ({ children }) => (
+                        <strong
+                          style={{
+                            color: "var(--text-primary)",
+                            fontWeight: 600,
+                          }}
+                        >
+                          {children}
+                        </strong>
+                      ),
+                      ul: ({ children }) => (
+                        <ul
+                          style={{
+                            paddingLeft: "1.4em",
+                            marginBottom: ".75em",
+                          }}
+                        >
+                          {children}
+                        </ul>
+                      ),
+                      li: ({ children }) => (
+                        <li
+                          style={{
+                            marginBottom: ".3em",
+                            fontSize: 14.5,
+                            color: "var(--text-secondary)",
+                          }}
+                        >
+                          {children}
+                        </li>
+                      ),
+                      code: ({ children }) => (
+                        <code
+                          style={{
+                            fontFamily: "var(--font-mono)",
+                            fontSize: 12,
+                            background: "var(--surface-2)",
+                            color: "var(--brand)",
+                            padding: "2px 5px",
+                            borderRadius: 4,
+                          }}
+                        >
+                          {children}
+                        </code>
+                      ),
+                    }}
+                  >
+                    {viewingHistory.answer}
+                  </ReactMarkdown>
+                </div>
+
+                {/* Sources */}
+                {viewingHistory.papers && viewingHistory.papers.length > 0 && (
+                  <div style={{ marginBottom: 20 }}>
+                    <p
+                      style={{
+                        fontSize: 10,
+                        fontWeight: 700,
+                        letterSpacing: "0.09em",
+                        textTransform: "uppercase",
+                        color: "var(--text-faint)",
+                        marginBottom: 12,
+                      }}
+                    >
+                      Sources ({viewingHistory.papers.length} papers)
+                    </p>
+                    <div
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 8,
+                      }}
+                    >
+                      {viewingHistory.papers.map((p: Paper, i: number) => (
+                        <div
+                          key={i}
+                          style={{
+                            display: "flex",
+                            gap: 10,
+                            padding: "12px 14px",
+                            background: "var(--bg-raised)",
+                            border: "1px solid var(--border)",
+                            borderRadius: 10,
+                          }}
+                        >
+                          <span
+                            style={{
+                              width: 24,
+                              height: 24,
+                              borderRadius: 6,
+                              background: "var(--brand)",
+                              color: "#000",
+                              fontSize: 10,
+                              fontWeight: 700,
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              flexShrink: 0,
+                              marginTop: 1,
+                            }}
+                          >
+                            {i + 1}
+                          </span>
+                          <div style={{ minWidth: 0, flex: 1 }}>
+                            <p
+                              style={{
+                                fontSize: 12.5,
+                                fontWeight: 600,
+                                color: "var(--text-primary)",
+                                marginBottom: 3,
+                                lineHeight: 1.4,
+                              }}
+                            >
+                              {p.title}
+                            </p>
+                            <p
+                              style={{
+                                fontSize: 11,
+                                color: "var(--text-faint)",
+                                marginBottom: 3,
+                              }}
+                            >
+                              {p.authors?.slice(0, 3).join(", ")}
+                              {(p.authors?.length ?? 0) > 3 ? " et al." : ""}
+                              {p.year ? ` · ${p.year}` : ""}
+                            </p>
+                            {p.url && (
+                              <a
+                                href={p.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                style={{
+                                  fontSize: 11,
+                                  color: "var(--brand)",
+                                  textDecoration: "none",
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: 3,
+                                }}
+                              >
+                                View paper <ExternalLink size={9} />
+                              </a>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Action buttons */}
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  <button
+                    onClick={() => {
+                      downloadResearchPDF(
+                        viewingHistory.query,
+                        viewingHistory.answer!,
+                        viewingHistory.papers ?? [],
+                        session?.user?.name ?? undefined,
+                      );
+                    }}
+                    className="sources-chip"
+                    style={{
+                      color: "var(--brand)",
+                      borderColor: "var(--brand-border)",
+                      padding: "8px 14px",
+                      fontSize: 13,
+                    }}
+                  >
+                    <FileDown size={13} /> Download PDF
+                  </button>
+                  {!atLimit && (
+                    <button
+                      onClick={() => {
+                        setViewingHistory(null);
+                        void doSearch(viewingHistory.query);
+                      }}
+                      className="btn btn-brand"
+                      style={{ padding: "8px 16px", fontSize: 13 }}
+                    >
+                      🔍 Search Again
+                    </button>
+                  )}
+                  {atLimit && (
+                    <Link
+                      href="/pricing"
+                      className="btn btn-brand"
+                      style={{
+                        textDecoration: "none",
+                        padding: "8px 16px",
+                        fontSize: 13,
+                      }}
+                    >
+                      <Sparkles size={12} /> Upgrade to Search More
+                    </Link>
+                  )}
+                </div>
+              </>
+            ) : (
+              <div
+                style={{
+                  textAlign: "center",
+                  padding: "40px 20px",
+                  background: "var(--bg-overlay)",
+                  border: "1px solid var(--border)",
+                  borderRadius: 12,
+                }}
+              >
+                <History
+                  size={28}
+                  style={{
+                    color: "var(--text-faint)",
+                    opacity: 0.4,
+                    margin: "0 auto 12px",
+                    display: "block",
+                  }}
+                />
+                <p
+                  style={{
+                    fontSize: 14,
+                    fontWeight: 600,
+                    color: "var(--text-primary)",
+                    marginBottom: 6,
+                  }}
+                >
+                  Answer not saved
+                </p>
+                <p
+                  style={{
+                    fontSize: 12.5,
+                    color: "var(--text-secondary)",
+                    marginBottom: 20,
+                    lineHeight: 1.65,
+                  }}
+                >
+                  This was searched before answer-saving was added.
+                  <br />
+                  New searches save the full answer automatically.
+                </p>
+                {!atLimit ? (
+                  <button
+                    onClick={() => {
+                      setViewingHistory(null);
+                      void doSearch(viewingHistory.query);
+                    }}
+                    className="btn btn-brand"
+                    style={{ padding: "9px 20px" }}
+                  >
+                    🔍 Re-run this search
+                  </button>
+                ) : (
+                  <Link
+                    href="/pricing"
+                    className="btn btn-brand"
+                    style={{ textDecoration: "none", padding: "9px 20px" }}
+                  >
+                    <Sparkles size={12} /> Upgrade to search again
+                  </Link>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      </Shell>
+    );
+  }
 
   return (
     <Shell rightPanel={RightPanel}>
@@ -305,58 +730,87 @@ function SearchApp() {
                 <div
                   style={{ display: "flex", flexDirection: "column", gap: 5 }}
                 >
-                  {recentHistory.slice(0, 3).map((h, i) => (
+                  {realHistory.slice(0, 4).map((h, i) => (
                     <button
                       key={i}
-                      onClick={() => {
-                        setInput(h.query);
-                        taRef.current?.focus();
-                      }}
+                      onClick={() =>
+                        h.answer ? setViewingHistory(h) : setInput(h.query)
+                      }
                       style={{
                         display: "flex",
                         alignItems: "center",
-                        gap: 9,
-                        padding: "8px 13px",
+                        gap: 10,
+                        padding: "10px 13px",
                         background: "var(--bg-raised)",
                         border: "1px solid var(--border)",
-                        borderRadius: 9,
+                        borderRadius: 10,
                         cursor: "pointer",
                         textAlign: "left",
                         transition: "all .13s",
+                        width: "100%",
                       }}
-                      onMouseEnter={(e) =>
-                        (e.currentTarget.style.borderColor =
-                          "var(--brand-border)")
-                      }
-                      onMouseLeave={(e) =>
-                        (e.currentTarget.style.borderColor = "var(--border)")
-                      }
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.borderColor =
+                          "var(--brand-border)";
+                        e.currentTarget.style.background = "var(--surface)";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.borderColor = "var(--border)";
+                        e.currentTarget.style.background = "var(--bg-raised)";
+                      }}
                     >
-                      <History
-                        size={10}
-                        style={{ color: "var(--text-faint)", flexShrink: 0 }}
-                      />
-                      <span
+                      <div
                         style={{
-                          fontSize: 12.5,
-                          color: "var(--text-secondary)",
-                          flex: 1,
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                          whiteSpace: "nowrap",
-                        }}
-                      >
-                        {h.query}
-                      </span>
-                      <span
-                        style={{
-                          fontSize: 10,
-                          color: "var(--text-faint)",
+                          width: 28,
+                          height: 28,
+                          borderRadius: 7,
+                          background: "var(--surface-2)",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
                           flexShrink: 0,
                         }}
                       >
-                        {timeAgo(h.searchedAt)}
-                      </span>
+                        <History
+                          size={11}
+                          style={{ color: "var(--text-muted)" }}
+                        />
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <p
+                          style={{
+                            fontSize: 12.5,
+                            color: "var(--text-primary)",
+                            fontWeight: 500,
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
+                            marginBottom: 2,
+                          }}
+                        >
+                          {h.query}
+                        </p>
+                        <p
+                          style={{
+                            fontSize: 10,
+                            color: "var(--text-faint)",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 5,
+                          }}
+                        >
+                          {timeAgo(h.searchedAt)}
+                          {h.answer && (
+                            <span style={{ color: "var(--green)" }}>
+                              · Answer saved ✓
+                            </span>
+                          )}
+                        </p>
+                      </div>
+                      <ArrowRight
+                        size={11}
+                        style={{ color: "var(--text-faint)", flexShrink: 0 }}
+                      />
                     </button>
                   ))}
                 </div>
