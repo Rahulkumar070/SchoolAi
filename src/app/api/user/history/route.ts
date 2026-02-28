@@ -19,7 +19,12 @@ export async function GET() {
       email: session.user.email,
     }).lean()) as {
       plan?: string;
-      searchHistory?: { query: string; searchedAt: Date }[];
+      searchHistory?: {
+        query: string;
+        answer?: string;
+        papers?: unknown[];
+        searchedAt: Date;
+      }[];
       searchesToday?: number;
       searchDateReset?: Date;
       searchesThisMonth?: number;
@@ -34,24 +39,18 @@ export async function GET() {
       });
 
     const now = new Date();
-
-    // Daily reset check (free)
     const isNewDay = u.searchDateReset
       ? now.toDateString() !== new Date(u.searchDateReset).toDateString()
       : true;
-    const searchesToday = isNewDay ? 0 : (u.searchesToday ?? 0);
-
-    // Monthly reset check (student)
     const resetDate = new Date(u.searchMonthReset ?? now);
     const isNewMonth =
       now.getMonth() !== resetDate.getMonth() ||
       now.getFullYear() !== resetDate.getFullYear();
-    const searchesThisMonth = isNewMonth ? 0 : (u.searchesThisMonth ?? 0);
 
     return NextResponse.json({
       history: u.searchHistory ?? [],
-      searchesToday,
-      searchesThisMonth,
+      searchesToday: isNewDay ? 0 : (u.searchesToday ?? 0),
+      searchesThisMonth: isNewMonth ? 0 : (u.searchesThisMonth ?? 0),
       plan: u.plan ?? "free",
     });
   } catch {

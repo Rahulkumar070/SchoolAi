@@ -2,8 +2,7 @@
 import { useState, useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Sidebar from "./Sidebar";
-import { Menu, BookOpen, Plus, Search } from "lucide-react";
-import { useSession } from "next-auth/react";
+import { Menu, BookOpen, Plus } from "lucide-react";
 import Link from "next/link";
 
 export default function Shell({
@@ -16,7 +15,6 @@ export default function Shell({
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
-  const { data: session } = useSession();
 
   // Close sidebar on route change
   useEffect(() => {
@@ -34,17 +32,19 @@ export default function Shell({
 
   const handleNewSearch = () => {
     setOpen(false);
-    router.push("/search");
+    // Use a timestamp param to force a full remount every time
+    // This clears all previous search state completely
+    router.push(`/search?new=${Date.now()}`);
   };
 
   return (
     <div className="shell">
-      {/* ── Sidebar (desktop always visible, mobile overlay) ── */}
+      {/* ── Sidebar ── */}
       <aside className={`sidebar${open ? " open" : ""}`}>
         <Sidebar onClose={() => setOpen(false)} onNewSearch={handleNewSearch} />
       </aside>
 
-      {/* Overlay backdrop */}
+      {/* Backdrop */}
       {open && (
         <div
           className="sidebar-backdrop"
@@ -53,7 +53,7 @@ export default function Shell({
         />
       )}
 
-      {/* ── Main area ── */}
+      {/* ── Main ── */}
       <div className="main">
         {/* Mobile top bar */}
         <header className="mobile-bar">
@@ -89,7 +89,7 @@ export default function Shell({
         <div className="main-content">{children}</div>
       </div>
 
-      {/* ── Right panel (desktop only) ── */}
+      {/* ── Right panel ── */}
       {rightPanel && <aside className="right-panel">{rightPanel}</aside>}
     </div>
   );

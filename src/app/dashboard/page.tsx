@@ -20,14 +20,30 @@ import {
   ArrowRight,
   TrendingUp,
   Lock,
+  ChevronLeft,
+  FileText,
 } from "lucide-react";
 import Link from "next/link";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import Image from "next/image";
 import toast from "react-hot-toast";
 import { SavedPaper } from "@/types";
 
+interface Paper {
+  id: string;
+  title: string;
+  authors: string[];
+  year?: number;
+  journal?: string;
+  abstract?: string;
+  doi?: string;
+  url?: string;
+}
 interface HistoryItem {
   query: string;
+  answer?: string;
+  papers?: Paper[];
   searchedAt: string;
 }
 
@@ -42,6 +58,7 @@ function DashContent() {
   const [searchesThisMonth, setSearchesThisMonth] = useState(0);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"library" | "history">("library");
+  const [selectedItem, setSelectedItem] = useState<HistoryItem | null>(null);
   const [cancelling, setCancelling] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
 
@@ -52,12 +69,13 @@ function DashContent() {
   useEffect(() => {
     if (searchParams.get("upgraded") === "1") {
       void update();
-      toast.success("🎉 Plan upgraded! Welcome to ScholarAI.", {
+      toast.success("🎉 Plan upgraded! Enjoy your new plan.", {
         id: "upgraded",
         duration: 5000,
       });
       router.replace("/dashboard", { scroll: false });
     }
+    if (searchParams.get("tab") === "history") setActiveTab("history");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -68,7 +86,7 @@ function DashContent() {
       fetch("/api/user/history").then((r) => r.json()),
     ])
       .then(
-        ([papersData, histData]: [
+        ([pd, hd]: [
           { papers: SavedPaper[] },
           {
             history: HistoryItem[];
@@ -76,15 +94,29 @@ function DashContent() {
             searchesThisMonth: number;
           },
         ]) => {
-          setPapers(papersData.papers ?? []);
-          setHistory(histData.history ?? []);
-          setSearchesToday(histData.searchesToday ?? 0);
-          setSearchesThisMonth(histData.searchesThisMonth ?? 0);
+          setPapers(pd.papers ?? []);
+          setHistory(hd.history ?? []);
+          setSearchesToday(hd.searchesToday ?? 0);
+          setSearchesThisMonth(hd.searchesThisMonth ?? 0);
         },
       )
       .catch(() => toast.error("Failed to load data"))
       .finally(() => setLoading(false));
   }, [status]);
+
+  const removePaper = async (id: string) => {
+    try {
+      await fetch("/api/papers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      });
+      setPapers((p) => p.filter((x) => x.paperId !== id));
+      toast.success("Removed");
+    } catch {
+      toast.error("Failed");
+    }
+  };
 
   const cancelSubscription = async () => {
     setCancelling(true);
@@ -101,27 +133,13 @@ function DashContent() {
         toast.success(d.message ?? "Subscription cancelled.");
       } else toast.error(d.error ?? "Cancellation failed");
     } catch {
-      toast.error("Network error. Please try again.");
+      toast.error("Network error.");
     } finally {
       setCancelling(false);
     }
   };
 
-  const removePaper = async (id: string) => {
-    try {
-      await fetch("/api/papers", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id }),
-      });
-      setPapers((p) => p.filter((x) => x.paperId !== id));
-      toast.success("Removed from library");
-    } catch {
-      toast.error("Failed");
-    }
-  };
-
-  if (status === "loading" || status === "unauthenticated") {
+  if (status === "loading" || status === "unauthenticated")
     return (
       <div
         style={{
@@ -129,26 +147,28 @@ function DashContent() {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          background: "var(--bg)",
         }}
       >
         <span className="spinner" />
       </div>
     );
-  }
 
   const plan = session?.user?.plan ?? "free";
   const isFree = plan === "free";
   const isStudent = plan === "student";
   const isPro = plan === "pro";
   const isPaid = !isFree;
-
-  // Is user at their search limit?
   const atLimit = isFree
     ? searchesToday >= 5
     : isStudent
       ? searchesThisMonth >= 500
       : false;
+  const counterUsed = isFree
+    ? searchesToday
+    : isStudent
+      ? searchesThisMonth
+      : 0;
+  const counterMax = isFree ? 5 : isStudent ? 500 : 0;
 
   const planMeta = {
     free: {
@@ -179,33 +199,439 @@ function DashContent() {
     border: "var(--border-mid)",
     label: "Free",
   };
-
   const PlanIcon = planMeta.icon;
 
-  function timeAgo(dateStr: string) {
-    const diff = Date.now() - new Date(dateStr).getTime();
-    const mins = Math.floor(diff / 60000);
-    if (mins < 1) return "just now";
-    if (mins < 60) return `${mins}m ago`;
-    const hrs = Math.floor(mins / 60);
-    if (hrs < 24) return `${hrs}h ago`;
-    return `${Math.floor(hrs / 24)}d ago`;
+  function timeAgo(d: string) {
+    const s = Math.floor((Date.now() - new Date(d).getTime()) / 1000);
+    if (s < 60) return "just now";
+    if (s < 3600) return `${Math.floor(s / 60)}m ago`;
+    if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
+    return `${Math.floor(s / 86400)}d ago`;
   }
 
-  const counterUsed = isFree
-    ? searchesToday
-    : isStudent
-      ? searchesThisMonth
-      : 0;
-  const counterMax = isFree ? 5 : isStudent ? 500 : 0;
+  // ── HISTORY DETAIL VIEW ──────────────────────────────────
+  if (activeTab === "history" && selectedItem) {
+    return (
+      <Shell>
+        <div style={{ flex: 1, overflowY: "auto" }}>
+          <div
+            style={{
+              maxWidth: 820,
+              margin: "0 auto",
+              padding: "28px 20px 60px",
+            }}
+          >
+            {/* Back */}
+            <button
+              onClick={() => setSelectedItem(null)}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+                padding: "6px 12px",
+                background: "var(--surface)",
+                border: "1px solid var(--border-mid)",
+                borderRadius: 8,
+                cursor: "pointer",
+                fontSize: 12.5,
+                color: "var(--text-secondary)",
+                marginBottom: 20,
+                fontFamily: "var(--font-ui)",
+              }}
+            >
+              <ChevronLeft size={14} /> Back to History
+            </button>
 
+            {/* Query header */}
+            <div
+              style={{
+                background: "var(--brand-dim)",
+                border: "1px solid var(--brand-border)",
+                borderLeft: "4px solid var(--brand)",
+                borderRadius: "0 12px 12px 0",
+                padding: "16px 20px",
+                marginBottom: 20,
+              }}
+            >
+              <p
+                style={{
+                  fontSize: 9.5,
+                  fontWeight: 700,
+                  letterSpacing: "0.1em",
+                  textTransform: "uppercase",
+                  color: "var(--brand)",
+                  marginBottom: 6,
+                }}
+              >
+                Research Query
+              </p>
+              <p
+                style={{
+                  fontSize: 16,
+                  fontWeight: 600,
+                  color: "var(--text-primary)",
+                  lineHeight: 1.45,
+                }}
+              >
+                {selectedItem.query}
+              </p>
+              <p
+                style={{
+                  fontSize: 11,
+                  color: "var(--text-faint)",
+                  marginTop: 8,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                }}
+              >
+                <Clock size={10} /> {timeAgo(selectedItem.searchedAt)}
+                {selectedItem.papers && selectedItem.papers.length > 0 && (
+                  <span style={{ color: "var(--brand)" }}>
+                    · {selectedItem.papers.length} sources
+                  </span>
+                )}
+              </p>
+            </div>
+
+            {selectedItem.answer ? (
+              <>
+                {/* AI Answer */}
+                <p
+                  style={{
+                    fontSize: 9.5,
+                    fontWeight: 700,
+                    letterSpacing: "0.1em",
+                    textTransform: "uppercase",
+                    color: "var(--text-faint)",
+                    marginBottom: 14,
+                  }}
+                >
+                  AI Research Summary
+                </p>
+                <div
+                  style={{
+                    background: "var(--bg-raised)",
+                    border: "1px solid var(--border)",
+                    borderRadius: 12,
+                    padding: "20px 22px",
+                    marginBottom: 20,
+                  }}
+                >
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
+                    components={{
+                      h2: ({ children }) => (
+                        <h2
+                          style={{
+                            fontFamily: "var(--font-display)",
+                            fontSize: "1rem",
+                            color: "var(--text-primary)",
+                            margin: "1.3em 0 .45em",
+                            fontWeight: 600,
+                          }}
+                        >
+                          {children}
+                        </h2>
+                      ),
+                      h3: ({ children }) => (
+                        <h3
+                          style={{
+                            fontSize: ".92rem",
+                            color: "var(--text-primary)",
+                            fontWeight: 600,
+                            margin: ".9em 0 .3em",
+                          }}
+                        >
+                          {children}
+                        </h3>
+                      ),
+                      p: ({ children }) => (
+                        <p
+                          style={{
+                            marginBottom: ".75em",
+                            lineHeight: 1.78,
+                            fontSize: 14,
+                            color: "var(--text-secondary)",
+                          }}
+                        >
+                          {children}
+                        </p>
+                      ),
+                      strong: ({ children }) => (
+                        <strong
+                          style={{
+                            color: "var(--text-primary)",
+                            fontWeight: 600,
+                          }}
+                        >
+                          {children}
+                        </strong>
+                      ),
+                      ul: ({ children }) => (
+                        <ul
+                          style={{
+                            paddingLeft: "1.4em",
+                            marginBottom: ".75em",
+                          }}
+                        >
+                          {children}
+                        </ul>
+                      ),
+                      li: ({ children }) => (
+                        <li
+                          style={{
+                            marginBottom: ".3em",
+                            fontSize: 14,
+                            color: "var(--text-secondary)",
+                          }}
+                        >
+                          {children}
+                        </li>
+                      ),
+                      code: ({ children }) => (
+                        <code
+                          style={{
+                            fontFamily: "var(--font-mono)",
+                            fontSize: 12,
+                            background: "var(--surface-2)",
+                            color: "var(--brand)",
+                            padding: "2px 5px",
+                            borderRadius: 4,
+                          }}
+                        >
+                          {children}
+                        </code>
+                      ),
+                    }}
+                  >
+                    {selectedItem.answer}
+                  </ReactMarkdown>
+                </div>
+
+                {/* Sources */}
+                {selectedItem.papers && selectedItem.papers.length > 0 && (
+                  <>
+                    <p
+                      style={{
+                        fontSize: 9.5,
+                        fontWeight: 700,
+                        letterSpacing: "0.1em",
+                        textTransform: "uppercase",
+                        color: "var(--text-faint)",
+                        marginBottom: 12,
+                      }}
+                    >
+                      Sources ({selectedItem.papers.length} Papers)
+                    </p>
+                    <div
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 8,
+                        marginBottom: 24,
+                      }}
+                    >
+                      {selectedItem.papers.map((p, i) => (
+                        <div
+                          key={i}
+                          className="card"
+                          style={{
+                            padding: "12px 15px",
+                            display: "flex",
+                            gap: 11,
+                          }}
+                        >
+                          <span
+                            style={{
+                              width: 24,
+                              height: 24,
+                              borderRadius: 6,
+                              background: "var(--brand)",
+                              color: "#000",
+                              fontSize: 10,
+                              fontWeight: 700,
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              flexShrink: 0,
+                              marginTop: 1,
+                            }}
+                          >
+                            {i + 1}
+                          </span>
+                          <div style={{ minWidth: 0, flex: 1 }}>
+                            <p
+                              style={{
+                                fontSize: 12.5,
+                                fontWeight: 600,
+                                color: "var(--text-primary)",
+                                marginBottom: 3,
+                                lineHeight: 1.4,
+                              }}
+                            >
+                              {p.title}
+                            </p>
+                            <p
+                              style={{
+                                fontSize: 11,
+                                color: "var(--text-faint)",
+                              }}
+                            >
+                              {p.authors?.slice(0, 3).join(", ")}
+                              {(p.authors?.length ?? 0) > 3 ? " et al." : ""}
+                              {p.year ? ` · ${p.year}` : ""}
+                              {p.journal ? ` · ${p.journal}` : ""}
+                            </p>
+                            {p.abstract && (
+                              <p
+                                style={{
+                                  fontSize: 11.5,
+                                  color: "var(--text-secondary)",
+                                  marginTop: 4,
+                                  lineHeight: 1.5,
+                                }}
+                                className="truncate-2"
+                              >
+                                {p.abstract}
+                              </p>
+                            )}
+                            {p.url && (
+                              <a
+                                href={p.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                style={{
+                                  fontSize: 11,
+                                  color: "var(--brand)",
+                                  textDecoration: "none",
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: 3,
+                                  marginTop: 4,
+                                }}
+                              >
+                                View paper <ExternalLink size={9} />
+                              </a>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
+
+                {/* Action buttons */}
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  {!atLimit ? (
+                    <Link
+                      href={`/search?q=${encodeURIComponent(selectedItem.query)}`}
+                      className="btn btn-brand"
+                      style={{
+                        textDecoration: "none",
+                        padding: "9px 18px",
+                        fontSize: 13,
+                      }}
+                    >
+                      <Search size={12} /> Search Again
+                    </Link>
+                  ) : (
+                    <Link
+                      href="/pricing"
+                      className="btn btn-brand"
+                      style={{
+                        textDecoration: "none",
+                        padding: "9px 18px",
+                        fontSize: 13,
+                      }}
+                    >
+                      <Sparkles size={12} /> Upgrade to Search More
+                    </Link>
+                  )}
+                  <button
+                    onClick={() => setSelectedItem(null)}
+                    className="btn btn-outline"
+                    style={{ padding: "9px 18px", fontSize: 13 }}
+                  >
+                    ← Back to History
+                  </button>
+                </div>
+              </>
+            ) : (
+              /* No answer saved — old history item */
+              <div
+                style={{
+                  textAlign: "center",
+                  padding: "40px 20px",
+                  background: "var(--bg-overlay)",
+                  border: "1px solid var(--border)",
+                  borderRadius: 12,
+                }}
+              >
+                <FileText
+                  size={28}
+                  style={{
+                    color: "var(--text-faint)",
+                    opacity: 0.4,
+                    margin: "0 auto 12px",
+                    display: "block",
+                  }}
+                />
+                <p
+                  style={{
+                    fontSize: 14,
+                    color: "var(--text-primary)",
+                    fontWeight: 600,
+                    marginBottom: 6,
+                  }}
+                >
+                  Answer not available
+                </p>
+                <p
+                  style={{
+                    fontSize: 12.5,
+                    color: "var(--text-secondary)",
+                    marginBottom: 20,
+                    lineHeight: 1.65,
+                  }}
+                >
+                  This search was made before answers were saved to history.
+                  <br />
+                  All future searches save the full answer automatically.
+                </p>
+                {!atLimit ? (
+                  <Link
+                    href={`/search?q=${encodeURIComponent(selectedItem.query)}`}
+                    className="btn btn-brand"
+                    style={{ textDecoration: "none", padding: "9px 20px" }}
+                  >
+                    <Search size={12} /> Re-run this search
+                  </Link>
+                ) : (
+                  <Link
+                    href="/pricing"
+                    className="btn btn-brand"
+                    style={{ textDecoration: "none", padding: "9px 20px" }}
+                  >
+                    <Sparkles size={12} /> Upgrade to search again
+                  </Link>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      </Shell>
+    );
+  }
+
+  // ── MAIN DASHBOARD ───────────────────────────────────────
   return (
     <Shell>
       <div style={{ flex: 1, overflowY: "auto" }}>
         <div
           style={{ maxWidth: 820, margin: "0 auto", padding: "28px 20px 60px" }}
         >
-          {/* ── Header ── */}
+          {/* Header */}
           <div
             style={{
               display: "flex",
@@ -240,7 +666,7 @@ function DashContent() {
             </h1>
           </div>
 
-          {/* ── Profile card ── */}
+          {/* Profile */}
           <div
             className="card"
             style={{
@@ -299,62 +725,46 @@ function DashContent() {
             </span>
           </div>
 
-          {/* ── LIMIT REACHED BANNER (most prominent) ── */}
+          {/* Limit reached banner */}
           {atLimit && (
             <div
               style={{
                 background: "rgba(224,92,92,.07)",
                 border: "1px solid rgba(224,92,92,.22)",
                 borderRadius: 14,
-                padding: "18px 20px",
-                marginBottom: 14,
+                padding: "16px 20px",
+                marginBottom: 12,
               }}
             >
               <div
                 style={{
                   display: "flex",
-                  alignItems: "flex-start",
+                  alignItems: "center",
                   gap: 12,
                   flexWrap: "wrap",
                 }}
               >
-                <div
-                  style={{
-                    width: 38,
-                    height: 38,
-                    borderRadius: 10,
-                    background: "rgba(224,92,92,.12)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    flexShrink: 0,
-                  }}
-                >
-                  <Lock size={17} style={{ color: "var(--red)" }} />
-                </div>
+                <Lock
+                  size={18}
+                  style={{ color: "var(--red)", flexShrink: 0 }}
+                />
                 <div style={{ flex: 1, minWidth: 200 }}>
                   <p
                     style={{
                       fontSize: 13.5,
                       fontWeight: 700,
                       color: "var(--red)",
-                      marginBottom: 4,
+                      marginBottom: 3,
                     }}
                   >
                     {isFree
                       ? "Daily limit reached — 5/5 searches used"
-                      : "Monthly limit reached — 500/500 searches used"}
+                      : "Monthly limit reached — 500/500 used"}
                   </p>
-                  <p
-                    style={{
-                      fontSize: 12.5,
-                      color: "var(--text-secondary)",
-                      lineHeight: 1.6,
-                    }}
-                  >
+                  <p style={{ fontSize: 12, color: "var(--text-secondary)" }}>
                     {isFree
-                      ? "You cannot make new AI searches until midnight. You can still view your search history below."
-                      : "You cannot make new AI searches until next month. Upgrade to Pro for unlimited searches."}
+                      ? "Resets at midnight. You can still read all your saved answers below."
+                      : "Resets next month. Upgrade to Pro for unlimited."}
                   </p>
                 </div>
                 <Link
@@ -362,19 +772,19 @@ function DashContent() {
                   className="btn btn-brand"
                   style={{
                     textDecoration: "none",
-                    padding: "9px 20px",
+                    padding: "9px 18px",
                     fontSize: 13,
                     flexShrink: 0,
                   }}
                 >
-                  {isFree ? "Upgrade ₹199/mo" : "Upgrade to Pro ₹499/mo"}{" "}
+                  {isFree ? "Upgrade ₹199/mo" : "Go Pro ₹499/mo"}{" "}
                   <ArrowRight size={12} />
                 </Link>
               </div>
             </div>
           )}
 
-          {/* ── Free plan upgrade banner (not at limit) ── */}
+          {/* Free upgrade banner */}
           {isFree && !atLimit && (
             <div
               style={{
@@ -383,7 +793,7 @@ function DashContent() {
                 justifyContent: "space-between",
                 flexWrap: "wrap",
                 gap: 10,
-                padding: "14px 18px",
+                padding: "13px 18px",
                 background: "var(--brand-dim)",
                 border: "1px solid var(--brand-border)",
                 borderRadius: 12,
@@ -402,8 +812,7 @@ function DashContent() {
                   You&apos;re on the Free plan
                 </p>
                 <p style={{ fontSize: 12, color: "var(--text-secondary)" }}>
-                  {searchesToday}/5 searches used today · Upgrade for 500
-                  searches/month
+                  {searchesToday}/5 searches used today
                 </p>
               </div>
               <Link
@@ -411,44 +820,39 @@ function DashContent() {
                 className="btn btn-brand"
                 style={{
                   textDecoration: "none",
-                  padding: "8px 18px",
+                  padding: "8px 16px",
                   fontSize: 12.5,
-                  flexShrink: 0,
                 }}
               >
-                Upgrade Now ✨
+                Upgrade ✨
               </Link>
             </div>
           )}
 
-          {/* ── Paid plan active banner ── */}
+          {/* Paid active banner */}
           {isPaid && !atLimit && (
             <div
               style={{
                 background: "rgba(93,184,122,.06)",
                 border: "1px solid rgba(93,184,122,.18)",
                 borderRadius: 12,
-                padding: "16px 18px",
+                padding: "14px 18px",
                 marginBottom: 12,
               }}
             >
               <div
                 style={{
                   display: "flex",
-                  alignItems: "flex-start",
+                  alignItems: "center",
                   justifyContent: "space-between",
                   flexWrap: "wrap",
-                  gap: 12,
+                  gap: 10,
                 }}
               >
                 <div style={{ display: "flex", gap: 10 }}>
                   <CheckCircle
-                    size={18}
-                    style={{
-                      color: "var(--green)",
-                      flexShrink: 0,
-                      marginTop: 1,
-                    }}
+                    size={17}
+                    style={{ color: "var(--green)", flexShrink: 0 }}
                   />
                   <div>
                     <p
@@ -456,32 +860,25 @@ function DashContent() {
                         fontSize: 13,
                         fontWeight: 600,
                         color: "var(--text-primary)",
-                        marginBottom: 3,
+                        marginBottom: 2,
                       }}
                     >
-                      {planMeta.label} plan is active
+                      {planMeta.label} plan active
                     </p>
-                    <p
-                      style={{
-                        fontSize: 12,
-                        color: "var(--text-secondary)",
-                        lineHeight: 1.5,
-                      }}
-                    >
+                    <p style={{ fontSize: 12, color: "var(--text-secondary)" }}>
                       {isPro
-                        ? "Unlimited searches · "
-                        : `${searchesThisMonth}/500 searches this month · `}
-                      Renews automatically each month.
+                        ? "Unlimited searches"
+                        : `${searchesThisMonth}/500 searches this month`}
                     </p>
                   </div>
                 </div>
-                <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+                <div style={{ display: "flex", gap: 7 }}>
                   <Link
                     href="/pricing"
                     className="btn btn-outline"
                     style={{
                       textDecoration: "none",
-                      padding: "6px 14px",
+                      padding: "6px 12px",
                       fontSize: 12,
                     }}
                   >
@@ -492,23 +889,20 @@ function DashContent() {
                     disabled={cancelling}
                     className="btn btn-outline"
                     style={{
-                      padding: "6px 14px",
+                      padding: "6px 12px",
                       fontSize: 12,
                       color: "var(--red)",
                       borderColor: "rgba(224,92,92,.3)",
                     }}
                   >
                     {cancelling ? (
-                      <>
-                        <span
-                          className="spinner"
-                          style={{ width: 11, height: 11 }}
-                        />{" "}
-                        Cancelling…
-                      </>
+                      <span
+                        className="spinner"
+                        style={{ width: 10, height: 10 }}
+                      />
                     ) : (
                       <>
-                        <XCircle size={12} /> Cancel
+                        <XCircle size={11} /> Cancel
                       </>
                     )}
                   </button>
@@ -517,13 +911,13 @@ function DashContent() {
             </div>
           )}
 
-          {/* Cancel confirm modal */}
+          {/* Cancel modal */}
           {showConfirm && (
             <div
               style={{
                 position: "fixed",
                 inset: 0,
-                background: "rgba(0,0,0,0.65)",
+                background: "rgba(0,0,0,.65)",
                 zIndex: 100,
                 display: "flex",
                 alignItems: "center",
@@ -533,12 +927,7 @@ function DashContent() {
             >
               <div
                 className="card"
-                style={{
-                  maxWidth: 400,
-                  width: "100%",
-                  padding: 28,
-                  background: "var(--bg-overlay)",
-                }}
+                style={{ maxWidth: 400, width: "100%", padding: 28 }}
               >
                 <div style={{ display: "flex", gap: 12, marginBottom: 16 }}>
                   <AlertTriangle
@@ -563,8 +952,8 @@ function DashContent() {
                         lineHeight: 1.6,
                       }}
                     >
-                      You&apos;ll keep full access until end of billing period.
-                      After that, your account reverts to Free (5 searches/day).
+                      You keep access until end of billing period. After that,
+                      reverts to Free (5 searches/day).
                     </p>
                   </div>
                 </div>
@@ -600,7 +989,7 @@ function DashContent() {
             </div>
           )}
 
-          {/* ── Stats ── */}
+          {/* Stats */}
           <div
             style={{
               display: "grid",
@@ -639,7 +1028,7 @@ function DashContent() {
             ))}
           </div>
 
-          {/* ── Usage progress bar ── */}
+          {/* Progress bar */}
           {!isPro && (
             <div
               className="card"
@@ -649,7 +1038,6 @@ function DashContent() {
                 style={{
                   display: "flex",
                   justifyContent: "space-between",
-                  alignItems: "center",
                   marginBottom: 8,
                 }}
               >
@@ -664,7 +1052,7 @@ function DashContent() {
                   }}
                 >
                   <TrendingUp size={13} style={{ color: "var(--brand)" }} />{" "}
-                  {isFree ? "Daily" : "Monthly"} Search Usage
+                  {isFree ? "Daily" : "Monthly"} Usage
                 </span>
                 <span
                   style={{
@@ -677,7 +1065,7 @@ function DashContent() {
                         : "var(--green)",
                   }}
                 >
-                  {counterUsed} / {counterMax} used
+                  {counterUsed} / {counterMax}
                 </span>
               </div>
               <div
@@ -716,7 +1104,7 @@ function DashContent() {
                   </>
                 ) : (
                   <>
-                    {counterMax - counterUsed} remaining.{" "}
+                    {counterMax - counterUsed} remaining ·{" "}
                     <Link
                       href="/pricing"
                       style={{
@@ -732,7 +1120,7 @@ function DashContent() {
             </div>
           )}
 
-          {/* ── Tabs ── */}
+          {/* Tabs */}
           <div
             style={{
               display: "flex",
@@ -747,7 +1135,10 @@ function DashContent() {
             {(["library", "history"] as const).map((tab) => (
               <button
                 key={tab}
-                onClick={() => setActiveTab(tab)}
+                onClick={() => {
+                  setActiveTab(tab);
+                  setSelectedItem(null);
+                }}
                 style={{
                   flex: 1,
                   padding: "8px 12px",
@@ -795,7 +1186,7 @@ function DashContent() {
             ))}
           </div>
 
-          {/* ── Saved Papers tab ── */}
+          {/* ── Saved Papers ── */}
           {activeTab === "library" && (
             <>
               <div
@@ -831,17 +1222,13 @@ function DashContent() {
                 )}
               </div>
               {loading ? (
-                <div
-                  style={{ display: "flex", flexDirection: "column", gap: 7 }}
-                >
-                  {[1, 2, 3].map((i) => (
-                    <div
-                      key={i}
-                      className="shimmer-line"
-                      style={{ height: 72, borderRadius: 10 }}
-                    />
-                  ))}
-                </div>
+                [1, 2, 3].map((i) => (
+                  <div
+                    key={i}
+                    className="shimmer-line"
+                    style={{ height: 72, borderRadius: 10, marginBottom: 7 }}
+                  />
+                ))
               ) : papers.length === 0 ? (
                 <div
                   className="card"
@@ -862,10 +1249,10 @@ function DashContent() {
                   />
                   <p
                     style={{
-                      fontFamily: "var(--font-display)",
                       fontSize: 15,
                       color: "var(--text-primary)",
                       marginBottom: 6,
+                      fontFamily: "var(--font-display)",
                     }}
                   >
                     No saved papers yet
@@ -877,7 +1264,7 @@ function DashContent() {
                       marginBottom: 20,
                     }}
                   >
-                    Search papers and click the bookmark icon to save them here
+                    Search papers and bookmark them to save here
                   </p>
                   {!atLimit && (
                     <Link
@@ -897,12 +1284,7 @@ function DashContent() {
                     <div
                       key={p.paperId}
                       className="card"
-                      style={{
-                        padding: "13px 15px",
-                        display: "flex",
-                        gap: 12,
-                        alignItems: "flex-start",
-                      }}
+                      style={{ padding: "13px 15px", display: "flex", gap: 12 }}
                     >
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <p
@@ -911,7 +1293,6 @@ function DashContent() {
                             fontSize: 13,
                             fontWeight: 600,
                             color: "var(--text-primary)",
-                            lineHeight: 1.35,
                             marginBottom: 3,
                           }}
                         >
@@ -967,7 +1348,7 @@ function DashContent() {
             </>
           )}
 
-          {/* ── Search History tab ── */}
+          {/* ── Search History List ── */}
           {activeTab === "history" && (
             <>
               <div
@@ -989,75 +1370,44 @@ function DashContent() {
                   Search History
                 </h2>
                 <span style={{ fontSize: 11, color: "var(--text-faint)" }}>
-                  Last 50 searches
+                  Last 50 · tap to read
                 </span>
               </div>
 
-              {/* Info bar — different message based on limit */}
+              {/* Info strip */}
               <div
                 style={{
                   display: "flex",
                   alignItems: "center",
                   gap: 8,
-                  padding: "10px 14px",
-                  background: atLimit
-                    ? "rgba(224,92,92,.06)"
-                    : "var(--bg-overlay)",
-                  border: `1px solid ${atLimit ? "rgba(224,92,92,.15)" : "var(--border)"}`,
+                  padding: "9px 13px",
+                  background: "var(--bg-overlay)",
+                  border: "1px solid var(--border)",
                   borderRadius: 9,
                   marginBottom: 14,
                 }}
               >
-                {atLimit ? (
-                  <Lock
-                    size={12}
-                    style={{ color: "var(--red)", flexShrink: 0 }}
-                  />
-                ) : (
-                  <History
-                    size={12}
-                    style={{ color: "var(--text-muted)", flexShrink: 0 }}
-                  />
-                )}
+                <History
+                  size={12}
+                  style={{ color: "var(--brand)", flexShrink: 0 }}
+                />
                 <p
-                  style={{
-                    fontSize: 12,
-                    color: atLimit ? "var(--red)" : "var(--text-muted)",
-                  }}
+                  style={{ fontSize: 12, color: "var(--text-muted)", flex: 1 }}
                 >
                   {atLimit
-                    ? "Limit reached — you can view history but cannot run new searches. Upgrade to continue."
-                    : 'Click "Search again" to re-run any previous search.'}
+                    ? "You've hit your limit — tap any search below to read its saved answer for free."
+                    : "Tap any search to read its full saved answer. No credits needed to view history."}
                 </p>
-                {atLimit && (
-                  <Link
-                    href="/pricing"
-                    style={{
-                      fontSize: 11.5,
-                      color: "var(--brand)",
-                      fontWeight: 700,
-                      textDecoration: "none",
-                      flexShrink: 0,
-                      marginLeft: "auto",
-                    }}
-                  >
-                    Upgrade →
-                  </Link>
-                )}
               </div>
 
               {loading ? (
-                <div
-                  style={{ display: "flex", flexDirection: "column", gap: 7 }}
-                >
-                  {[1, 2, 3, 4, 5].map((i) => (
-                    <div
-                      key={i}
-                      className="shimmer-line"
-                      style={{ height: 56, borderRadius: 10 }}
-                    />
-                  ))}
-                </div>
+                [1, 2, 3, 4, 5].map((i) => (
+                  <div
+                    key={i}
+                    className="shimmer-line"
+                    style={{ height: 60, borderRadius: 10, marginBottom: 6 }}
+                  />
+                ))
               ) : history.length === 0 ? (
                 <div
                   className="card"
@@ -1078,23 +1428,16 @@ function DashContent() {
                   />
                   <p
                     style={{
-                      fontFamily: "var(--font-display)",
                       fontSize: 15,
                       color: "var(--text-primary)",
                       marginBottom: 6,
+                      fontFamily: "var(--font-display)",
                     }}
                   >
-                    No search history yet
+                    No history yet
                   </p>
-                  <p
-                    style={{
-                      fontSize: 12.5,
-                      color: "var(--text-secondary)",
-                      marginBottom: 20,
-                    }}
-                  >
-                    Your searches will appear here so you can revisit them
-                    anytime
+                  <p style={{ fontSize: 12.5, color: "var(--text-secondary)" }}>
+                    Your searches will appear here once you start researching
                   </p>
                 </div>
               ) : (
@@ -1102,122 +1445,120 @@ function DashContent() {
                   style={{ display: "flex", flexDirection: "column", gap: 6 }}
                 >
                   {history.map((h, i) => (
-                    <div
+                    <button
                       key={i}
-                      className="card"
+                      onClick={() => setSelectedItem(h)}
                       style={{
-                        padding: "12px 14px",
                         display: "flex",
                         alignItems: "center",
                         gap: 12,
-                        opacity: atLimit ? 0.85 : 1,
+                        padding: "13px 15px",
+                        background: "var(--bg-raised)",
+                        border: "1px solid var(--border)",
+                        borderRadius: 10,
+                        cursor: "pointer",
+                        textAlign: "left",
+                        width: "100%",
+                        transition: "all .14s",
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.borderColor =
+                          "var(--brand-border)";
+                        e.currentTarget.style.background = "var(--surface)";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.borderColor = "var(--border)";
+                        e.currentTarget.style.background = "var(--bg-raised)";
                       }}
                     >
+                      {/* Icon */}
                       <div
                         style={{
-                          width: 30,
-                          height: 30,
-                          borderRadius: 8,
-                          background: atLimit
-                            ? "rgba(224,92,92,.08)"
-                            : "var(--surface-2)",
+                          width: 34,
+                          height: 34,
+                          borderRadius: 9,
+                          background: "var(--surface-2)",
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "center",
                           flexShrink: 0,
                         }}
                       >
-                        {atLimit ? (
-                          <Lock size={11} style={{ color: "var(--red)" }} />
-                        ) : (
-                          <Search
-                            size={11}
-                            style={{ color: "var(--text-muted)" }}
-                          />
-                        )}
+                        <Search
+                          size={13}
+                          style={{ color: "var(--text-muted)" }}
+                        />
                       </div>
+
+                      {/* Text */}
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <p
                           className="truncate-1"
                           style={{
-                            fontSize: 13,
+                            fontSize: 13.5,
                             color: "var(--text-primary)",
                             fontWeight: 500,
+                            marginBottom: 3,
                           }}
                         >
                           {h.query}
                         </p>
-                        <p
+                        <div
                           style={{
-                            fontSize: 10.5,
-                            color: "var(--text-faint)",
-                            marginTop: 2,
                             display: "flex",
                             alignItems: "center",
-                            gap: 4,
+                            gap: 8,
+                            flexWrap: "wrap",
                           }}
                         >
-                          <Clock size={9} /> {timeAgo(h.searchedAt)}
-                        </p>
+                          <span
+                            style={{
+                              fontSize: 10.5,
+                              color: "var(--text-faint)",
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 3,
+                            }}
+                          >
+                            <Clock size={9} /> {timeAgo(h.searchedAt)}
+                          </span>
+                          {h.papers && h.papers.length > 0 && (
+                            <span
+                              style={{ fontSize: 10.5, color: "var(--brand)" }}
+                            >
+                              {h.papers.length} sources
+                            </span>
+                          )}
+                          {h.answer ? (
+                            <span
+                              style={{
+                                fontSize: 10.5,
+                                color: "var(--green)",
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 3,
+                              }}
+                            >
+                              ✓ Answer saved
+                            </span>
+                          ) : (
+                            <span
+                              style={{
+                                fontSize: 10.5,
+                                color: "var(--text-faint)",
+                              }}
+                            >
+                              No answer saved
+                            </span>
+                          )}
+                        </div>
                       </div>
 
-                      {/* Show upgrade button if at limit, else show search again */}
-                      {atLimit ? (
-                        <Link
-                          href="/pricing"
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 5,
-                            padding: "5px 11px",
-                            borderRadius: 7,
-                            background: "var(--brand)",
-                            color: "#000",
-                            fontSize: 11.5,
-                            textDecoration: "none",
-                            flexShrink: 0,
-                            fontWeight: 700,
-                          }}
-                        >
-                          <Sparkles size={10} /> Upgrade
-                        </Link>
-                      ) : (
-                        <Link
-                          href={`/search?q=${encodeURIComponent(h.query)}`}
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 5,
-                            padding: "5px 11px",
-                            borderRadius: 7,
-                            background: "var(--surface)",
-                            border: "1px solid var(--border-mid)",
-                            color: "var(--text-secondary)",
-                            fontSize: 11.5,
-                            textDecoration: "none",
-                            flexShrink: 0,
-                            fontWeight: 500,
-                            transition: "all .13s",
-                          }}
-                          onMouseEnter={(e) => {
-                            (
-                              e.currentTarget as HTMLAnchorElement
-                            ).style.borderColor = "var(--brand-border)";
-                            (e.currentTarget as HTMLAnchorElement).style.color =
-                              "var(--brand)";
-                          }}
-                          onMouseLeave={(e) => {
-                            (
-                              e.currentTarget as HTMLAnchorElement
-                            ).style.borderColor = "var(--border-mid)";
-                            (e.currentTarget as HTMLAnchorElement).style.color =
-                              "var(--text-secondary)";
-                          }}
-                        >
-                          Search again <ArrowRight size={10} />
-                        </Link>
-                      )}
-                    </div>
+                      <ArrowRight
+                        size={13}
+                        style={{ color: "var(--text-faint)", flexShrink: 0 }}
+                      />
+                    </button>
                   ))}
                 </div>
               )}
