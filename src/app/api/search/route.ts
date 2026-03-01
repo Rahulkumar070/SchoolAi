@@ -5,11 +5,10 @@ import { searchAll } from "@/lib/papers";
 import { generateAnswer } from "@/lib/ai";
 import { connectDB } from "@/lib/mongodb";
 import { UserModel } from "@/models/User";
-import { CacheModel } from "@/models/Cache";
 import { getCachedResult, saveToCache } from "@/lib/cache";
+import { checkGuestLimit } from "@/lib/guestLimit";
 
 // ── Limits ──────────────────────────────────────────────
-const GUEST_DAILY_LIMIT = 2; // not logged in
 const FREE_DAILY_LIMIT = 5; // logged in, free plan
 const STUDENT_MONTHLY_LIMIT = 500; // paid student plan
 // Pro = unlimited
@@ -155,60 +154,62 @@ export async function POST(req: NextRequest) {
     }
 
     // ══════════════════════════════════════════════════════
-    // GUEST USER (not logged in) — limit 2/day by IP
+    // GUEST USER — fingerprint + cookie dual tracking
+    // Survives: browser close, reopen, incognito, cookie clear
     // ══════════════════════════════════════════════════════
-    const ip = (req.headers.get("x-forwarded-for") ?? "unknown")
-      .split(",")[0]
-      .trim();
-    const guestKey = `guest:${ip}`;
-    const today = new Date().toDateString();
-    const guestDocKey = `${guestKey}:${today}`; // resets each day automatically
+    const guestCheck = await checkGuestLimit(req);
 
-    const guestDoc = (await CacheModel.findOne({
-      query: guestDocKey,
-    }).lean()) as { answer?: string } | null;
-    const guestCount = guestDoc ? parseInt(guestDoc.answer ?? "0", 10) : 0;
+    // Helper to attach cookie to any response
+    const withGuestCookie = (res: NextResponse): NextResponse => {
+      res.cookies.set("_rly_gid", guestCheck.fingerprintId, {
+        httpOnly: true,
+        sameSite: "lax",
+        secure: process.env.NODE_ENV === "production",
+        maxAge: 60 * 60 * 24 * 30, // 30 days
+        path: "/",
+      });
+      return res;
+    };
 
-    if (guestCount >= GUEST_DAILY_LIMIT) {
-      return NextResponse.json(
-        {
-          error: `Guest limit reached (${GUEST_DAILY_LIMIT}/day). Sign in free to get 5 searches every day — no credit card needed.`,
-        },
-        { status: 429 },
+    if (!guestCheck.allowed) {
+      return withGuestCookie(
+        NextResponse.json(
+          {
+            error: `Guest limit reached (${guestCheck.limit}/day). Sign in free to get 5 searches every day — no credit card needed.`,
+          },
+          { status: 429 },
+        ),
       );
     }
 
-    // Increment guest count
-    await CacheModel.findOneAndUpdate(
-      { query: guestDocKey },
-      {
-        query: guestDocKey,
-        answer: String(guestCount + 1),
-        papers: [],
-        createdAt: new Date(),
-      },
-      { upsert: true },
-    );
-
     // Serve from cache or generate
-    if (cached)
-      return NextResponse.json({
-        papers: cached.papers,
-        answer: cached.answer,
-        query: q,
-        fromCache: true,
-      });
+    if (cached) {
+      return withGuestCookie(
+        NextResponse.json({
+          papers: cached.papers,
+          answer: cached.answer,
+          query: q,
+          fromCache: true,
+        }),
+      );
+    }
+
     const fp = await searchAll(q);
-    if (!fp.length)
-      return NextResponse.json({ error: "No papers found." }, { status: 404 });
+    if (!fp.length) {
+      return withGuestCookie(
+        NextResponse.json({ error: "No papers found." }, { status: 404 }),
+      );
+    }
     const ans = await generateAnswer(q, fp);
     void saveToCache(q, ans, fp);
-    return NextResponse.json({
-      papers: fp,
-      answer: ans,
-      query: q,
-      fromCache: false,
-    });
+    return withGuestCookie(
+      NextResponse.json({
+        papers: fp,
+        answer: ans,
+        query: q,
+        fromCache: false,
+      }),
+    );
   } catch (e) {
     return NextResponse.json(
       { error: (e as Error).message || "Search failed" },
