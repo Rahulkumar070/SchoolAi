@@ -16,7 +16,7 @@ export default function SignIn() {
         <div style={{ textAlign:"center", marginBottom:32 }}>
           <Link href="/" style={{ display:"inline-flex", alignItems:"center", gap:9, textDecoration:"none", marginBottom:22 }}>
             <div className="logo-mark"><BookOpen size={13} color="#000" strokeWidth={2.5}/></div>
-            <span style={{ fontWeight:700, fontSize:16, color:"var(--text-primary)" }}>ScholarAI</span>
+            <span style={{ fontWeight:700, fontSize:16, color:"var(--text-primary)" }}>Researchly</span>
           </Link>
           <h1 style={{ fontFamily:"var(--font-display)", fontSize:22, fontWeight:400, color:"var(--text-primary)", marginBottom:7 }}>Welcome back</h1>
           <p style={{ fontSize:13, color:"var(--text-secondary)" }}>Sign in to access your research library</p>

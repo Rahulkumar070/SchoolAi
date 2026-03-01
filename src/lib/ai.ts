@@ -4,7 +4,7 @@ import { Paper, ChatMessage } from "@/types";
 const ant = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 // ── Master system prompt ──────────────────────────────────────
-const MASTER_PROMPT = `You are ScholarAI, an intelligent academic and educational assistant.
+const MASTER_PROMPT = `You are Researchly, an intelligent academic and educational assistant.
 
 PRIMARY GOAL:
 Provide high-quality answers while minimizing computational cost and unnecessary verbosity.
@@ -53,22 +53,18 @@ Your objective is to act like a premium academic assistant that balances quality
 
 // ── Paper context builder ─────────────────────────────────────
 function ctx(papers: Paper[]) {
-  return papers
-    .slice(0, 12)
-    .map(
-      (p, i) =>
-        `[${i + 1}] "${p.title}"\nAuthors: ${p.authors.slice(0, 4).join(", ")}${p.authors.length > 4 ? " et al." : ""} | Year: ${p.year ?? "n.d."} | Source: ${p.journal ?? p.source}\nAbstract: ${p.abstract.slice(0, 550)}`,
-    )
-    .join("\n\n---\n\n");
+  return papers.slice(0, 12).map((p, i) =>
+    `[${i+1}] "${p.title}"\nAuthors: ${p.authors.slice(0,4).join(", ")}${p.authors.length>4?" et al.":""} | Year: ${p.year ?? "n.d."} | Source: ${p.journal ?? p.source}\nAbstract: ${p.abstract.slice(0, 550)}`
+  ).join("\n\n---\n\n");
 }
 
 // ── Single AI caller (Claude only — no OpenAI needed) ─────────
 async function callAI(userPrompt: string, maxTokens: number): Promise<string> {
   const r = await ant.messages.create({
-    model: "claude-opus-4-6",
+    model:      "claude-opus-4-6",
     max_tokens: maxTokens,
-    system: MASTER_PROMPT,
-    messages: [{ role: "user", content: userPrompt }],
+    system:     MASTER_PROMPT,
+    messages:   [{ role: "user", content: userPrompt }],
   });
   const b = r.content[0];
   return b.type === "text" ? b.text : "";
@@ -88,6 +84,7 @@ Classify this request and respond appropriately:
 - If research-related: write a 4-6 paragraph answer with [n] inline citations after every claim. End with ## Key Takeaways (3-4 bullet points).
 - If study/explanation: give a clear, structured explanation using the sources as reference where helpful.
 - If exam/practice: generate relevant practice questions or content based on the topic.`
+
     : `QUESTION: "${query}"
 
 No academic papers were found for this query. Classify this request and respond appropriately:
@@ -116,28 +113,24 @@ Write a full academic literature review with these sections:
 ## Conclusion
 
 Each section 2-3 paragraphs. Every factual claim must be cited with [n]. Target ~1300 words.`,
-    3800,
+    3800
   );
 }
 
 // ── PDF chat ──────────────────────────────────────────────────
-export async function chatPDF(
-  question: string,
-  pdfText: string,
-  history: ChatMessage[],
-) {
+export async function chatPDF(question: string, pdfText: string, history: ChatMessage[]) {
   const r = await ant.messages.create({
-    model: "claude-opus-4-6",
+    model:      "claude-opus-4-6",
     max_tokens: 1600,
-    system: `${MASTER_PROMPT}
+    system:     `${MASTER_PROMPT}
 
 PAPER CONTEXT:
 ${pdfText.slice(0, 13000)}
 
 Answer based on this paper. Quote relevant passages when helpful. If something is not in the paper, say so clearly.`,
     messages: [
-      ...history.slice(-8).map((m) => ({
-        role: m.role as "user" | "assistant",
+      ...history.slice(-8).map(m => ({
+        role:    m.role as "user" | "assistant",
         content: m.content,
       })),
       { role: "user", content: question },

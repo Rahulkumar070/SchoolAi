@@ -6,14 +6,11 @@ import { UserModel } from "@/models/User";
 export async function POST(req: NextRequest) {
   try {
     const rawBody = await req.text();
-    const sig = req.headers.get("x-razorpay-signature") ?? "";
-    const secret = process.env.RAZORPAY_WEBHOOK_SECRET ?? "";
+    const sig     = req.headers.get("x-razorpay-signature") ?? "";
+    const secret  = process.env.RAZORPAY_WEBHOOK_SECRET ?? "";
 
     // Verify webhook authenticity
-    const expected = crypto
-      .createHmac("sha256", secret)
-      .update(rawBody)
-      .digest("hex");
+    const expected = crypto.createHmac("sha256", secret).update(rawBody).digest("hex");
     if (expected !== sig) {
       console.warn("Webhook: invalid signature");
       return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
@@ -22,22 +19,17 @@ export async function POST(req: NextRequest) {
     const event = JSON.parse(rawBody) as {
       event: string;
       payload: {
-        subscription?: {
-          entity: { id: string; notes?: { email?: string }; status?: string };
-        };
-        payment?: { entity: { id: string; email?: string } };
+        subscription?: { entity: { id: string; notes?: { email?: string }; status?: string } };
+        payment?:      { entity: { id: string; email?: string } };
       };
     };
 
     await connectDB();
-    const subEntity = event.payload.subscription?.entity;
+    const subEntity  = event.payload.subscription?.entity;
     const subscriptionId = subEntity?.id ?? "";
-    const email =
-      subEntity?.notes?.email ?? event.payload.payment?.entity?.email ?? "";
+    const email      = subEntity?.notes?.email ?? event.payload.payment?.entity?.email ?? "";
 
-    console.log(
-      `Webhook event: ${event.event} | sub: ${subscriptionId} | email: ${email}`,
-    );
+    console.log(`Webhook event: ${event.event} | sub: ${subscriptionId} | email: ${email}`);
 
     switch (event.event) {
       // Subscription activated / renewed
@@ -48,7 +40,7 @@ export async function POST(req: NextRequest) {
           expiresAt.setMonth(expiresAt.getMonth() + 1);
           await UserModel.findOneAndUpdate(
             { email },
-            { subscriptionStatus: "active", planExpiresAt: expiresAt },
+            { subscriptionStatus: "active", planExpiresAt: expiresAt }
           );
         }
         break;
@@ -59,12 +51,12 @@ export async function POST(req: NextRequest) {
         if (email) {
           await UserModel.findOneAndUpdate(
             { email },
-            { subscriptionStatus: "cancelled" },
+            { subscriptionStatus: "cancelled" }
           );
         } else if (subscriptionId) {
           await UserModel.findOneAndUpdate(
             { razorpaySubscriptionId: subscriptionId },
-            { subscriptionStatus: "cancelled" },
+            { subscriptionStatus: "cancelled" }
           );
         }
         break;
@@ -78,8 +70,7 @@ export async function POST(req: NextRequest) {
           : { razorpaySubscriptionId: subscriptionId };
         await UserModel.findOneAndUpdate(filter, {
           plan: "free",
-          subscriptionStatus:
-            event.event === "subscription.halted" ? "halted" : "expired",
+          subscriptionStatus: event.event === "subscription.halted" ? "halted" : "expired",
           razorpaySubscriptionId: "",
         });
         break;
@@ -105,9 +96,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ received: true });
   } catch (e) {
     console.error("Webhook error:", e);
-    return NextResponse.json(
-      { error: "Webhook processing failed" },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "Webhook processing failed" }, { status: 500 });
   }
 }

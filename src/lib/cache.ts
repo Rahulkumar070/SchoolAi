@@ -7,27 +7,22 @@ import { CacheModel } from "@/models/Cache";
 // ─────────────────────────────────────────────
 export function normalizeQuery(query: string): string {
   return query
-    .toLowerCase() // "Climate Change" → "climate change"
-    .trim() // remove leading/trailing spaces
-    .replace(/[^\w\s]/g, "") // remove punctuation: "what's?" → "whats"
-    .replace(/\s+/g, " ") // multiple spaces → single space
-    .replace(
-      /\b(a|an|the|in|of|for|to|and|or|is|are|was|were|what|how|why|when|where|which)\b/g,
-      "",
-    ) // remove stop words
-    .replace(/\s+/g, " ") // clean up again after stop word removal
+    .toLowerCase()                          // "Climate Change" → "climate change"
+    .trim()                                 // remove leading/trailing spaces
+    .replace(/[^\w\s]/g, "")               // remove punctuation: "what's?" → "whats"
+    .replace(/\s+/g, " ")                  // multiple spaces → single space
+    .replace(/\b(a|an|the|in|of|for|to|and|or|is|are|was|were|what|how|why|when|where|which)\b/g, "") // remove stop words
+    .replace(/\s+/g, " ")                  // clean up again after stop word removal
     .trim();
 }
 
 // ─────────────────────────────────────────────
 // GET CACHED RESULT
 // ─────────────────────────────────────────────
-export async function getCachedResult(
-  query: string,
-): Promise<{ answer: string; papers: unknown[] } | null> {
+export async function getCachedResult(query: string): Promise<{ answer: string; papers: unknown[] } | null> {
   try {
     await connectDB();
-    const key = normalizeQuery(query);
+    const key    = normalizeQuery(query);
     const cached = await CacheModel.findOne({ query: key });
 
     if (!cached) return null;
@@ -52,7 +47,7 @@ export async function getCachedResult(
 export async function saveToCache(
   originalQuery: string,
   answer: string,
-  papers: unknown[],
+  papers: unknown[]
 ): Promise<void> {
   try {
     await connectDB();
@@ -64,15 +59,15 @@ export async function saveToCache(
       { query: key },
       {
         $setOnInsert: {
-          query: key,
+          query:         key,
           originalQuery: originalQuery,
-          answer: answer,
-          papers: papers,
-          createdAt: new Date(),
-          usageCount: 1,
+          answer:        answer,
+          papers:        papers,
+          createdAt:     new Date(),
+          usageCount:    1,
         },
       },
-      { upsert: true, new: true },
+      { upsert: true, new: true }
     );
   } catch {
     // Cache save failure should never break the app — silently ignore
@@ -82,10 +77,7 @@ export async function saveToCache(
 // ─────────────────────────────────────────────
 // GET CACHE STATS (for admin/monitoring)
 // ─────────────────────────────────────────────
-interface CacheEntry {
-  query: string;
-  usageCount: number;
-}
+interface CacheEntry { query: string; usageCount: number; }
 
 export async function getCacheStats(): Promise<{
   totalEntries: number;
@@ -94,13 +86,14 @@ export async function getCacheStats(): Promise<{
 }> {
   await connectDB();
 
-  const raw = await CacheModel.find({}, { query: 1, usageCount: 1, _id: 0 })
+  const raw = await CacheModel
+    .find({}, { query: 1, usageCount: 1, _id: 0 })
     .sort({ usageCount: -1 })
     .limit(10)
     .lean<CacheEntry[]>();
 
-  const entries: CacheEntry[] = raw.map((e) => ({
-    query: String(e.query ?? ""),
+  const entries: CacheEntry[] = raw.map(e => ({
+    query:      String(e.query      ?? ""),
     usageCount: Number(e.usageCount ?? 0),
   }));
 
@@ -109,6 +102,6 @@ export async function getCacheStats(): Promise<{
   return {
     totalEntries: await CacheModel.countDocuments(),
     totalHits,
-    topQueries: entries,
+    topQueries:   entries,
   };
 }

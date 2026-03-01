@@ -7,6 +7,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { BookOpen, ArrowUp, Download, Copy, Check, Lock, FileText } from "lucide-react";
 import { useSession } from "next-auth/react";
+import { Sparkles } from "lucide-react";
 import Link from "next/link";
 import toast from "react-hot-toast";
 import { Paper } from "@/types";
@@ -69,9 +70,26 @@ export default function ReviewPage() {
                 <Lock size={14} style={{ color:"var(--brand)", flexShrink:0 }}/>
                 <div style={{ flex:1 }}>
                   <p style={{ fontSize:13, fontWeight:600, color:"var(--text-primary)" }}>Sign in required</p>
-                  <p style={{ fontSize:11.5, color:"var(--text-secondary)" }}>Free account needed to generate reviews</p>
+                  <p style={{ fontSize:11.5, color:"var(--text-secondary)" }}>Account needed to generate reviews</p>
                 </div>
                 <Link href="/auth/signin" className="btn btn-brand" style={{ padding:"7px 14px", textDecoration:"none", flexShrink:0, fontSize:12.5 }}>Sign In</Link>
+              </div>
+            )}
+
+            {/* Plan gate — free users can't use this */}
+            {session && session.user?.plan === "free" && (
+              <div style={{ background:"var(--surface)", border:"1px solid var(--brand-border)", borderRadius:14, padding:"28px 24px", textAlign:"center", marginBottom:22 }}>
+                <div style={{ width:48, height:48, borderRadius:12, background:"var(--brand-dim)", display:"flex", alignItems:"center", justifyContent:"center", margin:"0 auto 14px" }}>
+                  <Sparkles size={22} style={{ color:"var(--brand)" }}/>
+                </div>
+                <p style={{ fontSize:16, fontWeight:700, color:"var(--text-primary)", marginBottom:6 }}>Paid Feature</p>
+                <p style={{ fontSize:13.5, color:"var(--text-secondary)", marginBottom:20, lineHeight:1.65 }}>
+                  Literature Review is available on <strong>Student</strong> and <strong>Pro</strong> plans.<br/>
+                  Get 500 searches/month + full literature reviews for just ₹199/mo.
+                </p>
+                <Link href="/pricing" className="btn btn-brand" style={{ textDecoration:"none", padding:"10px 28px", fontSize:14, fontWeight:700 }}>
+                  Upgrade to Student ₹199/mo →
+                </Link>
               </div>
             )}
 
@@ -147,9 +165,9 @@ export default function ReviewPage() {
               onChange={e=>{ setInput(e.target.value); resize(); }}
               onKeyDown={e=>{ if(e.key==="Enter"&&!e.shiftKey){ e.preventDefault(); void generate(); } }}
               placeholder="e.g. Social media effects on adolescent mental health…"
-              className="input-textarea" rows={1} disabled={loading||!session}/>
+              className="input-textarea" rows={1} disabled={loading||!session||session?.user?.plan==="free"}/>
             <button onClick={() => void generate()} disabled={loading||!input.trim()||!session}
-              className={`send-btn${input.trim()&&!loading&&session?" ready":" idle"}`}>
+              className={`send-btn${input.trim()&&!loading&&session&&session?.user?.plan!=="free"?" ready":" idle"}`}>
               {loading ? <span className="spinner"/> : <ArrowUp size={14} style={{ color:input.trim()&&session?"#000":"var(--text-faint)" }}/>}
             </button>
           </div>

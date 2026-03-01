@@ -381,7 +381,7 @@ export default function Home() {
               fontFamily: "var(--font-ui)",
             }}
           >
-            ScholarAI
+            Researchly
           </span>
         </Link>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -1032,7 +1032,7 @@ export default function Home() {
         }}
       >
         <span style={{ fontSize: 11.5, color: "var(--text-faint)" }}>
-          © 2025 ScholarAI · Made with ❤️ in India 🇮🇳
+          © 2026 Researchly · Made with ❤️ in India 🇮🇳
         </span>
         <div style={{ display: "flex", gap: 14 }}>
           {["Search", "Review", "PDF Chat", "Pricing"].map((l) => (
