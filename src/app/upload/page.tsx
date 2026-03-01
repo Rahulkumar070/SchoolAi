@@ -1,4 +1,10 @@
 "use client";
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+declare global {
+  interface Window {
+    pdfjsLib: any;
+  }
+}
 import { useState, useRef, useCallback } from "react";
 import Shell from "@/components/layout/Shell";
 import ReactMarkdown from "react-markdown";
@@ -60,9 +66,8 @@ export default function UploadPage() {
       toast.error("Please upload a PDF");
       return;
     }
-    // Vercel limit is 4.5MB body — base64 inflates ~33%, so cap at 3MB raw
-    if (f.size > 3 * 1024 * 1024) {
-      toast.error("Max 3MB PDF (Vercel limit). Try a smaller file.");
+    if (f.size > 20 * 1024 * 1024) {
+      toast.error("Max 20MB PDF");
       return;
     }
 
@@ -73,35 +78,70 @@ export default function UploadPage() {
     setPdfText("");
 
     try {
-      // Convert PDF to base64 — Claude reads natively, no text extraction needed
       const buf = await f.arrayBuffer();
-      const bytes = new Uint8Array(buf);
-      let binary = "";
-      const chunk = 8192;
-      for (let i = 0; i < bytes.byteLength; i += chunk) {
-        binary += String.fromCharCode(
-          ...Array.from(bytes.subarray(i, i + chunk)),
-        );
-      }
-      const base64 = btoa(binary);
-      const pdfData = `__PDF_BASE64__${base64}`;
+      const text = await extractTextFromPDF(buf);
 
-      setPdfText(pdfData);
+      if (!text || text.length < 50) {
+        setParseErr(
+          "Could not extract text from this PDF. It may be a scanned/image PDF.",
+        );
+        setFile(null);
+        setParsing(false);
+        return;
+      }
+
+      setPdfText(text);
       setMsgs([
         {
           role: "assistant",
-          content: `I've loaded **"${f.name}"** (${(f.size / 1024).toFixed(0)}KB). I'm reading it directly — ask me anything about this document!`,
+          content: `I've read **"${f.name}"** (${(f.size / 1024).toFixed(0)}KB, ${text.length.toLocaleString()} characters). Ask me anything about this document!`,
         },
       ]);
       toast.success("PDF ready!");
     } catch (e) {
       console.error(e);
-      setParseErr("Failed to read PDF. Try a smaller or different file.");
+      setParseErr("Failed to read PDF. Try another file.");
       setFile(null);
     } finally {
       setParsing(false);
     }
   }, []);
+
+  // Extract text from PDF using pdf.js from CDN
+  const extractTextFromPDF = async (buf: ArrayBuffer): Promise<string> => {
+    // Dynamically load pdf.js from CDN
+    if (!window.pdfjsLib) {
+      await new Promise<void>((resolve, reject) => {
+        const script = document.createElement("script");
+        script.src =
+          "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";
+        script.onload = () => resolve();
+        script.onerror = () => reject(new Error("Failed to load PDF.js"));
+        document.head.appendChild(script);
+      });
+      // Set worker
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc =
+        "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+    }
+
+    const pdf = await window.pdfjsLib.getDocument({ data: buf }).promise;
+    const maxPages = Math.min(pdf.numPages, 50); // cap at 50 pages
+    const texts: string[] = [];
+
+    for (let i = 1; i <= maxPages; i++) {
+      const page = await pdf.getPage(i);
+      const content = await page.getTextContent();
+      const pageText = content.items
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .map((item: any) => item.str)
+        .join(" ")
+        .replace(/\s+/g, " ")
+        .trim();
+      if (pageText) texts.push(`--- Page ${i} ---\n${pageText}`);
+    }
+
+    return texts.join("\n\n").slice(0, 60000);
+  };
 
   const onDrop = (e: React.DragEvent) => {
     e.preventDefault();
@@ -401,7 +441,8 @@ export default function UploadPage() {
                       marginTop: 3,
                     }}
                   >
-                    ✓ Ready · Claude native reading
+                    ✓ Ready · {Math.round(pdfText.length / 1000)}K chars
+                    extracted
                   </p>
                 )}
                 {parseErr && (
@@ -815,7 +856,7 @@ export default function UploadPage() {
               </button>
             </div>
             <p className="input-hint">
-              Reads PDF natively · Powered by Claude AI
+              Analyses methods, findings, statistics · Powered by Claude AI
             </p>
           </div>
         </div>
