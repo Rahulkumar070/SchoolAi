@@ -63,9 +63,13 @@ function ctx(papers: Paper[]) {
 }
 
 // ── Single AI caller (Claude only — no OpenAI needed) ─────────
-async function callAI(userPrompt: string, maxTokens: number): Promise<string> {
+async function callAI(
+  userPrompt: string,
+  maxTokens: number,
+  model = "claude-haiku-4-5-20251001",
+): Promise<string> {
   const r = await ant.messages.create({
-    model: "claude-opus-4-6",
+    model,
     max_tokens: maxTokens,
     system: MASTER_PROMPT,
     messages: [{ role: "user", content: userPrompt }],
@@ -113,7 +117,7 @@ No academic papers were found for this query. Classify this request and respond 
 - If it is a general academic question: answer from your knowledge with clear structure. Include helpful resource links where relevant.
 - Do NOT say "I cannot find papers" — just provide the most useful response for the student.`;
 
-  return callAI(userPrompt, 2800);
+  return callAI(userPrompt, 2800, "claude-haiku-4-5-20251001"); // Haiku = 3x faster
 }
 
 // ── Generate literature review ────────────────────────────────
@@ -134,6 +138,7 @@ Write a full academic literature review with these sections:
 
 Each section 2-3 paragraphs. Every factual claim must be cited with [n]. Target ~1300 words.`,
     3800,
+    "claude-sonnet-4-6", // Sonnet for quality reviews
   );
 }
 
@@ -144,7 +149,7 @@ export async function chatPDF(
   history: ChatMessage[],
 ) {
   const r = await ant.messages.create({
-    model: "claude-opus-4-6",
+    model: "claude-haiku-4-5-20251001", // Haiku = fast PDF responses
     max_tokens: 1600,
     system: `${MASTER_PROMPT}
 

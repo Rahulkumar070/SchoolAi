@@ -710,6 +710,17 @@ function SearchApp() {
               answer.
             </p>
 
+            {!session && (
+              <p className="welcome-quota">
+                2 free searches as guest ·{" "}
+                <Link
+                  href="/auth/signin"
+                  style={{ color: "var(--brand)", textDecoration: "none" }}
+                >
+                  Sign in for 5/day →
+                </Link>
+              </p>
+            )}
             {session && isFree && (
               <p className="welcome-quota">
                 {searchesToday}/5 free searches today
@@ -1044,7 +1055,6 @@ function SearchApp() {
                   <Lock size={12} style={{ color: "var(--red)" }} />
                 </div>
                 <div style={{ flex: 1 }}>
-                  {/* Show the query they tried */}
                   <div
                     style={{
                       background: "rgba(224,92,92,.07)",
@@ -1053,75 +1063,145 @@ function SearchApp() {
                       padding: "16px 18px",
                     }}
                   >
-                    <p
-                      style={{
-                        fontSize: 13.5,
-                        fontWeight: 700,
-                        color: "var(--red)",
-                        marginBottom: 6,
-                      }}
-                    >
-                      {isFree
-                        ? "Daily limit reached (5/5)"
-                        : "Monthly limit reached (500/500)"}
-                    </p>
-                    <p
-                      style={{
-                        fontSize: 13,
-                        color: "var(--text-secondary)",
-                        marginBottom: 14,
-                        lineHeight: 1.6,
-                      }}
-                    >
-                      {isFree
-                        ? "You've used all 5 free searches for today. Upgrade to get 500 searches per month, or come back tomorrow."
-                        : "You've used all 500 searches this month. Upgrade to Pro for truly unlimited searches."}
-                    </p>
-                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                      <Link
-                        href="/pricing"
-                        className="btn btn-brand"
-                        style={{
-                          textDecoration: "none",
-                          padding: "9px 18px",
-                          fontSize: 13,
-                        }}
-                      >
-                        {isFree ? (
-                          <>
-                            <Sparkles size={12} /> Upgrade to Student ₹199/mo
-                          </>
-                        ) : (
-                          <>
-                            <Crown size={12} /> Upgrade to Pro ₹499/mo
-                          </>
+                    {/* Guest user — not logged in */}
+                    {!session ? (
+                      <>
+                        <p
+                          style={{
+                            fontSize: 13.5,
+                            fontWeight: 700,
+                            color: "var(--red)",
+                            marginBottom: 6,
+                          }}
+                        >
+                          Guest limit reached (2/2)
+                        </p>
+                        <p
+                          style={{
+                            fontSize: 13,
+                            color: "var(--text-secondary)",
+                            marginBottom: 14,
+                            lineHeight: 1.6,
+                          }}
+                        >
+                          You&apos;ve used your 2 free guest searches. Sign in
+                          free to get <strong>5 searches every day</strong> — no
+                          credit card needed.
+                        </p>
+                        <div
+                          style={{ display: "flex", gap: 8, flexWrap: "wrap" }}
+                        >
+                          <Link
+                            href="/auth/signin"
+                            className="btn btn-brand"
+                            style={{
+                              textDecoration: "none",
+                              padding: "9px 18px",
+                              fontSize: 13,
+                            }}
+                          >
+                            Sign In Free → Get 5/day
+                          </Link>
+                          <Link
+                            href="/pricing"
+                            className="btn btn-outline"
+                            style={{
+                              textDecoration: "none",
+                              padding: "9px 14px",
+                              fontSize: 13,
+                            }}
+                          >
+                            <Sparkles size={12} /> See Plans
+                          </Link>
+                        </div>
+                        <p
+                          style={{
+                            fontSize: 11,
+                            color: "var(--text-faint)",
+                            marginTop: 10,
+                          }}
+                        >
+                          🔒 Free forever · No credit card · Just Google or
+                          GitHub login
+                        </p>
+                      </>
+                    ) : (
+                      /* Logged-in user hit their plan limit */
+                      <>
+                        <p
+                          style={{
+                            fontSize: 13.5,
+                            fontWeight: 700,
+                            color: "var(--red)",
+                            marginBottom: 6,
+                          }}
+                        >
+                          {isFree
+                            ? "Daily limit reached (5/5)"
+                            : "Monthly limit reached (500/500)"}
+                        </p>
+                        <p
+                          style={{
+                            fontSize: 13,
+                            color: "var(--text-secondary)",
+                            marginBottom: 14,
+                            lineHeight: 1.6,
+                          }}
+                        >
+                          {isFree
+                            ? "You've used all 5 free searches for today. Upgrade to get 500 searches per month, or come back tomorrow."
+                            : "You've used all 500 searches this month. Upgrade to Pro for truly unlimited searches."}
+                        </p>
+                        <div
+                          style={{ display: "flex", gap: 8, flexWrap: "wrap" }}
+                        >
+                          <Link
+                            href="/pricing"
+                            className="btn btn-brand"
+                            style={{
+                              textDecoration: "none",
+                              padding: "9px 18px",
+                              fontSize: 13,
+                            }}
+                          >
+                            {isFree ? (
+                              <>
+                                <Sparkles size={12} /> Upgrade to Student
+                                ₹199/mo
+                              </>
+                            ) : (
+                              <>
+                                <Crown size={12} /> Upgrade to Pro ₹499/mo
+                              </>
+                            )}
+                          </Link>
+                          <Link
+                            href="/dashboard?tab=history"
+                            className="btn btn-outline"
+                            style={{
+                              textDecoration: "none",
+                              padding: "9px 14px",
+                              fontSize: 13,
+                            }}
+                          >
+                            <History size={12} /> View Past Answers
+                          </Link>
+                        </div>
+                        {isFree && (
+                          <p
+                            style={{
+                              fontSize: 11,
+                              color: "var(--text-faint)",
+                              marginTop: 10,
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 5,
+                            }}
+                          >
+                            <Clock size={9} /> Free searches reset at midnight
+                          </p>
                         )}
-                      </Link>
-                      <Link
-                        href="/dashboard?tab=history"
-                        className="btn btn-outline"
-                        style={{
-                          textDecoration: "none",
-                          padding: "9px 14px",
-                          fontSize: 13,
-                        }}
-                      >
-                        <History size={12} /> View Past Answers
-                      </Link>
-                    </div>
-                    {isFree && (
-                      <p
-                        style={{
-                          fontSize: 11,
-                          color: "var(--text-faint)",
-                          marginTop: 10,
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 5,
-                        }}
-                      >
-                        <Clock size={9} /> Free searches reset at midnight
-                      </p>
+                      </>
                     )}
                   </div>
                 </div>
