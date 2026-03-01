@@ -3,29 +3,29 @@ import { MetadataRoute } from "next";
 export default function sitemap(): MetadataRoute.Sitemap {
   return [
     {
-      url:          "https://researchly.in",
+      url: "https://researchly.in",
       lastModified: new Date(),
-      priority:     1.0,
+      priority: 1.0,
     },
     {
-      url:          "https://researchly.in/search",
+      url: "https://researchly.in/search",
       lastModified: new Date(),
-      priority:     0.9,
+      priority: 0.9,
     },
     {
-      url:          "https://researchly.in/review",
+      url: "https://researchly.in/review",
       lastModified: new Date(),
-      priority:     0.8,
+      priority: 0.8,
     },
     {
-      url:          "https://researchly.in/upload",
+      url: "https://researchly.in/upload",
       lastModified: new Date(),
-      priority:     0.7,
+      priority: 0.7,
     },
     {
-      url:          "https://researchly.in/pricing",
+      url: "https://researchly.in/pricing",
       lastModified: new Date(),
-      priority:     0.8,
+      priority: 0.8,
     },
   ];
 }
