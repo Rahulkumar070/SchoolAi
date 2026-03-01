@@ -389,6 +389,21 @@ function DashContent() {
                           {children}
                         </li>
                       ),
+                      a: ({ href, children }) => (
+                        <a
+                          href={href}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{
+                            color: "var(--brand)",
+                            textDecoration: "underline",
+                            textUnderlineOffset: 3,
+                            wordBreak: "break-word",
+                          }}
+                        >
+                          {children}
+                        </a>
+                      ),
                     }}
                   >
                     {selectedReview.review}
@@ -767,6 +782,21 @@ function DashContent() {
                         >
                           {children}
                         </code>
+                      ),
+                      a: ({ href, children }) => (
+                        <a
+                          href={href}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{
+                            color: "var(--brand)",
+                            textDecoration: "underline",
+                            textUnderlineOffset: 3,
+                            wordBreak: "break-word",
+                          }}
+                        >
+                          {children}
+                        </a>
                       ),
                     }}
                   >
