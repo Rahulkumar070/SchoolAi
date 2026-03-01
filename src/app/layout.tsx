@@ -18,6 +18,9 @@ export const metadata: Metadata = {
     "NEET",
     "ScholarAI",
   ],
+  verification: {
+    google: "SNsDG-vuMzdIKetn9V5jNKEcjdZs5MK5xWYH8LUSptQ",
+  },
   themeColor: "#e8a045",
   colorScheme: "dark",
   viewport: "width=device-width, initial-scale=1, maximum-scale=5",
@@ -28,7 +31,7 @@ export const metadata: Metadata = {
       { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
       { url: "/favicon-48x48.png", sizes: "48x48", type: "image/png" },
     ],
-    apple: [{ url: "/public/apple-touch-icon.png", sizes: "180x180" }],
+    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180" }],
     other: [
       { rel: "mask-icon", url: "/icon-maskable-512.png" },
       { rel: "msapplication-TileImage", url: "/mstile-150x150.png" },
