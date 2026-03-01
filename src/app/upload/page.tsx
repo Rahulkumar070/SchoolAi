@@ -28,51 +28,6 @@ const QUICK = [
   "Summarise the conclusions",
 ];
 
-// Pure JS PDF text extraction — no external library needed
-function extractPDF(buf: ArrayBuffer): string {
-  const bytes = new Uint8Array(buf);
-  const textParts: string[] = [];
-
-  // Decode to latin1 for regex processing
-  let raw = "";
-  for (let i = 0; i < Math.min(bytes.length, 600_000); i++) {
-    const c = bytes[i];
-    raw +=
-      c >= 32 && c < 127
-        ? String.fromCharCode(c)
-        : c === 10 || c === 13
-          ? "\n"
-          : " ";
-  }
-
-  // Extract text from BT...ET blocks (PDF text operators)
-  const btRe = /BT([\s\S]{1,2000}?)ET/g;
-  let m: RegExpExecArray | null;
-  while ((m = btRe.exec(raw)) !== null) {
-    const block = m[1];
-    // Extract strings in () and <>
-    const strRe = /\(([^)]{1,300})\)/g;
-    let sm: RegExpExecArray | null;
-    while ((sm = strRe.exec(block)) !== null) {
-      const s = sm[1].trim();
-      if (s.length > 1 && /[a-zA-Z]{2,}/.test(s)) textParts.push(s);
-    }
-  }
-
-  // Also extract stream text
-  const streamRe = /stream\r?\n([\s\S]{1,50000}?)\r?\nendstream/g;
-  while ((m = streamRe.exec(raw)) !== null) {
-    const chunk = m[1]
-      .replace(/[^\x20-\x7e\n]/g, " ")
-      .replace(/\s+/g, " ")
-      .trim();
-    if (chunk.length > 30) textParts.push(chunk);
-  }
-
-  const combined = textParts.join(" ").replace(/\s+/g, " ").trim();
-  return combined.slice(0, 55_000);
-}
-
 export default function UploadPage() {
   const [file, setFile] = useState<File | null>(null);
   const [pdfText, setPdfText] = useState("");
@@ -117,21 +72,23 @@ export default function UploadPage() {
     setPdfText("");
 
     try {
-      // Convert PDF to base64 — Claude reads it natively, no text extraction needed
+      // Convert PDF to base64 — Claude reads it natively, perfect for all PDF types
       const buf = await f.arrayBuffer();
       const bytes = new Uint8Array(buf);
       let binary = "";
-      for (let i = 0; i < bytes.byteLength; i++)
-        binary += String.fromCharCode(bytes[i]);
+      // Process in chunks to avoid stack overflow on large files
+      const chunkSize = 8192;
+      for (let i = 0; i < bytes.byteLength; i += chunkSize) {
+        binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
+      }
       const base64 = btoa(binary);
-
-      // Store as special marker so API knows it is base64 PDF
       const pdfData = `__PDF_BASE64__${base64}`;
+
       setPdfText(pdfData);
       setMsgs([
         {
           role: "assistant",
-          content: `I've loaded **"${f.name}"** (${(f.size / 1024).toFixed(0)}KB). I can read this PDF directly — no text extraction needed! Ask me anything about it.`,
+          content: `I've loaded **"${f.name}"** (${(f.size / 1024).toFixed(0)}KB). I'm reading it directly using Claude's native PDF understanding — no text extraction needed!\n\nAsk me anything about this document — I can summarize it, explain specific sections, find key findings, discuss methodology, or answer any other questions.`,
         },
       ]);
       toast.success("PDF ready!");
@@ -181,7 +138,7 @@ export default function UploadPage() {
     }
   };
 
-  // Left panel content
+  // Left panel
   const LeftPanel = (
     <div
       style={{ padding: 14, display: "flex", flexDirection: "column", gap: 12 }}
@@ -423,7 +380,7 @@ export default function UploadPage() {
                       marginTop: 3,
                     }}
                   >
-                    Extracting text…
+                    ⏳ Loading PDF…
                   </p>
                 )}
                 {pdfText && !parsing && (
@@ -434,7 +391,7 @@ export default function UploadPage() {
                       marginTop: 3,
                     }}
                   >
-                    ✓ Ready · Claude native PDF reading
+                    ✓ Ready · Claude native reading
                   </p>
                 )}
                 {parseErr && (
@@ -555,7 +512,7 @@ export default function UploadPage() {
   return (
     <Shell>
       <div style={{ display: "flex", height: "100%", overflow: "hidden" }}>
-        {/* Left mini panel */}
+        {/* Left panel */}
         <div
           style={{
             width: 220,
@@ -605,11 +562,11 @@ export default function UploadPage() {
                     lineHeight: 1.65,
                   }}
                 >
-                  {session
-                    ? "Upload any academic paper and ask about its methods, findings, statistics or conclusions."
+                  {!session
+                    ? "PDF Chat requires a free account. Sign in with Google or GitHub — it takes 10 seconds."
                     : isFree
                       ? "PDF Chat is a paid feature. Upgrade to Student or Pro to upload and chat with academic papers."
-                      : "PDF Chat requires a free account. Sign in with Google or GitHub — it takes 10 seconds."}
+                      : "Upload any academic paper, textbook chapter, or research document and ask anything about it."}
                 </p>
                 {!session && (
                   <Link
@@ -643,11 +600,38 @@ export default function UploadPage() {
                       <div className="msg-ai-content">
                         <ReactMarkdown
                           components={{
+                            h2: ({ children }) => (
+                              <h2
+                                style={{
+                                  fontFamily: "var(--font-display)",
+                                  fontSize: "1rem",
+                                  color: "var(--text-primary)",
+                                  margin: "1.2em 0 .4em",
+                                  fontWeight: 600,
+                                }}
+                              >
+                                {children}
+                              </h2>
+                            ),
+                            h3: ({ children }) => (
+                              <h3
+                                style={{
+                                  fontSize: ".9rem",
+                                  color: "var(--text-primary)",
+                                  fontWeight: 600,
+                                  margin: ".8em 0 .3em",
+                                }}
+                              >
+                                {children}
+                              </h3>
+                            ),
                             p: ({ children }) => (
                               <p
                                 style={{
                                   marginBottom: ".65em",
                                   lineHeight: 1.72,
+                                  fontSize: 14,
+                                  color: "var(--text-secondary)",
                                 }}
                               >
                                 {children}
@@ -688,9 +672,42 @@ export default function UploadPage() {
                               </ul>
                             ),
                             li: ({ children }) => (
-                              <li style={{ marginBottom: ".2em" }}>
+                              <li
+                                style={{
+                                  marginBottom: ".2em",
+                                  fontSize: 14,
+                                  color: "var(--text-secondary)",
+                                }}
+                              >
                                 {children}
                               </li>
+                            ),
+                            blockquote: ({ children }) => (
+                              <blockquote
+                                style={{
+                                  borderLeft: "3px solid var(--brand)",
+                                  paddingLeft: 12,
+                                  margin: "8px 0",
+                                  color: "var(--text-secondary)",
+                                  fontStyle: "italic",
+                                }}
+                              >
+                                {children}
+                              </blockquote>
+                            ),
+                            a: ({ href, children }) => (
+                              <a
+                                href={href}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                style={{
+                                  color: "var(--brand)",
+                                  textDecoration: "underline",
+                                  textUnderlineOffset: 3,
+                                }}
+                              >
+                                {children}
+                              </a>
                             ),
                           }}
                         >
@@ -788,7 +805,7 @@ export default function UploadPage() {
               </button>
             </div>
             <p className="input-hint">
-              Analyses methods, findings, statistics · Powered by Claude AI
+              Reads PDF natively · Powered by Claude AI
             </p>
           </div>
         </div>
