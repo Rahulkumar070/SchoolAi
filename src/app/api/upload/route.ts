@@ -8,7 +8,7 @@ import Anthropic from "@anthropic-ai/sdk";
 
 const ant = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-const MASTER_PROMPT = `You are Researchly's PDF Assistant — the world's best academic paper reader and explainer.
+const PDF_PROMPT = `You are Researchly's PDF Assistant — the world's best academic paper reader and explainer.
 
 YOUR RULES:
 1. Read the PDF document provided and answer based ONLY on its content
@@ -62,7 +62,6 @@ export async function POST(req: NextRequest) {
     if (isBase64PDF) {
       const base64Data = pdfText.replace("__PDF_BASE64__", "");
 
-      // Build history as plain string messages (no type issues)
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const messages: any[] = [
         ...history.slice(-6).map((m) => ({
@@ -70,7 +69,7 @@ export async function POST(req: NextRequest) {
           content: m.content,
         })),
         {
-          role: "user" as const,
+          role: "user",
           content: [
             {
               type: "document",
@@ -91,14 +90,14 @@ export async function POST(req: NextRequest) {
       const r = await ant.messages.create({
         model: "claude-sonnet-4-6",
         max_tokens: 2000,
-        system: MASTER_PROMPT,
+        system: PDF_PROMPT,
         messages,
       });
 
       const b = r.content[0];
       answer = b.type === "text" ? b.text : "";
     } else {
-      // Legacy plain text fallback
+      // Legacy fallback — plain text
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const messages: any[] = [
         ...history.slice(-8).map((m) => ({
@@ -111,7 +110,7 @@ export async function POST(req: NextRequest) {
       const r = await ant.messages.create({
         model: "claude-haiku-4-5-20251001",
         max_tokens: 1800,
-        system: `${MASTER_PROMPT}\n\nDOCUMENT CONTENT:\n${pdfText.slice(0, 14000)}`,
+        system: `${PDF_PROMPT}\n\nDOCUMENT CONTENT:\n${pdfText.slice(0, 14000)}`,
         messages,
       });
       const b = r.content[0];
