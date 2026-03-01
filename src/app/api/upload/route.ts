@@ -22,6 +22,10 @@ YOUR RULES:
 9. If asked about limitations, methodology, or future work — look for those specific sections
 10. Be the world's best research paper explainer — accurate, clear, and genuinely helpful`;
 
+// Anthropic free tier rate limits:
+// Sonnet: 30,000 input tokens/min  → too low for large PDFs
+// Haiku:  50,000 input tokens/min  → better for PDFs
+
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.email)
@@ -56,9 +60,8 @@ export async function POST(req: NextRequest) {
         { status: 400 },
       );
 
-    // Build history messages
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const historyMsgs: any[] = history.slice(-6).map((m) => ({
+    const historyMsgs: any[] = history.slice(-4).map((m) => ({
       role: m.role as "user" | "assistant",
       content: m.content,
     }));
@@ -69,7 +72,11 @@ export async function POST(req: NextRequest) {
     let userContent: any;
 
     if (isBase64PDF) {
-      const base64Data = pdfText.replace("__PDF_BASE64__", "");
+      // Trim base64 to max ~800KB of PDF data to stay under token limits
+      // 800KB base64 ≈ ~600KB PDF ≈ ~150,000 tokens — safe for Haiku
+      const base64Data = pdfText
+        .replace("__PDF_BASE64__", "")
+        .slice(0, 1_000_000);
       userContent = [
         {
           type: "document",
@@ -86,8 +93,8 @@ export async function POST(req: NextRequest) {
     }
 
     const r = await ant.messages.create({
-      model: isBase64PDF ? "claude-sonnet-4-6" : "claude-haiku-4-5-20251001",
-      max_tokens: 2000,
+      model: "claude-haiku-4-5-20251001", // Haiku: higher rate limits, faster, still great
+      max_tokens: 1500,
       system: isBase64PDF
         ? PDF_PROMPT
         : `${PDF_PROMPT}\n\nDOCUMENT CONTENT:\n${pdfText.slice(0, 14000)}`,
@@ -99,9 +106,19 @@ export async function POST(req: NextRequest) {
     const answer = b.type === "text" ? b.text : "";
     return NextResponse.json({ answer });
   } catch (e) {
-    console.error("PDF chat error:", e);
+    const err = e as { status?: number; message?: string };
+    console.error("PDF chat error:", err);
+
+    // Show friendly error for rate limit
+    if (err.status === 429) {
+      return NextResponse.json(
+        { error: "Too many requests — please wait 30 seconds and try again." },
+        { status: 429 },
+      );
+    }
+
     return NextResponse.json(
-      { error: (e as Error).message || "Chat failed" },
+      { error: err.message || "Chat failed" },
       { status: 500 },
     );
   }
