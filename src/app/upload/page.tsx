@@ -60,8 +60,9 @@ export default function UploadPage() {
       toast.error("Please upload a PDF");
       return;
     }
-    if (f.size > 25 * 1024 * 1024) {
-      toast.error("Max 25MB");
+    // Vercel limit is 4.5MB body — base64 inflates ~33%, so cap at 3MB raw
+    if (f.size > 3 * 1024 * 1024) {
+      toast.error("Max 3MB PDF (Vercel limit). Try a smaller file.");
       return;
     }
 
@@ -72,14 +73,15 @@ export default function UploadPage() {
     setPdfText("");
 
     try {
-      // Convert PDF to base64 — Claude reads it natively, perfect for all PDF types
+      // Convert PDF to base64 — Claude reads natively, no text extraction needed
       const buf = await f.arrayBuffer();
       const bytes = new Uint8Array(buf);
       let binary = "";
-      // Process in chunks to avoid stack overflow on large files
-      const chunkSize = 8192;
-      for (let i = 0; i < bytes.byteLength; i += chunkSize) {
-        binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
+      const chunk = 8192;
+      for (let i = 0; i < bytes.byteLength; i += chunk) {
+        binary += String.fromCharCode(
+          ...Array.from(bytes.subarray(i, i + chunk)),
+        );
       }
       const base64 = btoa(binary);
       const pdfData = `__PDF_BASE64__${base64}`;
@@ -88,13 +90,13 @@ export default function UploadPage() {
       setMsgs([
         {
           role: "assistant",
-          content: `I've loaded **"${f.name}"** (${(f.size / 1024).toFixed(0)}KB). I'm reading it directly using Claude's native PDF understanding — no text extraction needed!\n\nAsk me anything about this document — I can summarize it, explain specific sections, find key findings, discuss methodology, or answer any other questions.`,
+          content: `I've loaded **"${f.name}"** (${(f.size / 1024).toFixed(0)}KB). I'm reading it directly — ask me anything about this document!`,
         },
       ]);
       toast.success("PDF ready!");
     } catch (e) {
       console.error(e);
-      setParseErr("Failed to read this PDF. Try another file.");
+      setParseErr("Failed to read PDF. Try a smaller or different file.");
       setFile(null);
     } finally {
       setParsing(false);
@@ -123,8 +125,16 @@ export default function UploadPage() {
         body: JSON.stringify({ question, pdfText, history: msgs.slice(-8) }),
       });
       const d = (await r.json()) as { answer?: string; error?: string };
-      if (!r.ok) toast.error(d.error ?? "Failed");
-      else {
+      if (!r.ok) {
+        toast.error(d.error ?? "Failed");
+        setMsgs((prev) => [
+          ...prev,
+          {
+            role: "assistant",
+            content: `❌ Error: ${d.error ?? "Something went wrong. Please try again."}`,
+          },
+        ]);
+      } else {
         setMsgs((prev) => [
           ...prev,
           { role: "assistant", content: d.answer ?? "" },
