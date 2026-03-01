@@ -8,23 +8,17 @@ import Anthropic from "@anthropic-ai/sdk";
 
 const ant = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-const PDF_PROMPT = `You are Researchly's PDF Assistant — the world's best academic paper reader and explainer.
+const PDF_PROMPT = `You are Researchly's PDF Assistant — an expert at reading and explaining academic documents.
 
 YOUR RULES:
-1. Read the PDF document provided and answer based ONLY on its content
-2. Quote relevant passages directly using "quote" format when they support your answer
+1. Answer based ONLY on the document content provided
+2. Quote relevant passages directly when they support your answer
 3. If something is NOT in the document, say clearly: "This document doesn't cover [topic]"
-4. For complex questions: use clear ## headings to structure your answer
-5. For simple questions: give a direct, concise answer
-6. If asked to summarize: cover Title, Abstract/Purpose, Methods, Key Findings, and Conclusions
-7. Always be specific — mention actual numbers, names, dates from the paper
-8. Make complex research accessible — explain jargon clearly
-9. If asked about limitations, methodology, or future work — look for those specific sections
-10. Be the world's best research paper explainer — accurate, clear, and genuinely helpful`;
-
-// Anthropic free tier rate limits:
-// Sonnet: 30,000 input tokens/min  → too low for large PDFs
-// Haiku:  50,000 input tokens/min  → better for PDFs
+4. For complex questions: use clear ## headings
+5. For simple questions: give a direct concise answer
+6. If asked to summarize: cover Purpose, Methods, Key Findings, and Conclusions
+7. Always mention specific numbers, names, dates from the document
+8. Be the world's best research paper explainer — accurate, clear, genuinely helpful`;
 
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -42,7 +36,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         {
           error:
-            "PDF Chat is available on Student (₹199/mo) and Pro (₹499/mo) plans. Upgrade to access this feature.",
+            "PDF Chat is available on Student (₹199/mo) and Pro (₹499/mo) plans.",
         },
         { status: 403 },
       );
@@ -56,67 +50,42 @@ export async function POST(req: NextRequest) {
 
     if (!question?.trim() || !pdfText)
       return NextResponse.json(
-        { error: "Question and PDF required" },
+        { error: "Question and PDF text required" },
         { status: 400 },
       );
 
+    // Strip the base64 marker — we now use extracted text sent from frontend
+    const cleanText = pdfText.startsWith("__PDF_BASE64__")
+      ? "[PDF content not readable in text mode — please re-upload]"
+      : pdfText;
+
+    // Build messages
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const historyMsgs: any[] = history.slice(-4).map((m) => ({
-      role: m.role as "user" | "assistant",
-      content: m.content,
-    }));
-
-    const isBase64PDF = pdfText.startsWith("__PDF_BASE64__");
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let userContent: any;
-
-    if (isBase64PDF) {
-      // Trim base64 to max ~800KB of PDF data to stay under token limits
-      // 800KB base64 ≈ ~600KB PDF ≈ ~150,000 tokens — safe for Haiku
-      const base64Data = pdfText
-        .replace("__PDF_BASE64__", "")
-        .slice(0, 1_000_000);
-      userContent = [
-        {
-          type: "document",
-          source: {
-            type: "base64",
-            media_type: "application/pdf",
-            data: base64Data,
-          },
-        },
-        { type: "text", text: question },
-      ];
-    } else {
-      userContent = question;
-    }
+    const messages: any[] = [
+      ...history.slice(-6).map((m) => ({
+        role: m.role as "user" | "assistant",
+        content: m.content,
+      })),
+      { role: "user", content: question },
+    ];
 
     const r = await ant.messages.create({
-      model: "claude-haiku-4-5-20251001", // Haiku: higher rate limits, faster, still great
+      model: "claude-haiku-4-5-20251001",
       max_tokens: 1500,
-      system: isBase64PDF
-        ? PDF_PROMPT
-        : `${PDF_PROMPT}\n\nDOCUMENT CONTENT:\n${pdfText.slice(0, 14000)}`,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      messages: [...historyMsgs, { role: "user", content: userContent }] as any,
+      system: `${PDF_PROMPT}\n\n--- DOCUMENT CONTENT ---\n${cleanText.slice(0, 25000)}\n--- END DOCUMENT ---`,
+      messages,
     });
 
     const b = r.content[0];
-    const answer = b.type === "text" ? b.text : "";
-    return NextResponse.json({ answer });
+    return NextResponse.json({ answer: b.type === "text" ? b.text : "" });
   } catch (e) {
     const err = e as { status?: number; message?: string };
     console.error("PDF chat error:", err);
-
-    // Show friendly error for rate limit
-    if (err.status === 429) {
+    if (err.status === 429)
       return NextResponse.json(
-        { error: "Too many requests — please wait 30 seconds and try again." },
+        { error: "Rate limit hit — wait 30 seconds and try again." },
         { status: 429 },
       );
-    }
-
     return NextResponse.json(
       { error: err.message || "Chat failed" },
       { status: 500 },
