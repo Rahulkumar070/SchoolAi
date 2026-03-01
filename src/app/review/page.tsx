@@ -18,6 +18,7 @@ import { useSession } from "next-auth/react";
 import { Sparkles } from "lucide-react";
 import Link from "next/link";
 import toast from "react-hot-toast";
+import { downloadResearchPDF } from "@/lib/downloadPDF";
 import { Paper } from "@/types";
 
 interface Result {
@@ -75,14 +76,8 @@ export default function ReviewPage() {
   };
   const dl = () => {
     if (!result) return;
-    const a = Object.assign(document.createElement("a"), {
-      href: URL.createObjectURL(
-        new Blob([result.review], { type: "text/plain" }),
-      ),
-      download: `review-${result.topic.slice(0, 25).replace(/\s+/g, "-")}.md`,
-    });
-    a.click();
-    toast.success("Downloaded");
+    downloadResearchPDF(result.topic, result.review, result.papers);
+    toast.success("Downloading PDF...");
   };
 
   return (
