@@ -56,67 +56,47 @@ export async function POST(req: NextRequest) {
         { status: 400 },
       );
 
+    // Build history messages
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const historyMsgs: any[] = history.slice(-6).map((m) => ({
+      role: m.role as "user" | "assistant",
+      content: m.content,
+    }));
+
     const isBase64PDF = pdfText.startsWith("__PDF_BASE64__");
-    let answer: string;
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let userContent: any;
 
     if (isBase64PDF) {
       const base64Data = pdfText.replace("__PDF_BASE64__", "");
-
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const messages: any[] = [
-        ...history.slice(-6).map((m) => ({
-          role: m.role as "user" | "assistant",
-          content: m.content,
-        })),
+      userContent = [
         {
-          role: "user",
-          content: [
-            {
-              type: "document",
-              source: {
-                type: "base64",
-                media_type: "application/pdf",
-                data: base64Data,
-              },
-            },
-            {
-              type: "text",
-              text: question,
-            },
-          ],
+          type: "document",
+          source: {
+            type: "base64",
+            media_type: "application/pdf",
+            data: base64Data,
+          },
         },
+        { type: "text", text: question },
       ];
-
-      const r = await ant.messages.create({
-        model: "claude-sonnet-4-6",
-        max_tokens: 2000,
-        system: PDF_PROMPT,
-        messages,
-      });
-
-      const b = r.content[0];
-      answer = b.type === "text" ? b.text : "";
     } else {
-      // Legacy fallback — plain text
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const messages: any[] = [
-        ...history.slice(-8).map((m) => ({
-          role: m.role as "user" | "assistant",
-          content: m.content,
-        })),
-        { role: "user", content: question },
-      ];
-
-      const r = await ant.messages.create({
-        model: "claude-haiku-4-5-20251001",
-        max_tokens: 1800,
-        system: `${PDF_PROMPT}\n\nDOCUMENT CONTENT:\n${pdfText.slice(0, 14000)}`,
-        messages,
-      });
-      const b = r.content[0];
-      answer = b.type === "text" ? b.text : "";
+      userContent = question;
     }
 
+    const r = await ant.messages.create({
+      model: isBase64PDF ? "claude-sonnet-4-6" : "claude-haiku-4-5-20251001",
+      max_tokens: 2000,
+      system: isBase64PDF
+        ? PDF_PROMPT
+        : `${PDF_PROMPT}\n\nDOCUMENT CONTENT:\n${pdfText.slice(0, 14000)}`,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      messages: [...historyMsgs, { role: "user", content: userContent }] as any,
+    });
+
+    const b = r.content[0];
+    const answer = b.type === "text" ? b.text : "";
     return NextResponse.json({ answer });
   } catch (e) {
     console.error("PDF chat error:", e);
