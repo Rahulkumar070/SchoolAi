@@ -66,8 +66,8 @@ export default function UploadPage() {
       toast.error("Please upload a PDF");
       return;
     }
-    if (f.size > 20 * 1024 * 1024) {
-      toast.error("Max 20MB PDF");
+    if (f.size > 5 * 1024 * 1024) {
+      toast.error("Max 5MB PDF supported");
       return;
     }
 
@@ -125,7 +125,7 @@ export default function UploadPage() {
     }
 
     const pdf = await window.pdfjsLib.getDocument({ data: buf }).promise;
-    const maxPages = Math.min(pdf.numPages, 50); // cap at 50 pages
+    const maxPages = Math.min(pdf.numPages, 20); // cap at 20 pages to stay within token limits
     const texts: string[] = [];
 
     for (let i = 1; i <= maxPages; i++) {
@@ -140,7 +140,7 @@ export default function UploadPage() {
       if (pageText) texts.push(`--- Page ${i} ---\n${pageText}`);
     }
 
-    return texts.join("\n\n").slice(0, 60000);
+    return texts.join("\n\n").slice(0, 15000);
   };
 
   const onDrop = (e: React.DragEvent) => {
