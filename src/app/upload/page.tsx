@@ -43,6 +43,7 @@ export default function UploadPage() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [drag, setDrag] = useState(false);
+  const [remaining, setRemaining] = useState<number | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const endRef = useRef<HTMLDivElement>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
@@ -164,7 +165,11 @@ export default function UploadPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ question, pdfText, history: msgs.slice(-8) }),
       });
-      const d = (await r.json()) as { answer?: string; error?: string };
+      const d = (await r.json()) as {
+        answer?: string;
+        error?: string;
+        remaining?: number | null;
+      };
       if (!r.ok) {
         toast.error(d.error ?? "Failed");
         setMsgs((prev) => [
@@ -179,6 +184,8 @@ export default function UploadPage() {
           ...prev,
           { role: "assistant", content: d.answer ?? "" },
         ]);
+        if (d.remaining !== undefined && d.remaining !== null)
+          setRemaining(d.remaining);
         scrollDown();
       }
     } catch {
@@ -535,6 +542,70 @@ export default function UploadPage() {
             ))}
           </div>
         </>
+      )}
+
+      {/* PDF upload counter for student plan */}
+      {session && (session?.user?.plan ?? "free") === "student" && (
+        <div
+          style={{
+            padding: "10px 12px",
+            background: "var(--bg-overlay)",
+            border: "1px solid var(--border)",
+            borderRadius: 8,
+          }}
+        >
+          <p
+            style={{
+              fontSize: 11,
+              color: "var(--text-secondary)",
+              marginBottom: 4,
+              fontWeight: 600,
+            }}
+          >
+            PDF Uploads This Month
+          </p>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <div
+              style={{
+                flex: 1,
+                height: 4,
+                background: "var(--border)",
+                borderRadius: 99,
+                overflow: "hidden",
+              }}
+            >
+              <div
+                style={{
+                  height: "100%",
+                  background: "var(--brand)",
+                  borderRadius: 99,
+                  width: `${Math.min(100, ((20 - (remaining ?? 20)) / 20) * 100)}%`,
+                  transition: "width .3s",
+                }}
+              />
+            </div>
+            <p
+              style={{
+                fontSize: 10,
+                color: "var(--text-faint)",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {remaining !== null ? `${remaining} left` : "20/month"}
+            </p>
+          </div>
+          {remaining === 0 && (
+            <p style={{ fontSize: 10, color: "var(--brand)", marginTop: 5 }}>
+              Monthly limit reached ·{" "}
+              <a
+                href="/pricing"
+                style={{ color: "var(--brand)", fontWeight: 600 }}
+              >
+                Upgrade to Pro →
+              </a>
+            </p>
+          )}
+        </div>
       )}
 
       {parseErr && (

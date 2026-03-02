@@ -8,6 +8,8 @@ import Anthropic from "@anthropic-ai/sdk";
 
 const ant = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
+const STUDENT_PDF_LIMIT = 20; // per month
+
 const PDF_PROMPT = `You are Researchly's PDF Assistant — an expert at reading and explaining academic documents.
 
 YOUR RULES:
@@ -27,20 +29,58 @@ export async function POST(req: NextRequest) {
 
   try {
     await connectDB();
-    const u = (await UserModel.findOne({
-      email: session.user.email,
-    }).lean()) as { plan?: string } | null;
+    const u = await UserModel.findOne({ email: session.user.email });
     const plan = u?.plan ?? "free";
 
+    // ── Free plan — locked ───────────────────────────────────
     if (plan === "free") {
       return NextResponse.json(
         {
           error:
-            "PDF Chat is available on Student (₹199/mo) and Pro (₹499/mo) plans.",
+            "PDF Chat is available on Student (₹199/mo) and Pro (₹499/mo) plans. Upgrade to access this feature.",
         },
         { status: 403 },
       );
     }
+
+    // ── Student plan — 20 uploads/month ─────────────────────
+    if (plan === "student") {
+      const now = new Date();
+      const lastReset = u?.pdfUploadMonthReset
+        ? new Date(u.pdfUploadMonthReset)
+        : new Date(0);
+      const isNewMonth =
+        now.getMonth() !== lastReset.getMonth() ||
+        now.getFullYear() !== lastReset.getFullYear();
+
+      // Reset counter if new month
+      if (isNewMonth) {
+        await UserModel.updateOne(
+          { email: session.user.email },
+          { pdfUploadsThisMonth: 0, pdfUploadMonthReset: now },
+        );
+        u.pdfUploadsThisMonth = 0;
+      }
+
+      const uploadsThisMonth = u?.pdfUploadsThisMonth ?? 0;
+
+      if (uploadsThisMonth >= STUDENT_PDF_LIMIT) {
+        return NextResponse.json(
+          {
+            error: `Monthly PDF limit reached (${STUDENT_PDF_LIMIT}/month). Upgrade to Pro ₹499/mo for unlimited PDF uploads.`,
+          },
+          { status: 429 },
+        );
+      }
+
+      // Increment counter
+      await UserModel.updateOne(
+        { email: session.user.email },
+        { $inc: { pdfUploadsThisMonth: 1 } },
+      );
+    }
+
+    // ── Pro plan — unlimited, no check needed ───────────────
 
     const { question, pdfText, history } = (await req.json()) as {
       question: string;
@@ -54,7 +94,6 @@ export async function POST(req: NextRequest) {
         { status: 400 },
       );
 
-    // Use extracted text only — no base64
     const cleanText = pdfText.startsWith("__PDF_BASE64__")
       ? "[PDF could not be read — please re-upload]"
       : pdfText;
@@ -76,7 +115,16 @@ export async function POST(req: NextRequest) {
     });
 
     const b = r.content[0];
-    return NextResponse.json({ answer: b.type === "text" ? b.text : "" });
+
+    // Return remaining count for student plan
+    const uploadsUsed = (u?.pdfUploadsThisMonth ?? 0) + 1;
+    const remaining =
+      plan === "student" ? Math.max(0, STUDENT_PDF_LIMIT - uploadsUsed) : null; // null = unlimited (pro)
+
+    return NextResponse.json({
+      answer: b.type === "text" ? b.text : "",
+      remaining,
+    });
   } catch (e) {
     const err = e as { status?: number; message?: string };
     console.error("PDF chat error:", err);
