@@ -54,12 +54,11 @@ export async function POST(req: NextRequest) {
         { status: 400 },
       );
 
-    // Strip the base64 marker — we now use extracted text sent from frontend
+    // Use extracted text only — no base64
     const cleanText = pdfText.startsWith("__PDF_BASE64__")
-      ? "[PDF content not readable in text mode — please re-upload]"
+      ? "[PDF could not be read — please re-upload]"
       : pdfText;
 
-    // Build messages
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const messages: any[] = [
       ...history.slice(-6).map((m) => ({
@@ -83,7 +82,7 @@ export async function POST(req: NextRequest) {
     console.error("PDF chat error:", err);
     if (err.status === 429)
       return NextResponse.json(
-        { error: "Rate limit hit — wait 30 seconds and try again." },
+        { error: "Rate limit — wait 30 seconds and try again." },
         { status: 429 },
       );
     return NextResponse.json(
