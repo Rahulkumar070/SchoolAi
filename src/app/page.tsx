@@ -1031,9 +1031,25 @@ export default function Home() {
           gap: 10,
         }}
       >
-        <span style={{ fontSize: 11.5, color: "var(--text-faint)" }}>
-          © 2026 Researchly · Made with ❤️ in India 🇮🇳
-        </span>
+        <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+          <span style={{ fontSize: 11.5, color: "var(--text-faint)" }}>
+            © 2026 Researchly · Built by{" "}
+            <strong style={{ color: "var(--text-secondary)" }}>
+              Rahulkumar Pal
+            </strong>{" "}
+            · Made with ❤️ in India 🇮🇳
+          </span>
+          <a
+            href="mailto:hello.researchly@gmail.com"
+            style={{
+              fontSize: 11,
+              color: "var(--brand)",
+              textDecoration: "none",
+            }}
+          >
+            hello.researchly@gmail.com
+          </a>
+        </div>
         <div style={{ display: "flex", gap: 14 }}>
           {["Search", "Review", "PDF Chat", "Pricing"].map((l) => (
             <Link
