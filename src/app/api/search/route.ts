@@ -2,50 +2,16 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { searchAll } from "@/lib/papers";
+import { generateAnswer } from "@/lib/ai";
 import { connectDB } from "@/lib/mongodb";
 import { UserModel } from "@/models/User";
 import { getCachedResult, saveToCache } from "@/lib/cache";
 import { checkGuestLimit } from "@/lib/guestLimit";
-import Anthropic from "@anthropic-ai/sdk";
 
-const ant = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-
-const FREE_DAILY_LIMIT = 5;
-const STUDENT_MONTHLY_LIMIT = 500;
-
-type PaperRow = {
-  id: string;
-  title: string;
-  authors: string[];
-  year?: number;
-  journal?: string;
-  source?: string;
-  abstract: string;
-  url?: string;
-  doi?: string;
-  citationCount?: number;
-};
-
-function buildCtx(papers: PaperRow[]) {
-  return papers
-    .slice(0, 12)
-    .map(
-      (p, i) =>
-        `[${i + 1}] "${p.title}"\nAuthors: ${p.authors.slice(0, 4).join(", ")}${p.authors.length > 4 ? " et al." : ""} | Year: ${p.year ?? "n.d."} | Source: ${p.journal ?? p.source}\nAbstract: ${p.abstract.slice(0, 450)}\n${p.url ? `URL: ${p.url}` : ""}${p.doi ? `\nDOI: https://doi.org/${p.doi}` : ""}`,
-    )
-    .join("\n\n---\n\n");
-}
-
-function buildPrompt(query: string, papers: PaperRow[]) {
-  if (papers.length > 0) {
-    return `RESEARCH QUESTION: "${query}"\n\nAVAILABLE ACADEMIC SOURCES (${papers.length} papers):\n${buildCtx(papers)}\n\nClassify and respond:\n- Research: cite every claim [n], end with ## Key Takeaways, ## Useful Links, ## What To Search Next\n- Study help: clear structure, real examples, ## Quick Revision Points, ## What To Search Next\n- Exam practice: original questions with answers and explanations\nMake every sentence count — no filler, maximum insight.`;
-  }
-  return `QUESTION: "${query}"\n\nNo academic papers found.\n\nClassify as Study Help / Exam Practice / General Academic / Non-Academic.\nIf non-academic: politely redirect. For study: thorough explanation + ## What To Search Next. For exam (JEE/NEET/UPSC/GATE): generate original questions with detailed answers. NEVER say you cannot help.`;
-}
-
-const SYSTEM = `You are Researchly, an elite academic research assistant built for Indian students and researchers. You ONLY help with academic, research, and study topics. If asked something non-academic, politely redirect. You explain like an excellent professor and generate exam content like an expert for JEE/NEET/UPSC/GATE.
-
-RULES: Never start with "Great question!" or "Certainly!". Never say "I cannot find papers". Cite every claim as [n] when papers given. Use ## headings, bold **key terms**. Research: 400-600 words. Study: 300-500 words. Always end with ## What To Search Next.`;
+// ── Limits ──────────────────────────────────────────────
+const FREE_DAILY_LIMIT = 5; // logged in, free plan
+const STUDENT_MONTHLY_LIMIT = 500; // paid student plan
+// Pro = unlimited
 
 export async function POST(req: NextRequest) {
   try {
@@ -57,21 +23,16 @@ export async function POST(req: NextRequest) {
     const session = await getServerSession(authOptions);
     await connectDB();
 
-    // ── Limits ────────────────────────────────────────────────
-    type UserDoc = {
-      _id: unknown;
-      plan?: string;
-      searchesToday?: number;
-      searchDateReset?: Date;
-      searchesThisMonth?: number;
-      searchMonthReset?: Date;
-      searchHistory?: { query: string }[];
-    };
-    let u: UserDoc | null = null;
+    // ── Check global cache first (saves API cost) ──────────
+    const cached = await getCachedResult(q);
 
+    // ══════════════════════════════════════════════════════
+    // LOGGED IN USER
+    // ══════════════════════════════════════════════════════
     if (session?.user?.email) {
       const now = new Date();
-      u = await UserModel.findOne({ email: session.user.email });
+
+      let u = await UserModel.findOne({ email: session.user.email });
       if (!u) {
         u = await UserModel.create({
           email: session.user.email,
@@ -85,169 +46,170 @@ export async function POST(req: NextRequest) {
           searchHistory: [],
         });
       }
-      const plan = (u as UserDoc).plan ?? "free";
+
+      const plan = u.plan ?? "free";
+
+      // ── Check plan limits ────────────────────────────────
       if (plan === "free") {
+        // Reset daily counter if new day
         if (
           now.toDateString() !==
-          new Date((u as UserDoc).searchDateReset ?? now).toDateString()
+          new Date(u.searchDateReset ?? now).toDateString()
         ) {
-          (u as UserDoc).searchesToday = 0;
+          u.searchesToday = 0;
+          u.searchDateReset = now;
         }
-        if (((u as UserDoc).searchesToday ?? 0) >= FREE_DAILY_LIMIT)
+        if (u.searchesToday >= FREE_DAILY_LIMIT) {
           return NextResponse.json(
             {
-              error: `Daily limit reached (${FREE_DAILY_LIMIT}/day). Upgrade to Student for 500/month.`,
+              error: `You've used all ${FREE_DAILY_LIMIT} free searches today. Upgrade to Student plan for 500 searches/month at ₹199.`,
             },
             { status: 429 },
           );
+        }
       } else if (plan === "student") {
-        const rd = new Date((u as UserDoc).searchMonthReset ?? now);
+        // Reset monthly counter if new month
+        const rd = new Date(u.searchMonthReset ?? now);
         if (
           now.getMonth() !== rd.getMonth() ||
           now.getFullYear() !== rd.getFullYear()
         ) {
-          (u as UserDoc).searchesThisMonth = 0;
+          u.searchesThisMonth = 0;
+          u.searchMonthReset = now;
         }
-        if (((u as UserDoc).searchesThisMonth ?? 0) >= STUDENT_MONTHLY_LIMIT)
+        if (u.searchesThisMonth >= STUDENT_MONTHLY_LIMIT) {
           return NextResponse.json(
             {
-              error: `Monthly limit reached (${STUDENT_MONTHLY_LIMIT}/month). Upgrade to Pro for unlimited.`,
+              error: `You've used all ${STUDENT_MONTHLY_LIMIT} searches this month. Upgrade to Pro for unlimited searches at ₹499.`,
             },
             { status: 429 },
           );
+        }
       }
-    } else {
-      const g = await checkGuestLimit(req);
-      if (!g.allowed) {
-        const res = NextResponse.json(
+      // plan === "pro" → no limit check, falls through
+
+      // ── Get answer ──────────────────────────────────────
+      let answer: string;
+      let papers: unknown[];
+
+      if (cached) {
+        answer = cached.answer;
+        papers = cached.papers;
+      } else {
+        const fetchedPapers = await searchAll(q);
+        if (!fetchedPapers.length)
+          return NextResponse.json(
+            { error: "No papers found. Try different keywords." },
+            { status: 404 },
+          );
+        answer = await generateAnswer(q, fetchedPapers);
+        papers = fetchedPapers;
+        void saveToCache(q, answer, papers);
+      }
+
+      // ── Update counter ──────────────────────────────────
+      const counterUpdate: Record<string, unknown> = {};
+      if (plan === "free") {
+        counterUpdate.searchesToday = (u.searchesToday ?? 0) + 1;
+        counterUpdate.searchDateReset = u.searchDateReset;
+      } else if (plan === "student") {
+        counterUpdate.searchesThisMonth = (u.searchesThisMonth ?? 0) + 1;
+        counterUpdate.searchMonthReset = u.searchMonthReset;
+      }
+      // pro: no counter needed
+
+      // ── Save to history (no duplicates) ─────────────────
+      const existingIdx = (u.searchHistory ?? []).findIndex(
+        (h: { query: string }) => h.query.toLowerCase() === q.toLowerCase(),
+      );
+
+      if (existingIdx !== -1) {
+        await UserModel.findByIdAndUpdate(u._id, {
+          $set: {
+            ...counterUpdate,
+            [`searchHistory.${existingIdx}.answer`]: answer,
+            [`searchHistory.${existingIdx}.papers`]: papers,
+            [`searchHistory.${existingIdx}.searchedAt`]: now,
+          },
+        });
+      } else {
+        await UserModel.findByIdAndUpdate(u._id, {
+          $set: counterUpdate,
+          $push: {
+            searchHistory: {
+              $each: [{ query: q, answer, papers, searchedAt: now }],
+              $position: 0,
+              $slice: 50,
+            },
+          },
+        });
+      }
+
+      return NextResponse.json({
+        papers,
+        answer,
+        query: q,
+        fromCache: !!cached,
+      });
+    }
+
+    // ══════════════════════════════════════════════════════
+    // GUEST USER — fingerprint + cookie dual tracking
+    // Survives: browser close, reopen, incognito, cookie clear
+    // ══════════════════════════════════════════════════════
+    const guestCheck = await checkGuestLimit(req);
+
+    // Helper to attach cookie to any response
+    const withGuestCookie = (res: NextResponse): NextResponse => {
+      res.cookies.set("_rly_gid", guestCheck.fingerprintId, {
+        httpOnly: true,
+        sameSite: "lax",
+        secure: process.env.NODE_ENV === "production",
+        maxAge: 60 * 60 * 24 * 30, // 30 days
+        path: "/",
+      });
+      return res;
+    };
+
+    if (!guestCheck.allowed) {
+      return withGuestCookie(
+        NextResponse.json(
           {
-            error:
-              "Guest limit reached (2/2). Sign in free for 5 searches/day.",
+            error: `Guest limit reached (${guestCheck.limit}/day). Sign in free to get 5 searches every day — no credit card needed.`,
           },
           { status: 429 },
-        );
-        res.cookies.set("_rly_gid", g.fingerprintId, {
-          httpOnly: true,
-          sameSite: "lax",
-          secure: process.env.NODE_ENV === "production",
-          maxAge: 60 * 60 * 24 * 30,
-        });
-        return res;
-      }
+        ),
+      );
     }
 
-    // ── Papers ────────────────────────────────────────────────
-    const cached = await getCachedResult(q);
-    let papers: PaperRow[];
-    let fromCache = false;
-
+    // Serve from cache or generate
     if (cached) {
-      papers = cached.papers as PaperRow[];
-      fromCache = true;
-    } else {
-      papers = (await searchAll(q)) as PaperRow[];
+      return withGuestCookie(
+        NextResponse.json({
+          papers: cached.papers,
+          answer: cached.answer,
+          query: q,
+          fromCache: true,
+        }),
+      );
     }
 
-    // ── SSE stream ────────────────────────────────────────────
-    const encoder = new TextEncoder();
-    let fullAnswer = "";
-
-    const stream = new ReadableStream({
-      async start(controller) {
-        const send = (obj: unknown) =>
-          controller.enqueue(
-            encoder.encode(`data: ${JSON.stringify(obj)}\n\n`),
-          );
-
-        // Send papers first so UI renders sources immediately
-        send({ type: "papers", papers });
-
-        if (fromCache && cached) {
-          // Simulate streaming for cached answers (feels live, saves API cost)
-          const words = cached.answer.split(" ");
-          for (let i = 0; i < words.length; i += 4) {
-            const chunk =
-              words.slice(i, i + 4).join(" ") +
-              (i + 4 < words.length ? " " : "");
-            fullAnswer += chunk;
-            send({ type: "text", text: chunk });
-            await new Promise((r) => setTimeout(r, 10));
-          }
-        } else {
-          // Live streaming from Anthropic
-          const streamResp = await ant.messages.stream({
-            model: "claude-haiku-4-5-20251001",
-            max_tokens: 3000,
-            system: SYSTEM,
-            messages: [{ role: "user", content: buildPrompt(q, papers) }],
-          });
-          for await (const event of streamResp) {
-            if (
-              event.type === "content_block_delta" &&
-              event.delta.type === "text_delta"
-            ) {
-              const chunk = event.delta.text;
-              fullAnswer += chunk;
-              send({ type: "text", text: chunk });
-            }
-          }
-          void saveToCache(q, fullAnswer, papers);
-        }
-
-        send({ type: "done", fromCache });
-        controller.close();
-
-        // ── Persist to DB after stream closes ────────────────
-        if (u && session?.user?.email) {
-          const now = new Date();
-          const plan = (u as UserDoc).plan ?? "free";
-          const counterUpdate: Record<string, unknown> = {};
-          if (plan === "free") {
-            counterUpdate.searchesToday =
-              ((u as UserDoc).searchesToday ?? 0) + 1;
-            counterUpdate.searchDateReset = now;
-          } else if (plan === "student") {
-            counterUpdate.searchesThisMonth =
-              ((u as UserDoc).searchesThisMonth ?? 0) + 1;
-            counterUpdate.searchMonthReset = now;
-          }
-          const existingIdx = ((u as UserDoc).searchHistory ?? []).findIndex(
-            (h) => h.query.toLowerCase() === q.toLowerCase(),
-          );
-          if (existingIdx !== -1) {
-            await UserModel.findByIdAndUpdate((u as UserDoc)._id, {
-              $set: {
-                ...counterUpdate,
-                [`searchHistory.${existingIdx}.answer`]: fullAnswer,
-                [`searchHistory.${existingIdx}.papers`]: papers,
-                [`searchHistory.${existingIdx}.searchedAt`]: now,
-              },
-            });
-          } else {
-            await UserModel.findByIdAndUpdate((u as UserDoc)._id, {
-              $set: counterUpdate,
-              $push: {
-                searchHistory: {
-                  $each: [
-                    { query: q, answer: fullAnswer, papers, searchedAt: now },
-                  ],
-                  $position: 0,
-                  $slice: 50,
-                },
-              },
-            });
-          }
-        }
-      },
-    });
-
-    return new Response(stream, {
-      headers: {
-        "Content-Type": "text/event-stream",
-        "Cache-Control": "no-cache",
-        Connection: "keep-alive",
-      },
-    });
+    const fp = await searchAll(q);
+    if (!fp.length) {
+      return withGuestCookie(
+        NextResponse.json({ error: "No papers found." }, { status: 404 }),
+      );
+    }
+    const ans = await generateAnswer(q, fp);
+    void saveToCache(q, ans, fp);
+    return withGuestCookie(
+      NextResponse.json({
+        papers: fp,
+        answer: ans,
+        query: q,
+        fromCache: false,
+      }),
+    );
   } catch (e) {
     return NextResponse.json(
       { error: (e as Error).message || "Search failed" },
