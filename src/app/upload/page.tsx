@@ -368,7 +368,7 @@ export default function UploadPage() {
             {drag ? "Drop here" : "Upload PDF"}
           </p>
           <p style={{ fontSize: 11, color: "var(--text-faint)" }}>
-            Click or drag & drop · Max 25MB
+            Click or drag & drop · Max 3MB
           </p>
           <input
             ref={fileRef}
