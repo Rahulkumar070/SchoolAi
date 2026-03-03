@@ -67,8 +67,8 @@ export default function UploadPage() {
       toast.error("Please upload a PDF");
       return;
     }
-    if (f.size > 5 * 1024 * 1024) {
-      toast.error("Max 5MB PDF supported");
+    if (f.size > 3 * 1024 * 1024) {
+      toast.error("Max 3MB PDF supported");
       return;
     }
 
@@ -141,7 +141,7 @@ export default function UploadPage() {
       if (pageText) texts.push(`--- Page ${i} ---\n${pageText}`);
     }
 
-    return texts.join("\n\n").slice(0, 15000);
+    return texts.join("\n\n").slice(0, 40000);
   };
 
   const onDrop = (e: React.DragEvent) => {
