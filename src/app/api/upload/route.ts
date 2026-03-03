@@ -110,7 +110,7 @@ export async function POST(req: NextRequest) {
     const r = await ant.messages.create({
       model: "claude-haiku-4-5-20251001",
       max_tokens: 1500,
-      system: `${PDF_PROMPT}\n\n--- DOCUMENT CONTENT ---\n${cleanText.slice(0, 25000)}\n--- END DOCUMENT ---`,
+      system: `${PDF_PROMPT}\n\n--- DOCUMENT CONTENT ---\n${cleanText.slice(0, 40000)}\n--- END DOCUMENT ---`,
       messages,
     });
 
