@@ -1,47 +1,52 @@
 "use client";
 import { useState, useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import Sidebar from "./Sidebar";
+import Sidebar, { SidebarHistoryItem } from "./Sidebar";
 import { Menu, BookOpen, Plus } from "lucide-react";
 import Link from "next/link";
 
 export default function Shell({
   children,
   rightPanel,
+  activeQuery,
+  onSelectHistory,
 }: {
   children: React.ReactNode;
   rightPanel?: React.ReactNode;
+  activeQuery?: string;
+  onSelectHistory?: (item: SidebarHistoryItem) => void;
 }) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
-  const router   = useRouter();
+  const router = useRouter();
 
-  // Close sidebar on route change
-  useEffect(() => { setOpen(false); }, [pathname]);
-
-  // Prevent body scroll when sidebar open on mobile
+  useEffect(() => {
+    setOpen(false);
+  }, [pathname]);
   useEffect(() => {
     if (open) document.body.style.overflow = "hidden";
-    else      document.body.style.overflow = "";
-    return () => { document.body.style.overflow = ""; };
+    else document.body.style.overflow = "";
+    return () => {
+      document.body.style.overflow = "";
+    };
   }, [open]);
 
   const handleNewSearch = () => {
     setOpen(false);
-    // Use a timestamp param to force a full remount every time
-    // This clears all previous search state completely
     router.push(`/search?new=${Date.now()}`);
   };
 
   return (
     <div className="shell">
-
-      {/* ── Sidebar ── */}
       <aside className={`sidebar${open ? " open" : ""}`}>
-        <Sidebar onClose={() => setOpen(false)} onNewSearch={handleNewSearch}/>
+        <Sidebar
+          onClose={() => setOpen(false)}
+          onNewSearch={handleNewSearch}
+          activeQuery={activeQuery}
+          onSelectHistory={onSelectHistory}
+        />
       </aside>
 
-      {/* Backdrop */}
       {open && (
         <div
           className="sidebar-backdrop"
@@ -50,46 +55,38 @@ export default function Shell({
         />
       )}
 
-      {/* ── Main ── */}
       <div className="main">
-
-        {/* Mobile top bar */}
         <header className="mobile-bar">
           <button
             className="icon-btn"
             onClick={() => setOpen(true)}
             aria-label="Open menu"
           >
-            <Menu size={18}/>
+            <Menu size={18} />
           </button>
-
           <Link href="/" className="mobile-logo" aria-label="Researchly home">
-            <div className="logo-mark" style={{ width:24, height:24, borderRadius:6 }}>
-              <BookOpen size={11} color="#000" strokeWidth={2.5}/>
+            <div
+              className="logo-mark"
+              style={{ width: 24, height: 24, borderRadius: 6 }}
+            >
+              <BookOpen size={11} color="#000" strokeWidth={2.5} />
             </div>
             <span>Researchly</span>
           </Link>
-
           <button
             className="icon-btn"
             onClick={handleNewSearch}
             aria-label="New search"
             title="New search"
           >
-            <Plus size={18}/>
+            <Plus size={18} />
           </button>
         </header>
 
-        {/* Page content */}
-        <div className="main-content">
-          {children}
-        </div>
+        <div className="main-content">{children}</div>
       </div>
 
-      {/* ── Right panel ── */}
-      {rightPanel && (
-        <aside className="right-panel">{rightPanel}</aside>
-      )}
+      {rightPanel && <aside className="right-panel">{rightPanel}</aside>}
     </div>
   );
 }
