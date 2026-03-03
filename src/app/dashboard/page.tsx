@@ -11,9 +11,7 @@ import {
   Zap,
   Crown,
   Sparkles,
-  LayoutDashboard,
   CheckCircle,
-  XCircle,
   AlertTriangle,
   History,
   Clock,
@@ -24,6 +22,8 @@ import {
   FileText,
   BookOpen,
   Download,
+  Activity,
+  ChevronRight,
 } from "lucide-react";
 import Link from "next/link";
 import ReactMarkdown from "react-markdown";
@@ -56,10 +56,496 @@ interface HistoryItem {
   searchedAt: string;
 }
 
+/* ── responsive hook ─────────────────────────────────────────── */
+function useIsMobile() {
+  const [w, setW] = useState(0);
+  useEffect(() => {
+    const update = () => setW(window.innerWidth);
+    update();
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, []);
+  return { isMobile: w > 0 && w < 640, isTablet: w >= 640 && w < 900, w };
+}
+
+/* ── markdown ────────────────────────────────────────────────── */
+const mdComponents = {
+  h2: ({ children }: any) => (
+    <h2
+      style={{
+        fontFamily: "var(--font-display)",
+        fontSize: "1rem",
+        color: "var(--text-primary)",
+        margin: "1.3em 0 .45em",
+        fontWeight: 600,
+      }}
+    >
+      {children}
+    </h2>
+  ),
+  h3: ({ children }: any) => (
+    <h3
+      style={{
+        fontSize: ".92rem",
+        color: "var(--text-primary)",
+        fontWeight: 600,
+        margin: ".9em 0 .3em",
+      }}
+    >
+      {children}
+    </h3>
+  ),
+  p: ({ children }: any) => (
+    <p
+      style={{
+        marginBottom: ".75em",
+        lineHeight: 1.78,
+        fontSize: 14,
+        color: "var(--text-secondary)",
+      }}
+    >
+      {children}
+    </p>
+  ),
+  strong: ({ children }: any) => (
+    <strong style={{ color: "var(--text-primary)", fontWeight: 600 }}>
+      {children}
+    </strong>
+  ),
+  ul: ({ children }: any) => (
+    <ul style={{ paddingLeft: "1.4em", marginBottom: ".75em" }}>{children}</ul>
+  ),
+  li: ({ children }: any) => (
+    <li
+      style={{
+        marginBottom: ".3em",
+        fontSize: 14,
+        color: "var(--text-secondary)",
+      }}
+    >
+      {children}
+    </li>
+  ),
+  a: ({ href, children }: any) => (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      style={{
+        color: "var(--brand)",
+        textDecoration: "underline",
+        textUnderlineOffset: 3,
+        wordBreak: "break-word",
+      }}
+    >
+      {children}
+    </a>
+  ),
+  code: ({ children }: any) => (
+    <code
+      style={{
+        fontFamily: "var(--font-mono)",
+        fontSize: 12,
+        background: "var(--surface-2)",
+        color: "var(--brand)",
+        padding: "2px 5px",
+        borderRadius: 4,
+      }}
+    >
+      {children}
+    </code>
+  ),
+};
+
+function timeAgo(d: string) {
+  const s = Math.floor((Date.now() - new Date(d).getTime()) / 1000);
+  if (s < 60) return "just now";
+  if (s < 3600) return `${Math.floor(s / 60)}m ago`;
+  if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
+  return `${Math.floor(s / 86400)}d ago`;
+}
+
+/* ── stat card ───────────────────────────────────────────────── */
+function StatCard({
+  value,
+  label,
+  color,
+  icon,
+  sub,
+}: {
+  value: string | number;
+  label: string;
+  color: string;
+  icon: string;
+  sub?: string;
+}) {
+  return (
+    <div
+      style={{
+        padding: "16px 16px 14px",
+        borderRadius: 14,
+        background: "var(--bg-raised)",
+        border: "1px solid var(--border)",
+        position: "relative",
+        overflow: "hidden",
+        transition: "transform .18s, box-shadow .18s",
+      }}
+      onMouseEnter={(e) => {
+        const el = e.currentTarget as HTMLDivElement;
+        el.style.transform = "translateY(-2px)";
+        el.style.boxShadow = "0 10px 32px rgba(0,0,0,.35)";
+      }}
+      onMouseLeave={(e) => {
+        const el = e.currentTarget as HTMLDivElement;
+        el.style.transform = "";
+        el.style.boxShadow = "";
+      }}
+    >
+      <div
+        style={{
+          position: "absolute",
+          top: -16,
+          right: -16,
+          width: 64,
+          height: 64,
+          borderRadius: "50%",
+          background: `${color}18`,
+          filter: "blur(16px)",
+          pointerEvents: "none",
+        }}
+      />
+      <div
+        style={{
+          display: "flex",
+          alignItems: "flex-start",
+          justifyContent: "space-between",
+          marginBottom: 10,
+        }}
+      >
+        <span style={{ fontSize: 18 }}>{icon}</span>
+        {sub && (
+          <span
+            style={{
+              fontSize: 9.5,
+              fontWeight: 700,
+              color: "#5db87a",
+              background: "rgba(93,184,122,.12)",
+              padding: "2px 6px",
+              borderRadius: 99,
+            }}
+          >
+            {sub}
+          </span>
+        )}
+      </div>
+      <p
+        style={{
+          fontSize: 26,
+          fontWeight: 800,
+          color,
+          fontFamily: "var(--font-display)",
+          lineHeight: 1,
+          marginBottom: 4,
+          letterSpacing: "-1px",
+        }}
+      >
+        {value}
+      </p>
+      <p style={{ fontSize: 11, color: "var(--text-faint)", fontWeight: 500 }}>
+        {label}
+      </p>
+    </div>
+  );
+}
+
+/* ── action card ─────────────────────────────────────────────── */
+function ActionCard({
+  label,
+  desc,
+  cta,
+  href,
+  color,
+  bg,
+  Icon,
+}: {
+  label: string;
+  desc: string;
+  cta: string;
+  href: string;
+  color: string;
+  bg: string;
+  Icon: any;
+}) {
+  return (
+    <Link
+      href={href}
+      style={{
+        padding: "18px 16px 16px",
+        borderRadius: 14,
+        background: bg,
+        border: `1px solid ${color}28`,
+        textDecoration: "none",
+        display: "flex",
+        flexDirection: "column",
+        transition: "all .2s",
+        position: "relative",
+        overflow: "hidden",
+      }}
+      onMouseEnter={(e) => {
+        const el = e.currentTarget as HTMLAnchorElement;
+        el.style.transform = "translateY(-3px)";
+        el.style.boxShadow = `0 14px 36px rgba(0,0,0,.3), inset 0 1px 0 ${color}25`;
+      }}
+      onMouseLeave={(e) => {
+        const el = e.currentTarget as HTMLAnchorElement;
+        el.style.transform = "";
+        el.style.boxShadow = "";
+      }}
+    >
+      <div
+        style={{
+          position: "absolute",
+          bottom: -16,
+          right: -16,
+          width: 70,
+          height: 70,
+          borderRadius: "50%",
+          background: `${color}12`,
+          filter: "blur(14px)",
+          pointerEvents: "none",
+        }}
+      />
+      <div
+        style={{
+          width: 38,
+          height: 38,
+          borderRadius: 10,
+          background: `${color}18`,
+          border: `1px solid ${color}30`,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          marginBottom: 12,
+        }}
+      >
+        <Icon size={16} style={{ color }} />
+      </div>
+      <p
+        style={{
+          fontSize: 13.5,
+          fontWeight: 700,
+          color: "var(--text-primary)",
+          marginBottom: 4,
+        }}
+      >
+        {label}
+      </p>
+      <p
+        style={{
+          fontSize: 12,
+          color: "var(--text-secondary)",
+          lineHeight: 1.5,
+          marginBottom: 12,
+          flex: 1,
+        }}
+      >
+        {desc}
+      </p>
+      <span
+        style={{
+          fontSize: 11.5,
+          fontWeight: 700,
+          color,
+          display: "flex",
+          alignItems: "center",
+          gap: 4,
+        }}
+      >
+        {cta} <ArrowRight size={10} />
+      </span>
+    </Link>
+  );
+}
+
+/* ── list row ────────────────────────────────────────────────── */
+function ListRow({
+  iconEl,
+  iconBg,
+  iconBorder,
+  title,
+  meta,
+  badge,
+  badgeColor,
+  onClick,
+}: any) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 12,
+        padding: "13px 14px",
+        background: "var(--bg-raised)",
+        border: "1px solid var(--border)",
+        borderRadius: 12,
+        cursor: "pointer",
+        textAlign: "left",
+        width: "100%",
+        transition: "all .14s",
+      }}
+      onMouseEnter={(e) => {
+        const el = e.currentTarget;
+        el.style.background = "var(--surface)";
+        el.style.borderColor = iconBorder;
+      }}
+      onMouseLeave={(e) => {
+        const el = e.currentTarget;
+        el.style.background = "var(--bg-raised)";
+        el.style.borderColor = "var(--border)";
+      }}
+    >
+      <div
+        style={{
+          width: 36,
+          height: 36,
+          borderRadius: 10,
+          background: iconBg,
+          border: `1px solid ${iconBorder}`,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          flexShrink: 0,
+        }}
+      >
+        {iconEl}
+      </div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <p
+          style={{
+            fontSize: 13,
+            color: "var(--text-primary)",
+            fontWeight: 500,
+            marginBottom: 3,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {title}
+        </p>
+        <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+          {meta}
+          {badge && (
+            <span style={{ fontSize: 10, color: badgeColor, fontWeight: 700 }}>
+              {badge}
+            </span>
+          )}
+        </div>
+      </div>
+      <ChevronRight
+        size={13}
+        style={{ color: "var(--text-faint)", flexShrink: 0 }}
+      />
+    </button>
+  );
+}
+
+/* ── shimmer ─────────────────────────────────────────────────── */
+function Shimmer({ h = 66 }: { h?: number }) {
+  return (
+    <div
+      className="shimmer-line"
+      style={{ height: h, borderRadius: 12, marginBottom: 8 }}
+    />
+  );
+}
+
+/* ── empty state ─────────────────────────────────────────────── */
+function Empty({
+  icon: Icon,
+  title,
+  desc,
+  href,
+  cta,
+}: {
+  icon: any;
+  title: string;
+  desc: string;
+  href?: string;
+  cta?: string;
+}) {
+  return (
+    <div
+      style={{
+        padding: "48px 24px",
+        textAlign: "center",
+        background: "var(--bg-raised)",
+        border: "1px dashed var(--border-mid)",
+        borderRadius: 16,
+      }}
+    >
+      <Icon
+        size={30}
+        style={{
+          color: "var(--text-faint)",
+          opacity: 0.2,
+          margin: "0 auto 16px",
+          display: "block",
+        }}
+      />
+      <p
+        style={{
+          fontSize: 15,
+          fontWeight: 600,
+          color: "var(--text-primary)",
+          marginBottom: 7,
+          fontFamily: "var(--font-display)",
+        }}
+      >
+        {title}
+      </p>
+      <p
+        style={{
+          fontSize: 13,
+          color: "var(--text-secondary)",
+          marginBottom: href ? 22 : 0,
+        }}
+      >
+        {desc}
+      </p>
+      {href && cta && (
+        <Link
+          href={href}
+          style={{
+            padding: "9px 22px",
+            borderRadius: 10,
+            background: "var(--brand)",
+            color: "#000",
+            fontSize: 13,
+            fontWeight: 700,
+            textDecoration: "none",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+          }}
+        >
+          {cta}
+        </Link>
+      )}
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   MAIN COMPONENT
+═══════════════════════════════════════════════════════════════ */
 function DashContent() {
   const { data: session, status, update } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { isMobile, isTablet } = useIsMobile();
+  const isSmall = isMobile || isTablet; // < 900px
 
   const [papers, setPapers] = useState<SavedPaper[]>([]);
   const [history, setHistory] = useState<HistoryItem[]>([]);
@@ -184,48 +670,49 @@ function DashContent() {
       ? searchesThisMonth
       : 0;
   const counterMax = isFree ? 5 : isStudent ? 500 : 0;
+  const pct = isPro ? 100 : Math.min((counterUsed / counterMax) * 100, 100);
 
   const planMeta = {
     free: {
       icon: Zap,
-      color: "var(--text-muted)",
-      bg: "var(--surface-2)",
-      border: "var(--border-mid)",
+      color: "#888",
+      bg: "rgba(136,136,136,.1)",
+      border: "rgba(136,136,136,.2)",
       label: "Free",
+      gradient: "linear-gradient(135deg,#555,#333)",
     },
     student: {
       icon: Sparkles,
-      color: "var(--brand)",
-      bg: "var(--brand-dim)",
-      border: "var(--brand-border)",
+      color: "#e8a045",
+      bg: "rgba(232,160,69,.1)",
+      border: "rgba(232,160,69,.25)",
       label: "Student",
+      gradient: "linear-gradient(135deg,#e8a045,#f5c878)",
     },
     pro: {
       icon: Crown,
       color: "#5c9ae0",
       bg: "rgba(92,154,224,.1)",
-      border: "rgba(92,154,224,.22)",
+      border: "rgba(92,154,224,.25)",
       label: "Pro",
+      gradient: "linear-gradient(135deg,#5c9ae0,#91c8f8)",
     },
   }[plan] ?? {
     icon: Zap,
-    color: "var(--text-muted)",
-    bg: "var(--surface-2)",
-    border: "var(--border-mid)",
+    color: "#888",
+    bg: "rgba(136,136,136,.1)",
+    border: "rgba(136,136,136,.2)",
     label: "Free",
+    gradient: "linear-gradient(135deg,#555,#333)",
   };
   const PlanIcon = planMeta.icon;
 
-  function timeAgo(d: string) {
-    const s = Math.floor((Date.now() - new Date(d).getTime()) / 1000);
-    if (s < 60) return "just now";
-    if (s < 3600) return `${Math.floor(s / 60)}m ago`;
-    if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
-    return `${Math.floor(s / 86400)}d ago`;
-  }
+  /* shared padding / max-width */
+  const px = isMobile ? 16 : 24;
+  const pb = isMobile ? "48px 20px 80px" : "32px 24px 60px";
 
-  // ── REVIEW DETAIL VIEW ──────────────────────────────────
-  if (activeTab === "reviews" && selectedReview) {
+  /* ── REVIEW DETAIL ─────────────────────────────────────────── */
+  if (activeTab === "reviews" && selectedReview)
     return (
       <Shell>
         <div style={{ flex: 1, overflowY: "auto" }}>
@@ -233,7 +720,7 @@ function DashContent() {
             style={{
               maxWidth: 820,
               margin: "0 auto",
-              padding: "28px 20px 60px",
+              padding: `28px ${px}px 60px`,
             }}
           >
             <button
@@ -242,45 +729,43 @@ function DashContent() {
                 display: "flex",
                 alignItems: "center",
                 gap: 6,
-                padding: "6px 12px",
-                background: "var(--surface)",
-                border: "1px solid var(--border-mid)",
-                borderRadius: 8,
+                padding: "7px 14px",
+                background: "var(--bg-raised)",
+                border: "1px solid var(--border)",
+                borderRadius: 9,
                 cursor: "pointer",
                 fontSize: 12.5,
                 color: "var(--text-secondary)",
-                marginBottom: 20,
+                marginBottom: 24,
                 fontFamily: "var(--font-ui)",
               }}
             >
-              <ChevronLeft size={14} /> Back to Reviews
+              <ChevronLeft size={14} /> Back
             </button>
-
-            {/* Topic header */}
             <div
               style={{
                 background: "rgba(93,184,122,.07)",
-                borderLeft: "4px solid #5db87a",
+                borderLeft: "3px solid #5db87a",
                 borderRadius: "0 12px 12px 0",
-                padding: "16px 20px",
+                padding: "16px 18px",
                 marginBottom: 20,
               }}
             >
               <p
                 style={{
-                  fontSize: 9.5,
+                  fontSize: 10,
                   fontWeight: 700,
-                  letterSpacing: "0.1em",
+                  letterSpacing: "1.5px",
                   textTransform: "uppercase",
                   color: "#5db87a",
-                  marginBottom: 5,
+                  marginBottom: 6,
                 }}
               >
                 Literature Review
               </p>
               <p
                 style={{
-                  fontSize: 16,
+                  fontSize: isMobile ? 15 : 17,
                   fontWeight: 600,
                   color: "var(--text-primary)",
                   lineHeight: 1.45,
@@ -306,117 +791,31 @@ function DashContent() {
                 )}
               </p>
             </div>
-
             {selectedReview.review ? (
               <>
                 <div
                   style={{
                     background: "var(--bg-raised)",
                     border: "1px solid var(--border)",
-                    borderRadius: 12,
-                    padding: "20px 22px",
+                    borderRadius: 14,
+                    padding: isMobile ? "16px 16px" : "22px 24px",
                     marginBottom: 20,
                   }}
                 >
                   <ReactMarkdown
                     remarkPlugins={[remarkGfm]}
-                    components={{
-                      h2: ({ children }) => (
-                        <h2
-                          style={{
-                            fontFamily: "var(--font-display)",
-                            fontSize: "1rem",
-                            color: "var(--text-primary)",
-                            margin: "1.3em 0 .45em",
-                            fontWeight: 600,
-                          }}
-                        >
-                          {children}
-                        </h2>
-                      ),
-                      h3: ({ children }) => (
-                        <h3
-                          style={{
-                            fontSize: ".92rem",
-                            color: "var(--text-primary)",
-                            fontWeight: 600,
-                            margin: ".9em 0 .3em",
-                          }}
-                        >
-                          {children}
-                        </h3>
-                      ),
-                      p: ({ children }) => (
-                        <p
-                          style={{
-                            marginBottom: ".75em",
-                            lineHeight: 1.78,
-                            fontSize: 14,
-                            color: "var(--text-secondary)",
-                          }}
-                        >
-                          {children}
-                        </p>
-                      ),
-                      strong: ({ children }) => (
-                        <strong
-                          style={{
-                            color: "var(--text-primary)",
-                            fontWeight: 600,
-                          }}
-                        >
-                          {children}
-                        </strong>
-                      ),
-                      ul: ({ children }) => (
-                        <ul
-                          style={{
-                            paddingLeft: "1.4em",
-                            marginBottom: ".75em",
-                          }}
-                        >
-                          {children}
-                        </ul>
-                      ),
-                      li: ({ children }) => (
-                        <li
-                          style={{
-                            marginBottom: ".3em",
-                            fontSize: 14,
-                            color: "var(--text-secondary)",
-                          }}
-                        >
-                          {children}
-                        </li>
-                      ),
-                      a: ({ href, children }) => (
-                        <a
-                          href={href}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          style={{
-                            color: "var(--brand)",
-                            textDecoration: "underline",
-                            textUnderlineOffset: 3,
-                            wordBreak: "break-word",
-                          }}
-                        >
-                          {children}
-                        </a>
-                      ),
-                    }}
+                    components={mdComponents}
                   >
                     {selectedReview.review}
                   </ReactMarkdown>
                 </div>
-
                 {selectedReview.papers && selectedReview.papers.length > 0 && (
                   <div style={{ marginBottom: 24 }}>
                     <p
                       style={{
-                        fontSize: 9.5,
+                        fontSize: 10,
                         fontWeight: 700,
-                        letterSpacing: "0.1em",
+                        letterSpacing: "1.5px",
                         textTransform: "uppercase",
                         color: "var(--text-faint)",
                         marginBottom: 12,
@@ -434,21 +833,23 @@ function DashContent() {
                       {selectedReview.papers.map((p, i) => (
                         <div
                           key={i}
-                          className="card"
                           style={{
-                            padding: "12px 15px",
+                            padding: "12px 14px",
+                            background: "var(--bg-raised)",
+                            border: "1px solid var(--border)",
+                            borderRadius: 10,
                             display: "flex",
                             gap: 10,
                           }}
                         >
                           <span
                             style={{
-                              width: 24,
-                              height: 24,
+                              width: 22,
+                              height: 22,
                               borderRadius: 6,
                               background: "#5db87a",
                               color: "#000",
-                              fontSize: 10,
+                              fontSize: 9.5,
                               fontWeight: 700,
                               display: "flex",
                               alignItems: "center",
@@ -461,18 +862,17 @@ function DashContent() {
                           <div style={{ minWidth: 0, flex: 1 }}>
                             <p
                               style={{
-                                fontSize: 12.5,
+                                fontSize: 12,
                                 fontWeight: 600,
                                 color: "var(--text-primary)",
                                 marginBottom: 2,
-                                lineHeight: 1.4,
                               }}
                             >
                               {p.title}
                             </p>
                             <p
                               style={{
-                                fontSize: 11,
+                                fontSize: 10.5,
                                 color: "var(--text-faint)",
                               }}
                             >
@@ -486,12 +886,12 @@ function DashContent() {
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 style={{
-                                  fontSize: 11,
+                                  fontSize: 10.5,
                                   color: "var(--brand)",
                                   textDecoration: "none",
                                 }}
                               >
-                                View paper →
+                                View →
                               </a>
                             )}
                           </div>
@@ -500,7 +900,6 @@ function DashContent() {
                     </div>
                   </div>
                 )}
-
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                   <button
                     onClick={() =>
@@ -512,34 +911,52 @@ function DashContent() {
                         session?.user?.name ?? undefined,
                       )
                     }
-                    className="btn btn-outline"
                     style={{
-                      padding: "9px 18px",
+                      padding: "10px 16px",
+                      borderRadius: 10,
+                      border: "1px solid var(--brand)",
+                      color: "var(--brand)",
+                      background: "transparent",
                       fontSize: 13,
+                      fontWeight: 600,
+                      cursor: "pointer",
                       display: "flex",
                       alignItems: "center",
                       gap: 6,
-                      border: "1px solid var(--brand)",
-                      color: "var(--brand)",
+                      fontFamily: "var(--font-ui)",
                     }}
                   >
-                    <Download size={13} /> Download PDF
+                    <Download size={13} /> PDF
                   </button>
                   <Link
                     href="/review"
-                    className="btn btn-brand"
                     style={{
-                      textDecoration: "none",
-                      padding: "9px 18px",
+                      padding: "10px 16px",
+                      borderRadius: 10,
+                      background: "var(--brand)",
+                      color: "#000",
                       fontSize: 13,
+                      fontWeight: 700,
+                      textDecoration: "none",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 6,
                     }}
                   >
                     <BookOpen size={12} /> New Review
                   </Link>
                   <button
                     onClick={() => setSelectedReview(null)}
-                    className="btn btn-outline"
-                    style={{ padding: "9px 18px", fontSize: 13 }}
+                    style={{
+                      padding: "10px 16px",
+                      borderRadius: 10,
+                      border: "1px solid var(--border)",
+                      color: "var(--text-secondary)",
+                      background: "transparent",
+                      fontSize: 13,
+                      cursor: "pointer",
+                      fontFamily: "var(--font-ui)",
+                    }}
                   >
                     ← Back
                   </button>
@@ -549,14 +966,14 @@ function DashContent() {
               <div
                 style={{
                   textAlign: "center",
-                  padding: "40px 20px",
-                  background: "var(--bg-overlay)",
+                  padding: "44px 20px",
+                  background: "var(--bg-raised)",
                   border: "1px solid var(--border)",
-                  borderRadius: 12,
+                  borderRadius: 14,
                 }}
               >
                 <FileText
-                  size={28}
+                  size={26}
                   style={{
                     color: "var(--text-faint)",
                     opacity: 0.4,
@@ -576,8 +993,16 @@ function DashContent() {
                 </p>
                 <Link
                   href="/review"
-                  className="btn btn-brand"
-                  style={{ textDecoration: "none", padding: "9px 20px" }}
+                  style={{
+                    padding: "9px 20px",
+                    borderRadius: 10,
+                    background: "var(--brand)",
+                    color: "#000",
+                    fontSize: 13,
+                    fontWeight: 700,
+                    textDecoration: "none",
+                    display: "inline-flex",
+                  }}
                 >
                   Generate Again
                 </Link>
@@ -587,10 +1012,9 @@ function DashContent() {
         </div>
       </Shell>
     );
-  }
 
-  // ── HISTORY DETAIL VIEW ──────────────────────────────────
-  if (activeTab === "history" && selectedItem) {
+  /* ── HISTORY DETAIL ────────────────────────────────────────── */
+  if (activeTab === "history" && selectedItem)
     return (
       <Shell>
         <div style={{ flex: 1, overflowY: "auto" }}>
@@ -598,46 +1022,42 @@ function DashContent() {
             style={{
               maxWidth: 820,
               margin: "0 auto",
-              padding: "28px 20px 60px",
+              padding: `28px ${px}px 60px`,
             }}
           >
-            {/* Back */}
             <button
               onClick={() => setSelectedItem(null)}
               style={{
                 display: "flex",
                 alignItems: "center",
                 gap: 6,
-                padding: "6px 12px",
-                background: "var(--surface)",
-                border: "1px solid var(--border-mid)",
-                borderRadius: 8,
+                padding: "7px 14px",
+                background: "var(--bg-raised)",
+                border: "1px solid var(--border)",
+                borderRadius: 9,
                 cursor: "pointer",
                 fontSize: 12.5,
                 color: "var(--text-secondary)",
-                marginBottom: 20,
+                marginBottom: 24,
                 fontFamily: "var(--font-ui)",
               }}
             >
-              <ChevronLeft size={14} /> Back to History
+              <ChevronLeft size={14} /> Back
             </button>
-
-            {/* Query header */}
             <div
               style={{
                 background: "var(--brand-dim)",
-                border: "1px solid var(--brand-border)",
-                borderLeft: "4px solid var(--brand)",
+                borderLeft: "3px solid var(--brand)",
                 borderRadius: "0 12px 12px 0",
-                padding: "16px 20px",
+                padding: "16px 18px",
                 marginBottom: 20,
               }}
             >
               <p
                 style={{
-                  fontSize: 9.5,
+                  fontSize: 10,
                   fontWeight: 700,
-                  letterSpacing: "0.1em",
+                  letterSpacing: "1.5px",
                   textTransform: "uppercase",
                   color: "var(--brand)",
                   marginBottom: 6,
@@ -647,7 +1067,7 @@ function DashContent() {
               </p>
               <p
                 style={{
-                  fontSize: 16,
+                  fontSize: isMobile ? 15 : 17,
                   fontWeight: 600,
                   color: "var(--text-primary)",
                   lineHeight: 1.45,
@@ -673,15 +1093,13 @@ function DashContent() {
                 )}
               </p>
             </div>
-
             {selectedItem.answer ? (
               <>
-                {/* AI Answer */}
                 <p
                   style={{
-                    fontSize: 9.5,
+                    fontSize: 10,
                     fontWeight: 700,
-                    letterSpacing: "0.1em",
+                    letterSpacing: "1.5px",
                     textTransform: "uppercase",
                     color: "var(--text-faint)",
                     marginBottom: 14,
@@ -693,131 +1111,31 @@ function DashContent() {
                   style={{
                     background: "var(--bg-raised)",
                     border: "1px solid var(--border)",
-                    borderRadius: 12,
-                    padding: "20px 22px",
+                    borderRadius: 14,
+                    padding: isMobile ? "16px" : "22px 24px",
                     marginBottom: 20,
                   }}
                 >
                   <ReactMarkdown
                     remarkPlugins={[remarkGfm]}
-                    components={{
-                      h2: ({ children }) => (
-                        <h2
-                          style={{
-                            fontFamily: "var(--font-display)",
-                            fontSize: "1rem",
-                            color: "var(--text-primary)",
-                            margin: "1.3em 0 .45em",
-                            fontWeight: 600,
-                          }}
-                        >
-                          {children}
-                        </h2>
-                      ),
-                      h3: ({ children }) => (
-                        <h3
-                          style={{
-                            fontSize: ".92rem",
-                            color: "var(--text-primary)",
-                            fontWeight: 600,
-                            margin: ".9em 0 .3em",
-                          }}
-                        >
-                          {children}
-                        </h3>
-                      ),
-                      p: ({ children }) => (
-                        <p
-                          style={{
-                            marginBottom: ".75em",
-                            lineHeight: 1.78,
-                            fontSize: 14,
-                            color: "var(--text-secondary)",
-                          }}
-                        >
-                          {children}
-                        </p>
-                      ),
-                      strong: ({ children }) => (
-                        <strong
-                          style={{
-                            color: "var(--text-primary)",
-                            fontWeight: 600,
-                          }}
-                        >
-                          {children}
-                        </strong>
-                      ),
-                      ul: ({ children }) => (
-                        <ul
-                          style={{
-                            paddingLeft: "1.4em",
-                            marginBottom: ".75em",
-                          }}
-                        >
-                          {children}
-                        </ul>
-                      ),
-                      li: ({ children }) => (
-                        <li
-                          style={{
-                            marginBottom: ".3em",
-                            fontSize: 14,
-                            color: "var(--text-secondary)",
-                          }}
-                        >
-                          {children}
-                        </li>
-                      ),
-                      code: ({ children }) => (
-                        <code
-                          style={{
-                            fontFamily: "var(--font-mono)",
-                            fontSize: 12,
-                            background: "var(--surface-2)",
-                            color: "var(--brand)",
-                            padding: "2px 5px",
-                            borderRadius: 4,
-                          }}
-                        >
-                          {children}
-                        </code>
-                      ),
-                      a: ({ href, children }) => (
-                        <a
-                          href={href}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          style={{
-                            color: "var(--brand)",
-                            textDecoration: "underline",
-                            textUnderlineOffset: 3,
-                            wordBreak: "break-word",
-                          }}
-                        >
-                          {children}
-                        </a>
-                      ),
-                    }}
+                    components={mdComponents}
                   >
                     {selectedItem.answer}
                   </ReactMarkdown>
                 </div>
-
-                {/* Sources */}
                 {selectedItem.papers && selectedItem.papers.length > 0 && (
                   <>
                     <p
                       style={{
-                        fontSize: 9.5,
+                        fontSize: 10,
                         fontWeight: 700,
-                        letterSpacing: "0.1em",
+                        letterSpacing: "1.5px",
                         textTransform: "uppercase",
                         color: "var(--text-faint)",
                         marginBottom: 12,
                       }}
                     >
-                      Sources ({selectedItem.papers.length} Papers)
+                      Sources ({selectedItem.papers.length})
                     </p>
                     <div
                       style={{
@@ -830,21 +1148,23 @@ function DashContent() {
                       {selectedItem.papers.map((p, i) => (
                         <div
                           key={i}
-                          className="card"
                           style={{
-                            padding: "12px 15px",
+                            padding: "12px 14px",
+                            background: "var(--bg-raised)",
+                            border: "1px solid var(--border)",
+                            borderRadius: 10,
                             display: "flex",
-                            gap: 11,
+                            gap: 10,
                           }}
                         >
                           <span
                             style={{
-                              width: 24,
-                              height: 24,
+                              width: 22,
+                              height: 22,
                               borderRadius: 6,
                               background: "var(--brand)",
                               color: "#000",
-                              fontSize: 10,
+                              fontSize: 9.5,
                               fontWeight: 700,
                               display: "flex",
                               alignItems: "center",
@@ -858,18 +1178,17 @@ function DashContent() {
                           <div style={{ minWidth: 0, flex: 1 }}>
                             <p
                               style={{
-                                fontSize: 12.5,
+                                fontSize: 12,
                                 fontWeight: 600,
                                 color: "var(--text-primary)",
                                 marginBottom: 3,
-                                lineHeight: 1.4,
                               }}
                             >
                               {p.title}
                             </p>
                             <p
                               style={{
-                                fontSize: 11,
+                                fontSize: 10.5,
                                 color: "var(--text-faint)",
                               }}
                             >
@@ -881,12 +1200,15 @@ function DashContent() {
                             {p.abstract && (
                               <p
                                 style={{
-                                  fontSize: 11.5,
+                                  fontSize: 11,
                                   color: "var(--text-secondary)",
                                   marginTop: 4,
                                   lineHeight: 1.5,
+                                  display: "-webkit-box",
+                                  WebkitLineClamp: 2,
+                                  WebkitBoxOrient: "vertical",
+                                  overflow: "hidden",
                                 }}
-                                className="truncate-2"
                               >
                                 {p.abstract}
                               </p>
@@ -897,7 +1219,7 @@ function DashContent() {
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 style={{
-                                  fontSize: 11,
+                                  fontSize: 10.5,
                                   color: "var(--brand)",
                                   textDecoration: "none",
                                   display: "inline-flex",
@@ -906,7 +1228,7 @@ function DashContent() {
                                   marginTop: 4,
                                 }}
                               >
-                                View paper <ExternalLink size={9} />
+                                View <ExternalLink size={8} />
                               </a>
                             )}
                           </div>
@@ -915,10 +1237,7 @@ function DashContent() {
                     </div>
                   </>
                 )}
-
-                {/* Action buttons */}
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                  {/* Download PDF button — works on all devices */}
                   <button
                     onClick={() =>
                       downloadResearchPDF(
@@ -929,27 +1248,37 @@ function DashContent() {
                         session?.user?.name ?? undefined,
                       )
                     }
-                    className="btn btn-outline"
                     style={{
-                      padding: "9px 18px",
+                      padding: "10px 16px",
+                      borderRadius: 10,
+                      border: "1px solid var(--brand)",
+                      color: "var(--brand)",
+                      background: "transparent",
                       fontSize: 13,
+                      fontWeight: 600,
+                      cursor: "pointer",
                       display: "flex",
                       alignItems: "center",
                       gap: 6,
-                      border: "1px solid var(--brand)",
-                      color: "var(--brand)",
+                      fontFamily: "var(--font-ui)",
                     }}
                   >
-                    <Download size={13} /> Download PDF
+                    <Download size={13} /> PDF
                   </button>
                   {!atLimit ? (
                     <Link
                       href={`/search?q=${encodeURIComponent(selectedItem.query)}`}
-                      className="btn btn-brand"
                       style={{
-                        textDecoration: "none",
-                        padding: "9px 18px",
+                        padding: "10px 16px",
+                        borderRadius: 10,
+                        background: "var(--brand)",
+                        color: "#000",
                         fontSize: 13,
+                        fontWeight: 700,
+                        textDecoration: "none",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 6,
                       }}
                     >
                       <Search size={12} /> Search Again
@@ -957,38 +1286,51 @@ function DashContent() {
                   ) : (
                     <Link
                       href="/pricing"
-                      className="btn btn-brand"
                       style={{
-                        textDecoration: "none",
-                        padding: "9px 18px",
+                        padding: "10px 16px",
+                        borderRadius: 10,
+                        background: "var(--brand)",
+                        color: "#000",
                         fontSize: 13,
+                        fontWeight: 700,
+                        textDecoration: "none",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 6,
                       }}
                     >
-                      <Sparkles size={12} /> Upgrade to Search More
+                      <Sparkles size={12} /> Upgrade
                     </Link>
                   )}
                   <button
                     onClick={() => setSelectedItem(null)}
-                    className="btn btn-outline"
-                    style={{ padding: "9px 18px", fontSize: 13 }}
+                    style={{
+                      padding: "10px 16px",
+                      borderRadius: 10,
+                      border: "1px solid var(--border)",
+                      color: "var(--text-secondary)",
+                      background: "transparent",
+                      fontSize: 13,
+                      cursor: "pointer",
+                      fontFamily: "var(--font-ui)",
+                    }}
                   >
                     ← Back
                   </button>
                 </div>
               </>
             ) : (
-              /* No answer saved — old history item */
               <div
                 style={{
                   textAlign: "center",
-                  padding: "40px 20px",
-                  background: "var(--bg-overlay)",
+                  padding: "44px 20px",
+                  background: "var(--bg-raised)",
                   border: "1px solid var(--border)",
-                  borderRadius: 12,
+                  borderRadius: 14,
                 }}
               >
                 <FileText
-                  size={28}
+                  size={26}
                   style={{
                     color: "var(--text-faint)",
                     opacity: 0.4,
@@ -999,40 +1341,60 @@ function DashContent() {
                 <p
                   style={{
                     fontSize: 14,
-                    color: "var(--text-primary)",
                     fontWeight: 600,
+                    color: "var(--text-primary)",
                     marginBottom: 6,
                   }}
                 >
-                  Answer not available
+                  Answer not saved
                 </p>
                 <p
                   style={{
-                    fontSize: 12.5,
+                    fontSize: 12,
                     color: "var(--text-secondary)",
-                    marginBottom: 20,
-                    lineHeight: 1.65,
+                    marginBottom: 18,
+                    lineHeight: 1.6,
                   }}
                 >
-                  This search was made before answers were saved to history.
+                  This search was made before answers were saved.
                   <br />
-                  All future searches save the full answer automatically.
+                  All future searches save automatically.
                 </p>
                 {!atLimit ? (
                   <Link
                     href={`/search?q=${encodeURIComponent(selectedItem.query)}`}
-                    className="btn btn-brand"
-                    style={{ textDecoration: "none", padding: "9px 20px" }}
+                    style={{
+                      padding: "9px 20px",
+                      borderRadius: 10,
+                      background: "var(--brand)",
+                      color: "#000",
+                      fontSize: 13,
+                      fontWeight: 700,
+                      textDecoration: "none",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 6,
+                    }}
                   >
-                    <Search size={12} /> Re-run this search
+                    <Search size={12} /> Re-run search
                   </Link>
                 ) : (
                   <Link
                     href="/pricing"
-                    className="btn btn-brand"
-                    style={{ textDecoration: "none", padding: "9px 20px" }}
+                    style={{
+                      padding: "9px 20px",
+                      borderRadius: 10,
+                      background: "var(--brand)",
+                      color: "#000",
+                      fontSize: 13,
+                      fontWeight: 700,
+                      textDecoration: "none",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 6,
+                    }}
                   >
-                    <Sparkles size={12} /> Upgrade to search again
+                    <Sparkles size={12} /> Upgrade
                   </Link>
                 )}
               </div>
@@ -1041,170 +1403,256 @@ function DashContent() {
         </div>
       </Shell>
     );
-  }
 
-  // ── MAIN DASHBOARD ───────────────────────────────────────
+  /* ═══════════════════════════════════════════════════════════
+     MAIN DASHBOARD
+  ═══════════════════════════════════════════════════════════ */
   return (
     <Shell>
       <div style={{ flex: 1, overflowY: "auto" }}>
-        <div
-          style={{ maxWidth: 820, margin: "0 auto", padding: "28px 20px 60px" }}
-        >
-          {/* Header */}
+        <div style={{ maxWidth: 900, margin: "0 auto", padding: pb }}>
+          {/* ── Top bar ── */}
           <div
             style={{
               display: "flex",
-              alignItems: "center",
-              gap: 11,
-              marginBottom: 22,
+              alignItems: isMobile ? "flex-start" : "center",
+              justifyContent: "space-between",
+              gap: 12,
+              marginBottom: 24,
+              flexDirection: isMobile ? "column" : "row",
             }}
           >
-            <div
-              style={{
-                width: 36,
-                height: 36,
-                borderRadius: 9,
-                background: "rgba(92,154,224,.1)",
-                border: "1px solid rgba(92,154,224,.18)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <LayoutDashboard size={16} style={{ color: "#5c9ae0" }} />
+            <div>
+              {!isMobile && (
+                <p
+                  style={{
+                    fontSize: 11.5,
+                    color: "var(--text-faint)",
+                    marginBottom: 3,
+                    fontWeight: 500,
+                  }}
+                >
+                  {new Date().toLocaleDateString("en-IN", {
+                    weekday: "long",
+                    month: "long",
+                    day: "numeric",
+                  })}
+                </p>
+              )}
+              <h1
+                style={{
+                  fontFamily: "var(--font-display)",
+                  fontSize: isMobile ? 18 : 21,
+                  fontWeight: 700,
+                  color: "var(--text-primary)",
+                  letterSpacing: "-.4px",
+                }}
+              >
+                Good{" "}
+                {new Date().getHours() < 12
+                  ? "morning"
+                  : new Date().getHours() < 17
+                    ? "afternoon"
+                    : "evening"}
+                , {session?.user?.name?.split(" ")[0]} 👋
+              </h1>
             </div>
-            <h1
+            <Link
+              href="/search"
               style={{
-                fontFamily: "var(--font-display)",
-                fontSize: 18,
-                fontWeight: 600,
-                color: "var(--text-primary)",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 7,
+                padding: "9px 18px",
+                borderRadius: 10,
+                background: "var(--brand)",
+                color: "#000",
+                fontSize: 13,
+                fontWeight: 700,
+                textDecoration: "none",
+                flexShrink: 0,
+                alignSelf: isMobile ? "flex-start" : "auto",
               }}
             >
-              My Dashboard
-            </h1>
+              <Search size={13} /> New Search
+            </Link>
           </div>
 
-          {/* Profile */}
+          {/* ── Profile card (always single col, stacked on mobile) ── */}
           <div
-            className="card"
             style={{
-              padding: 20,
+              padding: "18px 18px",
+              borderRadius: 16,
+              background: "var(--bg-raised)",
+              border: "1px solid var(--border)",
               display: "flex",
               alignItems: "center",
               gap: 14,
               marginBottom: 12,
+              position: "relative",
+              overflow: "hidden",
             }}
           >
-            {session?.user?.image ? (
-              <Image
-                src={session.user.image}
-                alt="avatar"
-                width={46}
-                height={46}
-                style={{ borderRadius: "50%", flexShrink: 0 }}
-              />
-            ) : (
+            <div
+              style={{
+                position: "absolute",
+                top: 0,
+                right: 0,
+                width: 120,
+                height: 120,
+                background: `radial-gradient(circle, ${planMeta.color}12 0%, transparent 70%)`,
+                pointerEvents: "none",
+              }}
+            />
+            {/* Avatar */}
+            <div style={{ position: "relative", flexShrink: 0 }}>
+              {session?.user?.image ? (
+                <Image
+                  src={session.user.image}
+                  alt="avatar"
+                  width={52}
+                  height={52}
+                  style={{
+                    borderRadius: "50%",
+                    border: `2.5px solid ${planMeta.color}45`,
+                  }}
+                />
+              ) : (
+                <div
+                  style={{
+                    width: 52,
+                    height: 52,
+                    borderRadius: "50%",
+                    background: planMeta.gradient,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: 20,
+                    fontWeight: 800,
+                    color: "#000",
+                    border: `2.5px solid ${planMeta.color}40`,
+                  }}
+                >
+                  {(session?.user?.name?.[0] ?? "U").toUpperCase()}
+                </div>
+              )}
               <div
-                className="avatar"
-                style={{ width: 46, height: 46, fontSize: 17, flexShrink: 0 }}
+                style={{
+                  position: "absolute",
+                  bottom: -3,
+                  right: -3,
+                  width: 18,
+                  height: 18,
+                  borderRadius: "50%",
+                  background: planMeta.gradient,
+                  border: "2.5px solid var(--bg)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
               >
-                {(session?.user?.name?.[0] ?? "U").toUpperCase()}
+                <PlanIcon size={8} color="#000" />
               </div>
-            )}
+            </div>
+            {/* Name + plan */}
             <div style={{ flex: 1, minWidth: 0 }}>
               <p
                 style={{
-                  fontSize: 15,
-                  fontWeight: 600,
+                  fontSize: 14,
+                  fontWeight: 700,
                   color: "var(--text-primary)",
+                  marginBottom: 1,
                 }}
               >
                 {session?.user?.name ?? "Researcher"}
               </p>
-              <p style={{ fontSize: 12, color: "var(--text-faint)" }}>
+              <p
+                style={{
+                  fontSize: 11,
+                  color: "var(--text-faint)",
+                  marginBottom: 8,
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+              >
                 {session?.user?.email}
               </p>
+              <span
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 5,
+                  padding: "3px 10px",
+                  borderRadius: 99,
+                  fontSize: 10.5,
+                  fontWeight: 700,
+                  background: planMeta.bg,
+                  color: planMeta.color,
+                  border: `1px solid ${planMeta.border}`,
+                }}
+              >
+                <PlanIcon size={8} /> {planMeta.label} Plan
+              </span>
             </div>
-            <span
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 5,
-                padding: "4px 12px",
-                borderRadius: 99,
-                fontSize: 11,
-                fontWeight: 700,
-                background: planMeta.bg,
-                color: planMeta.color,
-                border: `1px solid ${planMeta.border}`,
-              }}
-            >
-              <PlanIcon size={10} /> {planMeta.label}
-            </span>
-          </div>
-
-          {/* Limit reached banner */}
-          {atLimit && (
-            <div
-              style={{
-                background: "rgba(224,92,92,.07)",
-                border: "1px solid rgba(224,92,92,.22)",
-                borderRadius: 14,
-                padding: "16px 20px",
-                marginBottom: 12,
-              }}
-            >
+            {/* Plan controls */}
+            {isPaid && !isMobile && (
               <div
                 style={{
                   display: "flex",
-                  alignItems: "center",
-                  gap: 12,
-                  flexWrap: "wrap",
+                  flexDirection: "column",
+                  gap: 5,
+                  alignItems: "flex-end",
+                  flexShrink: 0,
                 }}
               >
-                <Lock
-                  size={18}
-                  style={{ color: "var(--red)", flexShrink: 0 }}
-                />
-                <div style={{ flex: 1, minWidth: 200 }}>
-                  <p
-                    style={{
-                      fontSize: 13.5,
-                      fontWeight: 700,
-                      color: "var(--red)",
-                      marginBottom: 3,
-                    }}
-                  >
-                    {isFree
-                      ? "Daily limit reached — 5/5 searches used"
-                      : "Monthly limit reached — 500/500 used"}
-                  </p>
-                  <p style={{ fontSize: 12, color: "var(--text-secondary)" }}>
-                    {isFree
-                      ? "Resets at midnight. You can still read all your saved answers below."
-                      : "Resets next month. Upgrade to Pro for unlimited."}
-                  </p>
-                </div>
                 <Link
                   href="/pricing"
-                  className="btn btn-brand"
                   style={{
+                    fontSize: 11,
+                    color: "var(--text-faint)",
                     textDecoration: "none",
-                    padding: "9px 18px",
-                    fontSize: 13,
-                    flexShrink: 0,
+                    padding: "3px 9px",
+                    borderRadius: 6,
+                    border: "1px solid var(--border)",
                   }}
                 >
-                  {isFree ? "Upgrade ₹199/mo" : "Go Pro ₹499/mo"}{" "}
-                  <ArrowRight size={12} />
+                  Change
                 </Link>
+                <button
+                  onClick={() => setShowConfirm(true)}
+                  disabled={cancelling}
+                  style={{
+                    fontSize: 11,
+                    color: "var(--red)",
+                    background: "transparent",
+                    border: "1px solid rgba(224,92,92,.3)",
+                    borderRadius: 6,
+                    padding: "3px 9px",
+                    cursor: "pointer",
+                    fontFamily: "var(--font-ui)",
+                  }}
+                >
+                  {cancelling ? "..." : "Cancel"}
+                </button>
               </div>
-            </div>
-          )}
+            )}
+          </div>
 
-          {/* Free upgrade banner */}
-          {isFree && !atLimit && (
+          {/* ── Plan status banner ── */}
+          <div
+            style={{
+              padding: "14px 16px",
+              borderRadius: 14,
+              marginBottom: 12,
+              background: atLimit
+                ? "rgba(224,92,92,.04)"
+                : isPaid
+                  ? "rgba(93,184,122,.04)"
+                  : "var(--brand-dim)",
+              border: `1px solid ${atLimit ? "rgba(224,92,92,.18)" : isPaid ? "rgba(93,184,122,.18)" : "var(--brand-border)"}`,
+            }}
+          >
             <div
               style={{
                 display: "flex",
@@ -1212,1000 +1660,718 @@ function DashContent() {
                 justifyContent: "space-between",
                 flexWrap: "wrap",
                 gap: 10,
-                padding: "13px 18px",
-                background: "var(--brand-dim)",
-                border: "1px solid var(--brand-border)",
-                borderRadius: 12,
-                marginBottom: 12,
+                marginBottom: !isPro ? 12 : 0,
               }}
             >
-              <div>
-                <p
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                {atLimit && <Lock size={14} style={{ color: "var(--red)" }} />}
+                {!atLimit && isPaid && (
+                  <CheckCircle size={14} style={{ color: "var(--green)" }} />
+                )}
+                {!atLimit && isFree && (
+                  <Activity size={14} style={{ color: "var(--brand)" }} />
+                )}
+                <div>
+                  <p
+                    style={{
+                      fontSize: 13,
+                      fontWeight: 700,
+                      color: atLimit
+                        ? "var(--red)"
+                        : isPaid
+                          ? "var(--green)"
+                          : "var(--brand)",
+                    }}
+                  >
+                    {atLimit
+                      ? "Limit reached"
+                      : isPaid
+                        ? "Plan active"
+                        : "Free plan"}
+                  </p>
+                  <p style={{ fontSize: 11.5, color: "var(--text-secondary)" }}>
+                    {atLimit
+                      ? isFree
+                        ? "Resets at midnight"
+                        : "Resets next month"
+                      : isPro
+                        ? "Unlimited searches & PDF uploads"
+                        : isStudent
+                          ? `${searchesThisMonth} / 500 searches this month`
+                          : `${searchesToday} / 5 searches today`}
+                  </p>
+                </div>
+              </div>
+              {!isPro && (
+                <Link
+                  href="/pricing"
                   style={{
-                    fontSize: 13,
-                    fontWeight: 600,
-                    color: "var(--text-primary)",
-                    marginBottom: 2,
+                    padding: "7px 14px",
+                    borderRadius: 8,
+                    background: atLimit ? "var(--red)" : "var(--brand)",
+                    color: "#000",
+                    fontSize: 12,
+                    fontWeight: 700,
+                    textDecoration: "none",
+                    flexShrink: 0,
                   }}
                 >
-                  You&apos;re on the Free plan
-                </p>
-                <p style={{ fontSize: 12, color: "var(--text-secondary)" }}>
-                  {searchesToday}/5 searches used today
-                </p>
-              </div>
-              <Link
-                href="/pricing"
-                className="btn btn-brand"
-                style={{
-                  textDecoration: "none",
-                  padding: "8px 16px",
-                  fontSize: 12.5,
-                }}
-              >
-                Upgrade ✨
-              </Link>
+                  {atLimit
+                    ? "Upgrade now"
+                    : isFree
+                      ? "Upgrade ✨"
+                      : "Change plan"}
+                </Link>
+              )}
+              {isPaid && isMobile && (
+                <button
+                  onClick={() => setShowConfirm(true)}
+                  disabled={cancelling}
+                  style={{
+                    fontSize: 11,
+                    color: "var(--text-faint)",
+                    background: "transparent",
+                    border: "1px solid var(--border)",
+                    borderRadius: 6,
+                    padding: "5px 10px",
+                    cursor: "pointer",
+                    fontFamily: "var(--font-ui)",
+                  }}
+                >
+                  {cancelling ? "..." : "Cancel plan"}
+                </button>
+              )}
             </div>
-          )}
-
-          {/* Paid active banner */}
-          {isPaid && !atLimit && (
-            <div
-              style={{
-                background: "rgba(93,184,122,.06)",
-                border: "1px solid rgba(93,184,122,.18)",
-                borderRadius: 12,
-                padding: "14px 18px",
-                marginBottom: 12,
-              }}
-            >
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  flexWrap: "wrap",
-                  gap: 10,
-                }}
-              >
-                <div style={{ display: "flex", gap: 10 }}>
-                  <CheckCircle
-                    size={17}
-                    style={{ color: "var(--green)", flexShrink: 0 }}
-                  />
-                  <div>
-                    <p
-                      style={{
-                        fontSize: 13,
-                        fontWeight: 600,
-                        color: "var(--text-primary)",
-                        marginBottom: 2,
-                      }}
-                    >
-                      {planMeta.label} plan active
-                    </p>
-                    <p style={{ fontSize: 12, color: "var(--text-secondary)" }}>
-                      {isPro
-                        ? "Unlimited searches"
-                        : `${searchesThisMonth}/500 searches this month`}
-                    </p>
-                  </div>
-                </div>
-                <div style={{ display: "flex", gap: 7 }}>
-                  <Link
-                    href="/pricing"
-                    className="btn btn-outline"
-                    style={{
-                      textDecoration: "none",
-                      padding: "6px 12px",
-                      fontSize: 12,
-                    }}
-                  >
-                    Change Plan
-                  </Link>
-                  <button
-                    onClick={() => setShowConfirm(true)}
-                    disabled={cancelling}
-                    className="btn btn-outline"
-                    style={{
-                      padding: "6px 12px",
-                      fontSize: 12,
-                      color: "var(--red)",
-                      borderColor: "rgba(224,92,92,.3)",
-                    }}
-                  >
-                    {cancelling ? (
-                      <span
-                        className="spinner"
-                        style={{ width: 10, height: 10 }}
-                      />
-                    ) : (
-                      <>
-                        <XCircle size={11} /> Cancel
-                      </>
-                    )}
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Cancel modal */}
-          {showConfirm && (
-            <div
-              style={{
-                position: "fixed",
-                inset: 0,
-                background: "rgba(0,0,0,.65)",
-                zIndex: 100,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                padding: 20,
-              }}
-            >
-              <div
-                className="card"
-                style={{ maxWidth: 400, width: "100%", padding: 28 }}
-              >
-                <div style={{ display: "flex", gap: 12, marginBottom: 16 }}>
-                  <AlertTriangle
-                    size={20}
-                    style={{ color: "var(--red)", flexShrink: 0 }}
-                  />
-                  <div>
-                    <p
-                      style={{
-                        fontSize: 14,
-                        fontWeight: 600,
-                        color: "var(--text-primary)",
-                        marginBottom: 6,
-                      }}
-                    >
-                      Cancel your subscription?
-                    </p>
-                    <p
-                      style={{
-                        fontSize: 13,
-                        color: "var(--text-secondary)",
-                        lineHeight: 1.6,
-                      }}
-                    >
-                      You keep access until end of billing period. After that,
-                      reverts to Free (5 searches/day).
-                    </p>
-                  </div>
-                </div>
+            {!isPro && (
+              <>
                 <div
                   style={{
-                    display: "flex",
-                    gap: 8,
-                    justifyContent: "flex-end",
+                    height: 5,
+                    background: "var(--surface-3)",
+                    borderRadius: 99,
+                    overflow: "hidden",
+                    marginBottom: 6,
                   }}
                 >
-                  <button
-                    onClick={() => setShowConfirm(false)}
-                    className="btn btn-outline"
-                    style={{ padding: "8px 16px", fontSize: 13 }}
-                  >
-                    Keep Plan
-                  </button>
-                  <button
-                    onClick={() => void cancelSubscription()}
-                    className="btn"
+                  <div
                     style={{
-                      padding: "8px 16px",
-                      fontSize: 13,
-                      background: "var(--red)",
-                      color: "#fff",
-                      border: "none",
+                      height: "100%",
+                      width: `${pct}%`,
+                      background: atLimit
+                        ? "var(--red)"
+                        : pct >= 80
+                          ? "var(--brand)"
+                          : "var(--green)",
+                      borderRadius: 99,
+                      transition: "width .6s ease",
                     }}
-                  >
-                    Yes, Cancel
-                  </button>
+                  />
                 </div>
-              </div>
-            </div>
-          )}
+                <p style={{ fontSize: 11, color: "var(--text-faint)" }}>
+                  {atLimit ? "0" : counterMax - counterUsed} remaining
+                </p>
+              </>
+            )}
+          </div>
 
-          {/* Stats */}
+          {/* ── Stats — 2 cols on mobile, 4 on tablet/desktop ── */}
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "repeat(3,1fr)",
+              gridTemplateColumns: isMobile ? "repeat(2,1fr)" : "repeat(4,1fr)",
               gap: 10,
-              marginBottom: 16,
+              marginBottom: 20,
             }}
           >
-            {[
-              { v: papers.length, l: "Saved Papers", c: planMeta.color },
-              {
-                v: isPro ? "∞" : `${counterUsed}/${counterMax}`,
-                l: isFree
-                  ? "Today's Searches"
-                  : isStudent
-                    ? "Monthly Searches"
-                    : "Searches",
-                c: atLimit ? "var(--red)" : "var(--green)",
-              },
-              { v: history.length, l: "Total Searches", c: "#5c9ae0" },
-            ].map(({ v, l, c }) => (
-              <div key={l} className="card" style={{ padding: "16px 18px" }}>
-                <p
-                  style={{
-                    fontSize: 22,
-                    fontWeight: 700,
-                    color: c,
-                    fontFamily: "var(--font-display)",
-                    marginBottom: 3,
-                  }}
-                >
-                  {v}
-                </p>
-                <p style={{ fontSize: 11, color: "var(--text-faint)" }}>{l}</p>
-              </div>
-            ))}
+            <StatCard
+              value={papers.length}
+              label="Saved Papers"
+              color="#5c9ae0"
+              icon="📚"
+            />
+            <StatCard
+              value={history.length}
+              label="Total Searches"
+              color="var(--brand)"
+              icon="🔬"
+            />
+            <StatCard
+              value={reviewHistory.length}
+              label="Lit. Reviews"
+              color="#5db87a"
+              icon="📄"
+            />
+            <StatCard
+              value={isPro ? "∞" : `${counterUsed}/${counterMax}`}
+              label={
+                isFree ? "Daily Searches" : isStudent ? "Monthly" : "Searches"
+              }
+              color={
+                atLimit
+                  ? "var(--red)"
+                  : isPro
+                    ? "#5db87a"
+                    : "var(--text-primary)"
+              }
+              icon="⚡"
+              sub={isPro ? "Unlimited" : undefined}
+            />
           </div>
 
-          {/* Progress bar */}
-          {!isPro && (
-            <div
-              className="card"
-              style={{ padding: "14px 18px", marginBottom: 20 }}
+          {/* ── Quick actions — 1 col mobile, 3 col tablet+ ── */}
+          <div style={{ marginBottom: 26 }}>
+            <p
+              style={{
+                fontSize: 10.5,
+                fontWeight: 700,
+                letterSpacing: "1.5px",
+                textTransform: "uppercase",
+                color: "var(--text-faint)",
+                marginBottom: 12,
+              }}
             >
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  marginBottom: 8,
-                }}
-              >
-                <span
-                  style={{
-                    fontSize: 12.5,
-                    fontWeight: 600,
-                    color: "var(--text-primary)",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 6,
-                  }}
-                >
-                  <TrendingUp size={13} style={{ color: "var(--brand)" }} />{" "}
-                  {isFree ? "Daily" : "Monthly"} Usage
-                </span>
-                <span
-                  style={{
-                    fontSize: 12,
-                    fontWeight: 700,
-                    color: atLimit
-                      ? "var(--red)"
-                      : counterUsed >= counterMax * 0.8
-                        ? "var(--brand)"
-                        : "var(--green)",
-                  }}
-                >
-                  {counterUsed} / {counterMax}
-                </span>
-              </div>
-              <div
-                style={{
-                  height: 6,
-                  background: "var(--surface-3)",
-                  borderRadius: 99,
-                  overflow: "hidden",
-                  marginBottom: 8,
-                }}
-              >
-                <div
-                  style={{
-                    height: "100%",
-                    width: `${Math.min((counterUsed / counterMax) * 100, 100)}%`,
-                    background: atLimit
-                      ? "var(--red)"
-                      : counterUsed >= counterMax * 0.8
-                        ? "var(--brand)"
-                        : "var(--green)",
-                    borderRadius: 99,
-                    transition: "width .4s",
-                  }}
-                />
-              </div>
-              <p style={{ fontSize: 11.5, color: "var(--text-faint)" }}>
-                {atLimit ? (
-                  <>
-                    {isFree ? "Resets at midnight." : "Resets next month."}{" "}
-                    <Link
-                      href="/pricing"
-                      style={{ color: "var(--brand)", textDecoration: "none" }}
-                    >
-                      Upgrade now →
-                    </Link>
-                  </>
-                ) : (
-                  <>
-                    {counterMax - counterUsed} remaining ·{" "}
-                    <Link
-                      href="/pricing"
-                      style={{
-                        color: "var(--text-faint)",
-                        textDecoration: "none",
-                      }}
-                    >
-                      Upgrade for {isFree ? "500/month" : "unlimited"} →
-                    </Link>
-                  </>
-                )}
-              </p>
+              Quick Actions
+            </p>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: isMobile ? "1fr" : "repeat(3,1fr)",
+                gap: 10,
+              }}
+            >
+              <ActionCard
+                label="Research Search"
+                desc="AI answers from 200M+ academic papers"
+                cta="Start searching"
+                href="/search"
+                color="var(--brand)"
+                bg="rgba(232,160,69,.06)"
+                Icon={Search}
+              />
+              <ActionCard
+                label="Literature Review"
+                desc="Generate a full structured academic review"
+                cta="Generate review"
+                href="/review"
+                color="#5db87a"
+                bg="rgba(93,184,122,.06)"
+                Icon={BookOpen}
+              />
+              <ActionCard
+                label="PDF Chat"
+                desc="Upload a paper and ask it questions"
+                cta="Upload a PDF"
+                href="/upload"
+                color="#ad73e0"
+                bg="rgba(173,115,224,.06)"
+                Icon={FileText}
+              />
             </div>
-          )}
+          </div>
 
-          {/* Tabs */}
+          {/* ── Tabs — scrollable on mobile ── */}
           <div
             style={{
               display: "flex",
-              gap: 4,
-              marginBottom: 16,
-              background: "var(--bg-overlay)",
-              padding: 4,
-              borderRadius: 10,
-              border: "1px solid var(--border)",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 10,
+              marginBottom: 14,
+              flexWrap: isMobile ? "wrap" : "nowrap",
             }}
           >
-            {(
-              [
-                {
-                  id: "library",
-                  label: "Saved Papers",
-                  icon: BookmarkCheck,
-                  count: papers.length,
-                },
-                {
-                  id: "history",
-                  label: "Search History",
-                  icon: History,
-                  count: history.length,
-                },
-                {
-                  id: "reviews",
-                  label: "Lit. Reviews",
-                  icon: BookOpen,
-                  count: reviewHistory.length,
-                },
-              ] as const
-            ).map(({ id, label, icon: Icon, count }) => (
-              <button
-                key={id}
-                onClick={() => {
-                  setActiveTab(id);
-                  setSelectedItem(null);
-                  setSelectedReview(null);
-                }}
-                style={{
-                  flex: 1,
-                  padding: "8px 10px",
-                  borderRadius: 7,
-                  border: "none",
-                  cursor: "pointer",
-                  fontSize: 12,
-                  fontWeight: 600,
-                  fontFamily: "var(--font-ui)",
-                  transition: "all .15s",
-                  background:
-                    activeTab === id ? "var(--surface)" : "transparent",
-                  color:
-                    activeTab === id
-                      ? "var(--text-primary)"
-                      : "var(--text-muted)",
-                  boxShadow:
-                    activeTab === id ? "0 1px 4px rgba(0,0,0,.3)" : "none",
-                }}
-              >
-                <span
+            <div
+              style={{
+                display: "flex",
+                gap: 2,
+                background: "var(--bg-raised)",
+                padding: "3px",
+                borderRadius: 11,
+                border: "1px solid var(--border)",
+                overflowX: "auto",
+                flexShrink: 0,
+              }}
+            >
+              {(
+                [
+                  {
+                    id: "library",
+                    label: "Library",
+                    icon: BookmarkCheck,
+                    count: papers.length,
+                  },
+                  {
+                    id: "history",
+                    label: "History",
+                    icon: History,
+                    count: history.length,
+                  },
+                  {
+                    id: "reviews",
+                    label: "Reviews",
+                    icon: BookOpen,
+                    count: reviewHistory.length,
+                  },
+                ] as const
+              ).map(({ id, label, icon: Icon, count }) => (
+                <button
+                  key={id}
+                  onClick={() => {
+                    setActiveTab(id);
+                    setSelectedItem(null);
+                    setSelectedReview(null);
+                  }}
                   style={{
+                    padding: isMobile ? "7px 12px" : "8px 14px",
+                    borderRadius: 9,
+                    border: "none",
+                    cursor: "pointer",
+                    fontSize: isMobile ? 12 : 12.5,
+                    fontWeight: 600,
+                    fontFamily: "var(--font-ui)",
+                    transition: "all .15s",
                     display: "flex",
                     alignItems: "center",
-                    justifyContent: "center",
                     gap: 5,
+                    whiteSpace: "nowrap",
+                    background:
+                      activeTab === id ? "var(--surface)" : "transparent",
+                    color:
+                      activeTab === id
+                        ? "var(--text-primary)"
+                        : "var(--text-muted)",
+                    boxShadow:
+                      activeTab === id ? "0 1px 4px rgba(0,0,0,.25)" : "none",
                   }}
                 >
-                  <Icon size={11} /> {label} ({count})
-                </span>
-              </button>
-            ))}
-          </div>
-
-          {/* ── Saved Papers ── */}
-          {activeTab === "library" && (
-            <>
-              <div
+                  <Icon size={11} />
+                  {label}
+                  <span
+                    style={{
+                      padding: "1px 6px",
+                      borderRadius: 99,
+                      fontSize: 10,
+                      fontWeight: 700,
+                      background:
+                        activeTab === id ? "var(--brand)" : "var(--surface-2)",
+                      color: activeTab === id ? "#000" : "var(--text-faint)",
+                    }}
+                  >
+                    {count}
+                  </span>
+                </button>
+              ))}
+            </div>
+            {/* Contextual add button */}
+            {activeTab === "library" && !atLimit && (
+              <Link
+                href="/search"
                 style={{
                   display: "flex",
                   alignItems: "center",
-                  justifyContent: "space-between",
-                  marginBottom: 12,
+                  gap: 5,
+                  padding: "7px 12px",
+                  borderRadius: 9,
+                  border: "1px solid var(--border)",
+                  color: "var(--text-secondary)",
+                  fontSize: 12,
+                  textDecoration: "none",
+                  background: "var(--bg-raised)",
+                  flexShrink: 0,
                 }}
               >
-                <h2
-                  style={{
-                    fontFamily: "var(--font-display)",
-                    fontSize: 15,
-                    fontWeight: 600,
-                    color: "var(--text-primary)",
-                  }}
-                >
-                  Saved Papers
-                </h2>
-                {!atLimit && (
-                  <Link
-                    href="/search"
-                    className="btn btn-outline"
-                    style={{
-                      padding: "5px 11px",
-                      fontSize: 12,
-                      textDecoration: "none",
-                    }}
-                  >
-                    <Search size={11} /> New Search
-                  </Link>
-                )}
-              </div>
-              {loading ? (
-                [1, 2, 3].map((i) => (
+                <Search size={10} /> Search
+              </Link>
+            )}
+            {activeTab === "reviews" && (
+              <Link
+                href="/review"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 5,
+                  padding: "7px 12px",
+                  borderRadius: 9,
+                  border: "1px solid var(--border)",
+                  color: "var(--text-secondary)",
+                  fontSize: 12,
+                  textDecoration: "none",
+                  background: "var(--bg-raised)",
+                  flexShrink: 0,
+                }}
+              >
+                <BookOpen size={10} /> New
+              </Link>
+            )}
+          </div>
+
+          {/* ── Saved Papers ── */}
+          {activeTab === "library" &&
+            (loading ? (
+              [1, 2, 3].map((i) => <Shimmer key={i} h={76} />)
+            ) : papers.length === 0 ? (
+              <Empty
+                icon={BookmarkCheck}
+                title="No saved papers yet"
+                desc="Search papers and bookmark them to build your library"
+                href="/search"
+                cta="Start Searching"
+              />
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {papers.map((p) => (
                   <div
-                    key={i}
-                    className="shimmer-line"
-                    style={{ height: 72, borderRadius: 10, marginBottom: 7 }}
-                  />
-                ))
-              ) : papers.length === 0 ? (
+                    key={p.paperId}
+                    style={{
+                      padding: "13px 14px",
+                      background: "var(--bg-raised)",
+                      border: "1px solid var(--border)",
+                      borderRadius: 12,
+                      display: "flex",
+                      gap: 12,
+                      transition: "all .14s",
+                    }}
+                    onMouseEnter={(e) => {
+                      const el = e.currentTarget as HTMLDivElement;
+                      el.style.background = "var(--surface)";
+                      el.style.borderColor = "rgba(92,154,224,.25)";
+                    }}
+                    onMouseLeave={(e) => {
+                      const el = e.currentTarget as HTMLDivElement;
+                      el.style.background = "var(--bg-raised)";
+                      el.style.borderColor = "var(--border)";
+                    }}
+                  >
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p
+                        className="truncate-1"
+                        style={{
+                          fontSize: 13,
+                          fontWeight: 600,
+                          color: "var(--text-primary)",
+                          marginBottom: 3,
+                        }}
+                      >
+                        {p.title}
+                      </p>
+                      <p style={{ fontSize: 11, color: "var(--text-faint)" }}>
+                        {(p.authors ?? []).slice(0, 3).join(", ")}
+                        {(p.authors?.length ?? 0) > 3 ? " et al." : ""}
+                        {p.year ? ` · ${p.year}` : ""}
+                        {p.journal ? ` · ${p.journal}` : ""}
+                      </p>
+                      {p.abstract && !isMobile && (
+                        <p
+                          className="truncate-2"
+                          style={{
+                            fontSize: 11.5,
+                            color: "var(--text-secondary)",
+                            marginTop: 5,
+                            lineHeight: 1.55,
+                          }}
+                        >
+                          {p.abstract}
+                        </p>
+                      )}
+                    </div>
+                    <div
+                      style={{
+                        display: "flex",
+                        gap: 5,
+                        flexShrink: 0,
+                        alignItems: "flex-start",
+                      }}
+                    >
+                      {p.url && (
+                        <a
+                          href={p.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{
+                            width: 30,
+                            height: 30,
+                            borderRadius: 8,
+                            background: "var(--surface)",
+                            border: "1px solid var(--border)",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            color: "var(--text-faint)",
+                            textDecoration: "none",
+                          }}
+                        >
+                          <ExternalLink size={12} />
+                        </a>
+                      )}
+                      <button
+                        onClick={() => void removePaper(p.paperId)}
+                        style={{
+                          width: 30,
+                          height: 30,
+                          borderRadius: 8,
+                          background: "rgba(224,92,92,.07)",
+                          border: "1px solid rgba(224,92,92,.15)",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          cursor: "pointer",
+                          color: "var(--red)",
+                        }}
+                      >
+                        <Trash2 size={12} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ))}
+
+          {/* ── Search History ── */}
+          {activeTab === "history" && (
+            <>
+              {atLimit && (
                 <div
-                  className="card"
                   style={{
-                    padding: 44,
-                    textAlign: "center",
-                    borderStyle: "dashed",
+                    display: "flex",
+                    alignItems: "flex-start",
+                    gap: 8,
+                    padding: "10px 13px",
+                    background: "rgba(232,160,69,.06)",
+                    border: "1px solid rgba(232,160,69,.18)",
+                    borderRadius: 10,
+                    marginBottom: 12,
                   }}
                 >
-                  <BookmarkCheck
-                    size={26}
+                  <History
+                    size={12}
                     style={{
-                      color: "var(--text-faint)",
-                      opacity: 0.4,
-                      margin: "0 auto 12px",
-                      display: "block",
+                      color: "var(--brand)",
+                      flexShrink: 0,
+                      marginTop: 2,
                     }}
                   />
                   <p
                     style={{
-                      fontSize: 15,
-                      color: "var(--text-primary)",
-                      marginBottom: 6,
-                      fontFamily: "var(--font-display)",
-                    }}
-                  >
-                    No saved papers yet
-                  </p>
-                  <p
-                    style={{
-                      fontSize: 12.5,
+                      fontSize: 12,
                       color: "var(--text-secondary)",
-                      marginBottom: 20,
+                      lineHeight: 1.5,
                     }}
                   >
-                    Search papers and bookmark them to save here
+                    Limit reached — tap any search to read its saved answer for
+                    free.
                   </p>
-                  {!atLimit && (
-                    <Link
-                      href="/search"
-                      className="btn btn-brand"
-                      style={{ textDecoration: "none", padding: "8px 18px" }}
-                    >
-                      <Search size={12} /> Start Searching
-                    </Link>
-                  )}
                 </div>
+              )}
+              {loading ? (
+                [1, 2, 3, 4].map((i) => <Shimmer key={i} />)
+              ) : history.length === 0 ? (
+                <Empty
+                  icon={History}
+                  title="No history yet"
+                  desc="Your searches will appear here once you start researching"
+                />
               ) : (
                 <div
                   style={{ display: "flex", flexDirection: "column", gap: 7 }}
                 >
-                  {papers.map((p) => (
-                    <div
-                      key={p.paperId}
-                      className="card"
-                      style={{ padding: "13px 15px", display: "flex", gap: 12 }}
-                    >
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <p
-                          className="truncate-1"
-                          style={{
-                            fontSize: 13,
-                            fontWeight: 600,
-                            color: "var(--text-primary)",
-                            marginBottom: 3,
-                          }}
-                        >
-                          {p.title}
-                        </p>
-                        <p style={{ fontSize: 11, color: "var(--text-faint)" }}>
-                          {(p.authors ?? []).slice(0, 3).join(", ")}
-                          {(p.authors?.length ?? 0) > 3 ? " et al." : ""}
-                          {p.year ? ` · ${p.year}` : ""}
-                          {p.journal ? ` · ${p.journal}` : ""}
-                        </p>
-                        {p.abstract && (
-                          <p
-                            className="truncate-2"
-                            style={{
-                              fontSize: 11.5,
-                              color: "var(--text-secondary)",
-                              marginTop: 5,
-                              lineHeight: 1.55,
-                            }}
-                          >
-                            {p.abstract}
-                          </p>
-                        )}
-                      </div>
-                      <div style={{ display: "flex", gap: 3, flexShrink: 0 }}>
-                        {p.url && (
-                          <a
-                            href={p.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="icon-btn"
-                            style={{
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                            }}
-                          >
-                            <ExternalLink size={12} />
-                          </a>
-                        )}
-                        <button
-                          onClick={() => void removePaper(p.paperId)}
-                          className="icon-btn"
-                        >
-                          <Trash2 size={12} />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </>
-          )}
-
-          {/* ── Search History List ── */}
-          {activeTab === "history" && (
-            <>
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  marginBottom: 8,
-                }}
-              >
-                <h2
-                  style={{
-                    fontFamily: "var(--font-display)",
-                    fontSize: 15,
-                    fontWeight: 600,
-                    color: "var(--text-primary)",
-                  }}
-                >
-                  Search History
-                </h2>
-                <span style={{ fontSize: 11, color: "var(--text-faint)" }}>
-                  Last 50 · tap to read
-                </span>
-              </div>
-
-              {/* Info strip */}
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8,
-                  padding: "9px 13px",
-                  background: "var(--bg-overlay)",
-                  border: "1px solid var(--border)",
-                  borderRadius: 9,
-                  marginBottom: 14,
-                }}
-              >
-                <History
-                  size={12}
-                  style={{ color: "var(--brand)", flexShrink: 0 }}
-                />
-                <p
-                  style={{ fontSize: 12, color: "var(--text-muted)", flex: 1 }}
-                >
-                  {atLimit
-                    ? "You've hit your limit — tap any search below to read its saved answer for free."
-                    : "Tap any search to read its full saved answer. No credits needed to view history."}
-                </p>
-              </div>
-
-              {loading ? (
-                [1, 2, 3, 4, 5].map((i) => (
-                  <div
-                    key={i}
-                    className="shimmer-line"
-                    style={{ height: 60, borderRadius: 10, marginBottom: 6 }}
-                  />
-                ))
-              ) : history.length === 0 ? (
-                <div
-                  className="card"
-                  style={{
-                    padding: 44,
-                    textAlign: "center",
-                    borderStyle: "dashed",
-                  }}
-                >
-                  <History
-                    size={26}
-                    style={{
-                      color: "var(--text-faint)",
-                      opacity: 0.4,
-                      margin: "0 auto 12px",
-                      display: "block",
-                    }}
-                  />
-                  <p
-                    style={{
-                      fontSize: 15,
-                      color: "var(--text-primary)",
-                      marginBottom: 6,
-                      fontFamily: "var(--font-display)",
-                    }}
-                  >
-                    No history yet
-                  </p>
-                  <p style={{ fontSize: 12.5, color: "var(--text-secondary)" }}>
-                    Your searches will appear here once you start researching
-                  </p>
-                </div>
-              ) : (
-                <div
-                  style={{ display: "flex", flexDirection: "column", gap: 6 }}
-                >
                   {history.map((h, i) => (
-                    <button
+                    <ListRow
                       key={i}
                       onClick={() => setSelectedItem(h)}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 12,
-                        padding: "13px 15px",
-                        background: "var(--bg-raised)",
-                        border: "1px solid var(--border)",
-                        borderRadius: 10,
-                        cursor: "pointer",
-                        textAlign: "left",
-                        width: "100%",
-                        transition: "all .14s",
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.borderColor =
-                          "var(--brand-border)";
-                        e.currentTarget.style.background = "var(--surface)";
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.borderColor = "var(--border)";
-                        e.currentTarget.style.background = "var(--bg-raised)";
-                      }}
-                    >
-                      {/* Icon */}
-                      <div
-                        style={{
-                          width: 34,
-                          height: 34,
-                          borderRadius: 9,
-                          background: "var(--surface-2)",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          flexShrink: 0,
-                        }}
-                      >
-                        <Search
-                          size={13}
-                          style={{ color: "var(--text-muted)" }}
-                        />
-                      </div>
-
-                      {/* Text */}
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <p
-                          className="truncate-1"
+                      iconEl={
+                        <Search size={13} style={{ color: "var(--brand)" }} />
+                      }
+                      iconBg="rgba(232,160,69,.08)"
+                      iconBorder="rgba(232,160,69,.22)"
+                      title={h.query}
+                      meta={
+                        <span
                           style={{
-                            fontSize: 13.5,
-                            color: "var(--text-primary)",
-                            fontWeight: 500,
-                            marginBottom: 3,
-                          }}
-                        >
-                          {h.query}
-                        </p>
-                        <div
-                          style={{
+                            fontSize: 10,
+                            color: "var(--text-faint)",
                             display: "flex",
                             alignItems: "center",
-                            gap: 8,
-                            flexWrap: "wrap",
+                            gap: 3,
                           }}
                         >
-                          <span
-                            style={{
-                              fontSize: 10.5,
-                              color: "var(--text-faint)",
-                              display: "flex",
-                              alignItems: "center",
-                              gap: 3,
-                            }}
-                          >
-                            <Clock size={9} /> {timeAgo(h.searchedAt)}
-                          </span>
-                          {h.papers && h.papers.length > 0 && (
-                            <span
-                              style={{ fontSize: 10.5, color: "var(--brand)" }}
-                            >
-                              {h.papers.length} sources
-                            </span>
-                          )}
-                          {h.answer ? (
-                            <span
-                              style={{
-                                fontSize: 10.5,
-                                color: "var(--green)",
-                                display: "flex",
-                                alignItems: "center",
-                                gap: 3,
-                              }}
-                            >
-                              ✓ Answer saved
-                            </span>
-                          ) : (
-                            <span
-                              style={{
-                                fontSize: 10.5,
-                                color: "var(--text-faint)",
-                              }}
-                            >
-                              No answer saved
-                            </span>
-                          )}
-                        </div>
-                      </div>
-
-                      <ArrowRight
-                        size={13}
-                        style={{ color: "var(--text-faint)", flexShrink: 0 }}
-                      />
-                    </button>
+                          <Clock size={8} /> {timeAgo(h.searchedAt)}
+                        </span>
+                      }
+                      badge={
+                        h.papers && h.papers.length > 0
+                          ? `${h.papers.length} sources`
+                          : h.answer
+                            ? "✓ saved"
+                            : undefined
+                      }
+                      badgeColor={
+                        h.papers && h.papers.length > 0
+                          ? "var(--brand)"
+                          : "var(--green)"
+                      }
+                    />
                   ))}
                 </div>
               )}
             </>
           )}
-          {/* ── Literature Reviews Tab ── */}
-          {activeTab === "reviews" && (
-            <>
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  marginBottom: 8,
-                }}
-              >
-                <h2
-                  style={{
-                    fontFamily: "var(--font-display)",
-                    fontSize: 15,
-                    fontWeight: 600,
-                    color: "var(--text-primary)",
-                  }}
-                >
-                  Literature Reviews
-                </h2>
-                <Link
-                  href="/review"
-                  className="btn btn-outline"
-                  style={{
-                    padding: "5px 11px",
-                    fontSize: 12,
-                    textDecoration: "none",
-                  }}
-                >
-                  <BookOpen size={11} /> New Review
-                </Link>
-              </div>
 
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8,
-                  padding: "9px 13px",
-                  background: "var(--bg-overlay)",
-                  border: "1px solid var(--border)",
-                  borderRadius: 9,
-                  marginBottom: 14,
-                }}
-              >
-                <BookOpen
-                  size={12}
-                  style={{ color: "#5db87a", flexShrink: 0 }}
-                />
-                <p
-                  style={{ fontSize: 12, color: "var(--text-muted)", flex: 1 }}
-                >
-                  Tap any review to read its full saved content. Available on
-                  Student and Pro plans.
-                </p>
-              </div>
-
-              {loading ? (
-                [1, 2, 3].map((i) => (
-                  <div
+          {/* ── Literature Reviews ── */}
+          {activeTab === "reviews" &&
+            (loading ? (
+              [1, 2, 3].map((i) => <Shimmer key={i} />)
+            ) : reviewHistory.length === 0 ? (
+              <Empty
+                icon={BookOpen}
+                title="No reviews yet"
+                desc="Generate your first literature review from academic papers"
+                href="/review"
+                cta="Generate a Review"
+              />
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
+                {reviewHistory.map((r, i) => (
+                  <ListRow
                     key={i}
-                    className="shimmer-line"
-                    style={{ height: 60, borderRadius: 10, marginBottom: 6 }}
-                  />
-                ))
-              ) : reviewHistory.length === 0 ? (
-                <div
-                  className="card"
-                  style={{
-                    padding: 44,
-                    textAlign: "center",
-                    borderStyle: "dashed",
-                  }}
-                >
-                  <BookOpen
-                    size={26}
-                    style={{
-                      color: "var(--text-faint)",
-                      opacity: 0.4,
-                      margin: "0 auto 12px",
-                      display: "block",
-                    }}
-                  />
-                  <p
-                    style={{
-                      fontSize: 15,
-                      color: "var(--text-primary)",
-                      marginBottom: 6,
-                      fontFamily: "var(--font-display)",
-                    }}
-                  >
-                    No reviews yet
-                  </p>
-                  <p
-                    style={{
-                      fontSize: 12.5,
-                      color: "var(--text-secondary)",
-                      marginBottom: 20,
-                    }}
-                  >
-                    Generate your first literature review from the Literature
-                    Review page
-                  </p>
-                  <Link
-                    href="/review"
-                    className="btn btn-brand"
-                    style={{ textDecoration: "none", padding: "8px 18px" }}
-                  >
-                    <BookOpen size={12} /> Go to Literature Review
-                  </Link>
-                </div>
-              ) : (
-                <div
-                  style={{ display: "flex", flexDirection: "column", gap: 6 }}
-                >
-                  {reviewHistory.map((r, i) => (
-                    <button
-                      key={i}
-                      onClick={() => setSelectedReview(r)}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 12,
-                        padding: "13px 15px",
-                        background: "var(--bg-raised)",
-                        border: "1px solid var(--border)",
-                        borderRadius: 10,
-                        cursor: "pointer",
-                        textAlign: "left",
-                        width: "100%",
-                        transition: "all .14s",
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.borderColor =
-                          "rgba(93,184,122,.4)";
-                        e.currentTarget.style.background = "var(--surface)";
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.borderColor = "var(--border)";
-                        e.currentTarget.style.background = "var(--bg-raised)";
-                      }}
-                    >
-                      <div
+                    onClick={() => setSelectedReview(r)}
+                    iconEl={<BookOpen size={13} style={{ color: "#5db87a" }} />}
+                    iconBg="rgba(93,184,122,.08)"
+                    iconBorder="rgba(93,184,122,.22)"
+                    title={r.topic}
+                    meta={
+                      <span
                         style={{
-                          width: 34,
-                          height: 34,
-                          borderRadius: 9,
-                          background: "rgba(93,184,122,.1)",
-                          border: "1px solid rgba(93,184,122,.2)",
+                          fontSize: 10,
+                          color: "var(--text-faint)",
                           display: "flex",
                           alignItems: "center",
-                          justifyContent: "center",
-                          flexShrink: 0,
+                          gap: 3,
                         }}
                       >
-                        <BookOpen size={13} style={{ color: "#5db87a" }} />
-                      </div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <p
-                          className="truncate-1"
-                          style={{
-                            fontSize: 13.5,
-                            color: "var(--text-primary)",
-                            fontWeight: 500,
-                            marginBottom: 3,
-                          }}
-                        >
-                          {r.topic}
-                        </p>
-                        <div
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 8,
-                          }}
-                        >
-                          <span
-                            style={{
-                              fontSize: 10.5,
-                              color: "var(--text-faint)",
-                              display: "flex",
-                              alignItems: "center",
-                              gap: 3,
-                            }}
-                          >
-                            <Clock size={9} /> {timeAgo(r.reviewedAt)}
-                          </span>
-                          {r.papers && r.papers.length > 0 && (
-                            <span style={{ fontSize: 10.5, color: "#5db87a" }}>
-                              {r.papers.length} sources
-                            </span>
-                          )}
-                          {r.review && (
-                            <span
-                              style={{ fontSize: 10.5, color: "var(--green)" }}
-                            >
-                              ✓ Saved
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      <ArrowRight
-                        size={13}
-                        style={{ color: "var(--text-faint)", flexShrink: 0 }}
-                      />
-                    </button>
-                  ))}
-                </div>
-              )}
-            </>
-          )}
+                        <Clock size={8} /> {timeAgo(r.reviewedAt)}
+                      </span>
+                    }
+                    badge={
+                      r.papers && r.papers.length > 0
+                        ? `${r.papers.length} sources`
+                        : r.review
+                          ? "✓ saved"
+                          : undefined
+                    }
+                    badgeColor={
+                      r.papers && r.papers.length > 0
+                        ? "#5db87a"
+                        : "var(--green)"
+                    }
+                  />
+                ))}
+              </div>
+            ))}
         </div>
       </div>
+
+      {/* ── Cancel modal ── */}
+      {showConfirm && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,.72)",
+            zIndex: 100,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 20,
+          }}
+        >
+          <div
+            style={{
+              maxWidth: 380,
+              width: "100%",
+              padding: isMobile ? 22 : 28,
+              background: "var(--bg-overlay)",
+              border: "1px solid var(--border-mid)",
+              borderRadius: 18,
+              boxShadow: "0 28px 72px rgba(0,0,0,.6)",
+            }}
+          >
+            <div style={{ display: "flex", gap: 13, marginBottom: 18 }}>
+              <div
+                style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 11,
+                  background: "rgba(224,92,92,.1)",
+                  border: "1px solid rgba(224,92,92,.2)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  flexShrink: 0,
+                }}
+              >
+                <AlertTriangle size={18} style={{ color: "var(--red)" }} />
+              </div>
+              <div>
+                <p
+                  style={{
+                    fontSize: 14,
+                    fontWeight: 700,
+                    color: "var(--text-primary)",
+                    marginBottom: 7,
+                  }}
+                >
+                  Cancel subscription?
+                </p>
+                <p
+                  style={{
+                    fontSize: 12.5,
+                    color: "var(--text-secondary)",
+                    lineHeight: 1.6,
+                  }}
+                >
+                  You keep access until end of billing period. After that,
+                  reverts to Free (5 searches/day).
+                </p>
+              </div>
+            </div>
+            <div
+              style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}
+            >
+              <button
+                onClick={() => setShowConfirm(false)}
+                style={{
+                  padding: "9px 18px",
+                  borderRadius: 10,
+                  border: "1px solid var(--border)",
+                  color: "var(--text-secondary)",
+                  background: "transparent",
+                  fontSize: 13,
+                  cursor: "pointer",
+                  fontFamily: "var(--font-ui)",
+                }}
+              >
+                Keep Plan
+              </button>
+              <button
+                onClick={() => void cancelSubscription()}
+                style={{
+                  padding: "9px 18px",
+                  borderRadius: 10,
+                  background: "var(--red)",
+                  color: "#fff",
+                  border: "none",
+                  fontSize: 13,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  fontFamily: "var(--font-ui)",
+                }}
+              >
+                Yes, Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </Shell>
   );
 }
