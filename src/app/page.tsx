@@ -1,6 +1,5 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
 import Link from "next/link";
 import Image from "next/image";
@@ -8,156 +7,137 @@ import {
   Search,
   BookOpen,
   FileText,
+  BookMarked,
   ArrowRight,
   Check,
   Sparkles,
-  Zap,
   Crown,
+  Zap,
   LogOut,
   LayoutDashboard,
   ChevronDown,
+  Twitter,
+  Github,
+  Linkedin,
+  Menu,
+  X,
+  FlaskConical,
   Star,
-  Shield,
+  ChevronRight,
+  GraduationCap,
 } from "lucide-react";
+import "./landing.css";
 
-const EXAMPLES = [
-  "How does dopamine regulate reward & motivation?",
-  "CRISPR gene editing in cancer treatment",
-  "Large language model alignment techniques",
-  "Climate tipping points and feedback loops",
-];
+/* ─── Scroll Reveal ────────────────────────────────────────── */
+function useScrollReveal() {
+  useEffect(() => {
+    const run = () => {
+      const els = document.querySelectorAll<HTMLElement>(".sr");
+      const obs = new IntersectionObserver(
+        (entries) =>
+          entries.forEach((e) => {
+            if (e.isIntersecting) {
+              e.target.classList.add("in");
+              obs.unobserve(e.target);
+            }
+          }),
+        { threshold: 0.12, rootMargin: "0px 0px -40px 0px" },
+      );
+      els.forEach((el) => obs.observe(el));
+      return () => obs.disconnect();
+    };
+    const cleanup = run();
+    return cleanup;
+  }, []);
+}
 
-const FEATURES = [
-  {
-    icon: Search,
-    color: "#5c9ae0",
-    bg: "rgba(92,154,224,.12)",
-    title: "AI Research Search",
-    desc: "Ask anything in plain English. Get synthesised answers from 200M+ papers with inline citations.",
-    tag: "Most used",
-  },
-  {
-    icon: BookOpen,
-    color: "#5db87a",
-    bg: "rgba(93,184,122,.12)",
-    title: "Literature Reviews",
-    desc: "Full structured reviews — intro, methodology, findings, gaps — generated in under 30 seconds.",
-    tag: "Student favourite",
-  },
-  {
-    icon: FileText,
-    color: "#e8a045",
-    bg: "rgba(232,160,69,.12)",
-    title: "PDF Chat",
-    desc: "Upload any paper. Ask about methods, results, stats. Understands context across 30+ pages.",
-    tag: "Pro feature",
-  },
-  {
-    icon: Zap,
-    color: "#ad73e0",
-    bg: "rgba(173,115,224,.12)",
-    title: "Citation Export",
-    desc: "APA, MLA, IEEE, Chicago, Vancouver, BibTeX — formatted perfectly, one click download.",
-    tag: "All plans",
-  },
-];
-
-const PLANS = [
-  {
-    n: "Free",
-    p: "₹0",
-    period: "",
-    hi: false,
-    fs: [
-      "5 searches/day",
-      "AI cited answers",
-      "APA & MLA export",
-      "Save 20 papers",
-    ],
-    cta: "Get Started",
-    href: "/auth/signin",
-  },
-  {
-    n: "Student",
-    p: "₹199",
-    period: "/month",
-    hi: true,
-    fs: [
-      "500 searches/month",
-      "Literature reviews",
-      "All 6 citation formats",
-      "20 PDF uploads/month",
-      "Full library access",
-    ],
-    cta: "Subscribe Now",
-    href: "/pricing",
-  },
-  {
-    n: "Pro",
-    p: "₹499",
-    period: "/month",
-    hi: false,
-    fs: [
-      "Unlimited searches",
-      "Unlimited PDF uploads",
-      "API access (100 req/day)",
-      "Team sharing (5 seats)",
-      "Priority support",
-    ],
-    cta: "Subscribe Now",
-    href: "/pricing",
-  },
-];
-
-const TESTIMONIALS = [
-  {
-    name: "Priya Sharma",
-    role: "PhD Student, IIT Delhi",
-    text: "Researchly cut my literature review time from 2 weeks to 2 hours. Absolutely incredible tool.",
-    avatar: "PS",
-  },
-  {
-    name: "Rahul Verma",
-    role: "MSc Biology, AIIMS",
-    text: "The PDF chat feature is mind-blowing. I can ask my research papers questions like I'm talking to the author.",
-    avatar: "RV",
-  },
-  {
-    name: "Ananya Singh",
-    role: "UPSC Aspirant",
-    text: "For UPSC prep, the research search with citations is a game changer. Saves so much time.",
-    avatar: "AS",
-  },
-];
-
-function Counter({ end, suffix = "" }: { end: number; suffix?: string }) {
-  const [count, setCount] = useState(0);
+/* ─── Animated Counter ─────────────────────────────────────── */
+function AnimCounter({
+  to,
+  suffix = "",
+  prefix = "",
+}: {
+  to: number;
+  suffix?: string;
+  prefix?: string;
+}) {
+  const [val, setVal] = useState(0);
+  const [started, setStarted] = useState(false);
   const ref = useRef<HTMLSpanElement>(null);
   useEffect(() => {
-    const obs = new IntersectionObserver(([e]) => {
-      if (!e.isIntersecting) return;
-      obs.disconnect();
-      let start = 0;
-      const step = end / 60;
-      const t = setInterval(() => {
-        start += step;
-        if (start >= end) {
-          setCount(end);
-          clearInterval(t);
-        } else setCount(Math.floor(start));
-      }, 16);
-    });
-    if (ref.current) obs.observe(ref.current);
+    const el = ref.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(
+      ([e]) => {
+        if (e.isIntersecting) {
+          setStarted(true);
+          obs.disconnect();
+        }
+      },
+      { threshold: 0.5 },
+    );
+    obs.observe(el);
     return () => obs.disconnect();
-  }, [end]);
+  }, []);
+  useEffect(() => {
+    if (!started) return;
+    let raf: number;
+    let start = 0;
+    const dur = 1600;
+    const step = (ts: number) => {
+      if (!start) start = ts;
+      const p = Math.min((ts - start) / dur, 1);
+      setVal(Math.round((1 - Math.pow(1 - p, 3)) * to));
+      if (p < 1) raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+  }, [started, to]);
   return (
     <span ref={ref}>
-      {count}
+      {prefix}
+      {val.toLocaleString()}
       {suffix}
     </span>
   );
 }
 
+/* ─── Typing Hero Text ─────────────────────────────────────── */
+const QUERIES = [
+  "How does gut microbiome affect mental health?",
+  "CRISPR gene editing in cancer therapy",
+  "RLHF techniques for LLM alignment",
+  "Long COVID neurological mechanisms",
+  "Quantum error correction breakthroughs",
+];
+function TypingText() {
+  const [qi, setQi] = useState(0);
+  const [text, setText] = useState("");
+  const [del, setDel] = useState(false);
+  useEffect(() => {
+    const full = QUERIES[qi];
+    let t: ReturnType<typeof setTimeout>;
+    if (!del && text.length < full.length)
+      t = setTimeout(() => setText(full.slice(0, text.length + 1)), 38);
+    else if (!del && text.length === full.length)
+      t = setTimeout(() => setDel(true), 1800);
+    else if (del && text.length > 0)
+      t = setTimeout(() => setText(text.slice(0, -1)), 18);
+    else {
+      setDel(false);
+      setQi((q) => (q + 1) % QUERIES.length);
+    }
+    return () => clearTimeout(t);
+  }, [text, del, qi]);
+  return (
+    <span>
+      {text}
+      <span className="lp-cursor" />
+    </span>
+  );
+}
+
+/* ─── User Menu ────────────────────────────────────────────── */
 function UserMenu({
   session,
 }: {
@@ -172,14 +152,10 @@ function UserMenu({
 }) {
   const [open, setOpen] = useState(false);
   const plan = session.user?.plan ?? "free";
+  const planColor =
+    plan === "pro" ? "#5b99df" : plan === "student" ? "#e8a045" : "#555";
   const planLabel =
     plan === "pro" ? "Pro" : plan === "student" ? "Student" : "Free";
-  const planColor =
-    plan === "pro"
-      ? "#5c9ae0"
-      : plan === "student"
-        ? "var(--brand)"
-        : "var(--text-muted)";
   return (
     <div style={{ position: "relative" }}>
       <button
@@ -188,32 +164,33 @@ function UserMenu({
           display: "flex",
           alignItems: "center",
           gap: 8,
-          padding: "5px 10px 5px 6px",
+          padding: "5px 12px 5px 6px",
           borderRadius: 99,
-          background: "var(--surface)",
-          border: "1px solid var(--border-mid)",
+          background: "rgba(255,255,255,.07)",
+          border: "1px solid rgba(255,255,255,.1)",
           cursor: "pointer",
+          fontFamily: "inherit",
         }}
       >
         {session.user?.image ? (
           <Image
             src={session.user.image}
             alt="av"
-            width={24}
-            height={24}
+            width={26}
+            height={26}
             style={{ borderRadius: "50%" }}
           />
         ) : (
           <div
             style={{
-              width: 24,
-              height: 24,
+              width: 26,
+              height: 26,
               borderRadius: "50%",
-              background: "var(--brand)",
+              background: "#e8a045",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              fontSize: 10,
+              fontSize: 11,
               fontWeight: 700,
               color: "#000",
             }}
@@ -221,17 +198,7 @@ function UserMenu({
             {(session.user?.name?.[0] ?? "U").toUpperCase()}
           </div>
         )}
-        <span
-          style={{
-            fontSize: 12.5,
-            color: "var(--text-primary)",
-            fontWeight: 500,
-            maxWidth: 120,
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
-          }}
-        >
+        <span style={{ fontSize: 13.5, color: "#e8e8e8", fontWeight: 600 }}>
           {session.user?.name?.split(" ")[0] ?? "User"}
         </span>
         <span
@@ -239,14 +206,14 @@ function UserMenu({
             fontSize: 10,
             fontWeight: 700,
             color: planColor,
-            background: `${planColor}1a`,
-            padding: "1px 7px",
+            background: `${planColor}20`,
+            padding: "1px 8px",
             borderRadius: 99,
           }}
         >
           {planLabel}
         </span>
-        <ChevronDown size={11} style={{ color: "var(--text-faint)" }} />
+        <ChevronDown size={12} style={{ color: "#555" }} />
       </button>
       {open && (
         <>
@@ -257,40 +224,28 @@ function UserMenu({
           <div
             style={{
               position: "absolute",
-              top: "calc(100% + 6px)",
+              top: "calc(100% + 8px)",
               right: 0,
-              minWidth: 200,
-              background: "var(--bg-overlay)",
-              border: "1px solid var(--border-mid)",
-              borderRadius: 12,
+              minWidth: 210,
+              background: "#111",
+              border: "1px solid rgba(255,255,255,.1)",
+              borderRadius: 14,
               padding: 8,
               zIndex: 50,
-              boxShadow: "0 8px 24px rgba(0,0,0,.5)",
+              boxShadow: "0 20px 60px rgba(0,0,0,.7)",
             }}
           >
             <div
               style={{
                 padding: "8px 10px 10px",
-                borderBottom: "1px solid var(--border)",
+                borderBottom: "1px solid rgba(255,255,255,.06)",
                 marginBottom: 6,
               }}
             >
-              <p
-                style={{
-                  fontSize: 12.5,
-                  fontWeight: 600,
-                  color: "var(--text-primary)",
-                }}
-              >
+              <p style={{ fontSize: 13, fontWeight: 600, color: "#ececec" }}>
                 {session.user?.name}
               </p>
-              <p
-                style={{
-                  fontSize: 11,
-                  color: "var(--text-faint)",
-                  marginTop: 2,
-                }}
-              >
+              <p style={{ fontSize: 11, color: "#444", marginTop: 2 }}>
                 {session.user?.email}
               </p>
             </div>
@@ -313,51 +268,51 @@ function UserMenu({
                   gap: 8,
                   padding: "7px 10px",
                   borderRadius: 8,
-                  fontSize: 12.5,
-                  color: "var(--text-secondary)",
+                  fontSize: 13.5,
+                  color: "#888",
                   textDecoration: "none",
                 }}
-                onMouseEnter={(e) =>
-                  (e.currentTarget.style.background = "var(--surface)")
-                }
-                onMouseLeave={(e) =>
-                  (e.currentTarget.style.background = "transparent")
-                }
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = "rgba(255,255,255,.06)";
+                  e.currentTarget.style.color = "#e8e8e8";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = "transparent";
+                  e.currentTarget.style.color = "#888";
+                }}
               >
                 <Icon size={13} /> {label}
               </Link>
             ))}
             <div
               style={{
-                borderTop: "1px solid var(--border)",
+                borderTop: "1px solid rgba(255,255,255,.06)",
                 marginTop: 6,
                 paddingTop: 6,
               }}
             >
               <button
-                onClick={() => {
-                  setOpen(false);
-                  void signOut();
-                }}
+                onClick={() => void signOut()}
                 style={{
                   display: "flex",
                   alignItems: "center",
                   gap: 8,
                   padding: "7px 10px",
                   borderRadius: 8,
-                  fontSize: 12.5,
-                  color: "var(--red)",
+                  fontSize: 13.5,
+                  color: "#e05c5c",
                   width: "100%",
                   background: "transparent",
                   border: "none",
                   cursor: "pointer",
+                  fontFamily: "inherit",
                 }}
-                onMouseEnter={(e) =>
-                  (e.currentTarget.style.background = "rgba(224,92,92,.08)")
-                }
-                onMouseLeave={(e) =>
-                  (e.currentTarget.style.background = "transparent")
-                }
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = "rgba(224,92,92,.08)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = "transparent";
+                }}
               >
                 <LogOut size={13} /> Sign out
               </button>
@@ -369,779 +324,929 @@ function UserMenu({
   );
 }
 
-export default function Home() {
-  const [q, setQ] = useState("");
+/* ════════════════════════════════════════════════════════════
+   MAIN PAGE
+════════════════════════════════════════════════════════════ */
+export default function LandingPage() {
+  const { data: session } = useSession();
+  const [mobileOpen, setMobileOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
-  const router = useRouter();
-  const { data: session, status } = useSession();
+  const [yearly, setYearly] = useState(false);
+
+  useScrollReveal();
 
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 20);
-    window.addEventListener("scroll", onScroll);
-    return () => window.removeEventListener("scroll", onScroll);
+    const fn = () => setScrolled(window.scrollY > 50);
+    window.addEventListener("scroll", fn, { passive: true });
+    return () => window.removeEventListener("scroll", fn);
   }, []);
 
-  const go = (val: string) => {
-    if (val.trim()) router.push(`/search?q=${encodeURIComponent(val.trim())}`);
-  };
+  /* ── DATA ── */
+  const FEATURES = [
+    {
+      icon: Search,
+      color: "#5b99df",
+      bg: "rgba(91,153,223,.12)",
+      tag: "200M+ Papers",
+      tagC: "#5b99df",
+      tagBg: "rgba(91,153,223,.12)",
+      title: "AI Research Search",
+      desc: "Ask anything in plain English. Get synthesised answers with every claim cited from peer-reviewed sources. No hallucinations — only evidence.",
+    },
+    {
+      icon: BookOpen,
+      color: "#52c97a",
+      bg: "rgba(82,201,122,.12)",
+      tag: "< 30 seconds",
+      tagC: "#52c97a",
+      tagBg: "rgba(82,201,122,.12)",
+      title: "Literature Review Generator",
+      desc: "Full structured reviews — introduction, methodology, findings, research gaps — formatted for submission in under 30 seconds.",
+    },
+    {
+      icon: FileText,
+      color: "#e8a045",
+      bg: "rgba(232,160,69,.12)",
+      tag: "Any PDF",
+      tagC: "#e8a045",
+      tagBg: "rgba(232,160,69,.12)",
+      title: "PDF Chat",
+      desc: "Upload any research paper. Ask about methods, results, statistics, limitations. AI understands full context across 30+ pages simultaneously.",
+    },
+    {
+      icon: BookMarked,
+      color: "#b07ef0",
+      bg: "rgba(176,126,240,.12)",
+      tag: "6 Formats",
+      tagC: "#b07ef0",
+      tagBg: "rgba(176,126,240,.12)",
+      title: "Research Library",
+      desc: "Save papers, export citations in APA, MLA, IEEE, Chicago, Vancouver, BibTeX. Your entire research — organized, searchable, downloadable.",
+    },
+  ];
+
+  const STEPS = [
+    {
+      n: "01",
+      icon: Search,
+      color: "#5b99df",
+      title: "Search",
+      desc: "Type any research question in plain English. Our AI scans 200M+ papers across Semantic Scholar, OpenAlex, and arXiv in seconds.",
+    },
+    {
+      n: "02",
+      icon: FlaskConical,
+      color: "#e8a045",
+      title: "Analyse",
+      desc: "Get a synthesised answer with inline citations, key takeaways, methodology breakdown, and direct links to source papers.",
+    },
+    {
+      n: "03",
+      icon: BookOpen,
+      color: "#52c97a",
+      title: "Write",
+      desc: "Generate full literature reviews, export citations in any format, download PDFs — all in one seamless workflow.",
+    },
+  ];
+
+  const TESTIMONIALS = [
+    {
+      name: "Priya Sharma",
+      role: "PhD Candidate, IIT Bombay",
+      av: "PS",
+      avBg: "#5b99df",
+      plan: "Pro",
+      planC: "#5b99df",
+      text: "Researchly cut my literature review time from 3 days to 2 hours. The citation quality is remarkable — it finds the right papers every single time.",
+    },
+    {
+      name: "Arjun Mehta",
+      role: "UPSC 2024 — AIR 87",
+      av: "AM",
+      avBg: "#52c97a",
+      plan: "Student",
+      planC: "#e8a045",
+      text: "I use it daily for current affairs and essay writing. The AI understands exactly what a civil services answer needs. Absolute game changer.",
+    },
+    {
+      name: "Dr. Kavya Nair",
+      role: "Research Scientist, DRDO",
+      av: "KN",
+      avBg: "#b07ef0",
+      plan: "Pro",
+      planC: "#5b99df",
+      text: "The PDF chat feature is unprecedented. I can query a 50-page technical report and get precise, contextual answers in seconds.",
+    },
+    {
+      name: "Rohan Verma",
+      role: "MSc CS, IISc Bangalore",
+      av: "RV",
+      avBg: "#e8a045",
+      plan: "Student",
+      planC: "#e8a045",
+      text: "My supervisor couldn't believe I drafted the related work section in one afternoon. The literature review quality is publication-ready.",
+    },
+    {
+      name: "Aisha Patel",
+      role: "JEE Advanced 2024 — AIR 312",
+      av: "AP",
+      avBg: "#52c97a",
+      plan: "Free",
+      planC: "#777",
+      text: "Every concept I didn't understand, I searched on Researchly. Better than any coaching material. Got into IIT Bombay!",
+    },
+    {
+      name: "Siddharth Rao",
+      role: "Biomedical Researcher, AIIMS",
+      av: "SR",
+      avBg: "#e05c5c",
+      plan: "Pro",
+      planC: "#5b99df",
+      text: "Clinical research requires precision. Researchly delivers — accurate citations, correct journals, and medically sound explanations.",
+    },
+  ];
+
+  const PLANS = [
+    {
+      name: "Free",
+      desc: "Perfect to get started",
+      price: "₹0",
+      period: "",
+      highlight: false,
+      badge: null,
+      color: "#555",
+      cta: "Start Free",
+      ctaStyle: "outline" as const,
+      href: "/auth/signin",
+      features: [
+        "5 AI searches per day",
+        "Cited answers from 200M+ papers",
+        "APA & MLA citations",
+        "Save 20 papers",
+        "1 PDF upload/month",
+      ],
+    },
+    {
+      name: "Student",
+      desc: "For students & researchers",
+      price: yearly ? "₹1,590" : "₹199",
+      period: yearly ? "/year" : "/month",
+      highlight: true,
+      badge: "Most Popular",
+      color: "#e8a045",
+      cta: "Get Student Plan",
+      ctaStyle: "primary" as const,
+      href: "/pricing",
+      features: [
+        "500 searches per month",
+        "Full literature review generator",
+        "All 6 citation formats",
+        "20 PDF uploads/month",
+        "Full research library",
+        "Priority AI responses",
+      ],
+    },
+    {
+      name: "Pro",
+      desc: "For teams and heavy users",
+      price: yearly ? "₹3,990" : "₹499",
+      period: yearly ? "/year" : "/month",
+      highlight: false,
+      badge: null,
+      color: "#5b99df",
+      cta: "Get Pro",
+      ctaStyle: "outline" as const,
+      href: "/pricing",
+      features: [
+        "Unlimited searches",
+        "Unlimited PDF uploads",
+        "Fastest AI model",
+        "API access",
+        "Team sharing (5 seats)",
+        "Priority support & SLA",
+      ],
+    },
+  ];
+
+  const UNIS = [
+    "IIT Bombay",
+    "IISc Bangalore",
+    "AIIMS Delhi",
+    "Delhi University",
+    "BITS Pilani",
+    "VIT Vellore",
+    "NIT Trichy",
+    "TIFR Mumbai",
+    "Jadavpur University",
+    "Anna University",
+    "Semantic Scholar",
+    "OpenAlex",
+  ];
 
   return (
-    <div
-      style={{
-        background: "var(--bg)",
-        minHeight: "100vh",
-        overflowX: "hidden",
-      }}
-    >
-      {/* Background grid */}
-      <div
-        style={{
-          position: "fixed",
-          inset: 0,
-          zIndex: 0,
-          pointerEvents: "none",
-          backgroundImage: `linear-gradient(rgba(232,160,69,.03) 1px, transparent 1px), linear-gradient(90deg, rgba(232,160,69,.03) 1px, transparent 1px)`,
-          backgroundSize: "60px 60px",
-        }}
-      />
-
-      {/* Glow blobs */}
-      <div
-        style={{
-          position: "fixed",
-          top: "-20%",
-          left: "50%",
-          transform: "translateX(-50%)",
-          width: 800,
-          height: 400,
-          background:
-            "radial-gradient(ellipse, rgba(232,160,69,.07) 0%, transparent 70%)",
-          pointerEvents: "none",
-          zIndex: 0,
-        }}
-      />
-      <div
-        style={{
-          position: "fixed",
-          top: "40%",
-          left: "-10%",
-          width: 500,
-          height: 500,
-          background:
-            "radial-gradient(ellipse, rgba(92,154,224,.04) 0%, transparent 70%)",
-          pointerEvents: "none",
-          zIndex: 0,
-        }}
-      />
-      <div
-        style={{
-          position: "fixed",
-          top: "60%",
-          right: "-10%",
-          width: 500,
-          height: 500,
-          background:
-            "radial-gradient(ellipse, rgba(173,115,224,.04) 0%, transparent 70%)",
-          pointerEvents: "none",
-          zIndex: 0,
-        }}
-      />
-
-      {/* Navbar */}
-      <nav
-        style={{
-          position: "sticky",
-          top: 0,
-          zIndex: 100,
-          background: scrolled ? "rgba(10,10,10,.88)" : "transparent",
-          backdropFilter: scrolled ? "blur(20px)" : "none",
-          borderBottom: scrolled
-            ? "1px solid rgba(255,255,255,.06)"
-            : "1px solid transparent",
-          padding: "0 28px",
-          height: 58,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          transition: "all .3s ease",
-        }}
-      >
-        <Link
-          href="/"
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 9,
-            textDecoration: "none",
-          }}
-        >
-          <div
-            style={{
-              width: 30,
-              height: 30,
-              borderRadius: 9,
-              background: "var(--brand)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <BookOpen size={15} color="#000" strokeWidth={2.5} />
-          </div>
-          <span
-            style={{
-              fontWeight: 700,
-              fontSize: 15.5,
-              color: "var(--text-primary)",
-              letterSpacing: "-.4px",
-            }}
-          >
+    <div className="lp">
+      {/* ── NAV ── */}
+      <nav className={`lp-nav${scrolled ? " scrolled" : ""}`}>
+        <div className="lp-nav-inner">
+          <Link href="/" className="lp-logo">
+            <div className="lp-logo-mark">
+              <BookOpen size={15} color="#000" strokeWidth={2.5} />
+            </div>
             Researchly
-          </span>
-        </Link>
-        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-          {[
-            ["Search", "/search"],
-            ["Pricing", "/pricing"],
-          ].map(([l, h]) => (
-            <Link
-              key={l}
-              href={h}
-              style={{
-                fontSize: 13,
-                color: "var(--text-secondary)",
-                padding: "6px 12px",
-                borderRadius: 8,
-                textDecoration: "none",
-                transition: "all .15s",
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.color = "var(--text-primary)";
-                e.currentTarget.style.background = "var(--surface)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.color = "var(--text-secondary)";
-                e.currentTarget.style.background = "transparent";
-              }}
+          </Link>
+          <div className="lp-nav-links">
+            {[
+              ["#features", "Features"],
+              ["#how-it-works", "How It Works"],
+              ["#pricing", "Pricing"],
+              ["#testimonials", "Reviews"],
+            ].map(([href, label]) => (
+              <a key={href} href={href} className="lp-navlink">
+                {label}
+              </a>
+            ))}
+          </div>
+          <div className="lp-nav-actions">
+            {session ? (
+              <UserMenu session={session} />
+            ) : (
+              <>
+                <Link href="/auth/signin" className="lp-navlink">
+                  Sign in
+                </Link>
+                <Link href="/auth/signin" className="lp-btn-primary lp-btn-sm">
+                  Start Free <ArrowRight size={13} />
+                </Link>
+              </>
+            )}
+            <button
+              onClick={() => setMobileOpen(true)}
+              style={{ display: "none" }}
+              className="lp-ham"
             >
-              {l}
-            </Link>
-          ))}
-          {status === "loading" ? (
-            <div
-              style={{
-                width: 80,
-                height: 32,
-                borderRadius: 99,
-                background: "var(--surface)",
-                opacity: 0.5,
-              }}
-            />
-          ) : session ? (
-            <UserMenu session={session} />
-          ) : (
-            <Link
-              href="/auth/signin"
-              style={{
-                padding: "7px 18px",
-                borderRadius: 99,
-                fontSize: 13,
-                fontWeight: 600,
-                background: "var(--brand)",
-                color: "#000",
-                textDecoration: "none",
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 6,
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.opacity = ".85")}
-              onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
-            >
-              Get Started <ArrowRight size={12} />
-            </Link>
-          )}
+              <Menu size={22} />
+            </button>
+          </div>
         </div>
       </nav>
 
-      {/* Welcome banner */}
-      {session && (
-        <div
-          style={{
-            position: "relative",
-            zIndex: 1,
-            background:
-              "linear-gradient(90deg, rgba(232,160,69,.08), rgba(92,154,224,.08))",
-            borderBottom: "1px solid rgba(232,160,69,.15)",
-            padding: "10px 28px",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            flexWrap: "wrap",
-            gap: 8,
-          }}
-        >
-          <p style={{ fontSize: 12.5, color: "var(--text-secondary)" }}>
-            👋 Welcome back,{" "}
-            <strong style={{ color: "var(--text-primary)" }}>
-              {session.user?.name?.split(" ")[0]}
-            </strong>
-            !
-            {session.user?.plan === "free" && (
-              <span style={{ color: "var(--text-muted)" }}>
-                {" "}
-                &nbsp;·&nbsp; Free plan active
-              </span>
-            )}
-            {session.user?.plan !== "free" && (
-              <span style={{ color: "var(--green)" }}>
-                {" "}
-                &nbsp;·&nbsp; {session.user?.plan === "pro"
-                  ? "Pro"
-                  : "Student"}{" "}
-                plan active ✨
-              </span>
-            )}
-          </p>
-          <div style={{ display: "flex", gap: 8 }}>
-            <Link
-              href="/search"
+      {/* Mobile Menu */}
+      {mobileOpen && (
+        <div className="lp-mobile-menu">
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              marginBottom: 36,
+            }}
+          >
+            <span style={{ fontSize: 18, fontWeight: 700, color: "#f0f0f0" }}>
+              Researchly
+            </span>
+            <button
+              onClick={() => setMobileOpen(false)}
               style={{
-                padding: "5px 14px",
-                borderRadius: 99,
-                background: "var(--brand)",
-                color: "#000",
-                fontSize: 12,
-                fontWeight: 600,
-                textDecoration: "none",
+                background: "transparent",
+                border: "none",
+                color: "#e8e8e8",
+                cursor: "pointer",
               }}
             >
-              Start Researching →
+              <X size={24} />
+            </button>
+          </div>
+          {[
+            ["#features", "Features"],
+            ["#how-it-works", "How It Works"],
+            ["#pricing", "Pricing"],
+            ["#testimonials", "Reviews"],
+          ].map(([href, label]) => (
+            <a
+              key={href}
+              href={href}
+              onClick={() => setMobileOpen(false)}
+              className="lp-mobile-nav-link"
+            >
+              {label}
+            </a>
+          ))}
+          <div
+            style={{
+              marginTop: 40,
+              display: "flex",
+              flexDirection: "column",
+              gap: 12,
+            }}
+          >
+            <Link
+              href="/auth/signin"
+              className="lp-btn-primary"
+              style={{ justifyContent: "center" }}
+            >
+              Start Researching Free
             </Link>
             <Link
-              href="/dashboard"
-              style={{
-                padding: "5px 14px",
-                borderRadius: 99,
-                background: "var(--surface)",
-                color: "var(--text-secondary)",
-                fontSize: 12,
-                fontWeight: 500,
-                textDecoration: "none",
-                border: "1px solid var(--border)",
-              }}
+              href="/auth/signin"
+              className="lp-btn-ghost"
+              style={{ justifyContent: "center" }}
             >
-              Dashboard
+              Sign In
             </Link>
           </div>
         </div>
       )}
 
-      {/* Hero */}
-      <section
-        style={{
-          position: "relative",
-          zIndex: 1,
-          maxWidth: 820,
-          margin: "0 auto",
-          padding: "100px 24px 80px",
-          textAlign: "center",
-        }}
-      >
+      {/* ════════════════════════════════════
+          1. HERO
+      ════════════════════════════════════ */}
+      <section className="lp-hero">
+        {/* Background orbs */}
         <div
-          className="anim-up"
+          className="lp-orb"
           style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 6,
-            padding: "5px 14px",
-            borderRadius: 99,
-            background: "rgba(232,160,69,.1)",
-            border: "1px solid rgba(232,160,69,.22)",
-            marginBottom: 34,
+            width: 800,
+            height: 800,
+            background:
+              "radial-gradient(circle, rgba(232,160,69,.2) 0%, transparent 65%)",
+            top: "-200px",
+            right: "-100px",
           }}
-        >
-          <Sparkles size={11} style={{ color: "var(--brand)" }} />
-          <span
-            style={{
-              fontSize: 12,
-              fontWeight: 600,
-              color: "var(--brand)",
-              letterSpacing: ".3px",
-            }}
-          >
-            200M+ papers · Free to start · Made in India 🇮🇳
-          </span>
-        </div>
-
-        <h1
-          className="anim-up d1"
-          style={{
-            fontFamily: "var(--font-display)",
-            fontSize: "clamp(2.8rem,8vw,4.8rem)",
-            fontWeight: 400,
-            lineHeight: 1.07,
-            color: "var(--text-primary)",
-            marginBottom: 22,
-            letterSpacing: "-2px",
-          }}
-        >
-          Research smarter,
-          <br />
-          <span
-            style={{
-              background:
-                "linear-gradient(135deg, #e8a045 0%, #f5c878 50%, #e8a045 100%)",
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent",
-              fontStyle: "italic",
-            }}
-          >
-            not harder.
-          </span>
-        </h1>
-
-        <p
-          className="anim-up d2"
-          style={{
-            fontSize: 16.5,
-            color: "var(--text-secondary)",
-            lineHeight: 1.7,
-            maxWidth: 520,
-            margin: "0 auto 48px",
-            fontWeight: 400,
-          }}
-        >
-          Search 200M+ academic papers, generate literature reviews, and chat
-          with PDFs — powered by Claude AI.
-        </p>
-
-        {/* Search bar */}
+        />
         <div
-          className="anim-up d3"
-          style={{ position: "relative", maxWidth: 640, margin: "0 auto 18px" }}
-        >
-          <div
-            style={{
-              background: "rgba(255,255,255,.03)",
-              border: "1px solid rgba(255,255,255,.1)",
-              borderRadius: 18,
-              padding: "4px 4px 4px 20px",
-              display: "flex",
-              alignItems: "center",
-              gap: 10,
-              boxShadow: "0 20px 60px rgba(0,0,0,.25)",
-              transition: "all .2s",
-            }}
-            onFocusCapture={(e) => {
-              (e.currentTarget as HTMLDivElement).style.borderColor =
-                "rgba(232,160,69,.4)";
-              (e.currentTarget as HTMLDivElement).style.boxShadow =
-                "0 0 0 4px rgba(232,160,69,.08), 0 20px 60px rgba(0,0,0,.3)";
-            }}
-            onBlurCapture={(e) => {
-              (e.currentTarget as HTMLDivElement).style.borderColor =
-                "rgba(255,255,255,.1)";
-              (e.currentTarget as HTMLDivElement).style.boxShadow =
-                "0 20px 60px rgba(0,0,0,.25)";
-            }}
-          >
-            <Search
-              size={16}
-              style={{ color: "var(--text-faint)", flexShrink: 0 }}
-            />
-            <input
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && go(q)}
-              placeholder="Ask any research question…"
+          className="lp-orb"
+          style={{
+            width: 600,
+            height: 600,
+            background:
+              "radial-gradient(circle, rgba(91,153,223,.14) 0%, transparent 65%)",
+            bottom: "-100px",
+            left: "-80px",
+            animationDelay: "-7s",
+            animationDuration: "25s",
+          }}
+        />
+        <div
+          className="lp-orb"
+          style={{
+            width: 400,
+            height: 400,
+            background:
+              "radial-gradient(circle, rgba(176,126,240,.1) 0%, transparent 65%)",
+            top: "40%",
+            left: "35%",
+            animationDelay: "-14s",
+            animationDuration: "18s",
+          }}
+        />
+
+        <div className="lp-hero-grid">
+          {/* Left: copy */}
+          <div>
+            <div className="lp-badge sr up">
+              <Sparkles size={12} /> Trusted by 10,000+ researchers across India
+            </div>
+            <h1 className="lp-hero-title sr up sr-d1">
+              Research smarter.
+              <br />
+              <span className="grad">Write faster.</span>
+              <br />
+              Cite perfectly.
+            </h1>
+            <p className="lp-hero-sub sr up sr-d2">
+              AI-powered academic search across 200M+ papers. Generate
+              literature reviews, chat with PDFs, export any citation format —
+              in seconds.
+            </p>
+            <div className="lp-hero-actions sr up sr-d3">
+              <Link href="/auth/signin" className="lp-btn-primary">
+                Start Researching Free <ArrowRight size={14} />
+              </Link>
+              <Link href="#demo" className="lp-btn-ghost">
+                See How It Works
+              </Link>
+            </div>
+            <p className="lp-hero-note sr up sr-d4">
+              Free forever · No credit card · Google or GitHub login
+            </p>
+
+            {/* Social proof */}
+            <div
+              className="sr up sr-d5"
               style={{
-                flex: 1,
-                background: "transparent",
-                border: "none",
-                outline: "none",
-                fontFamily: "var(--font-ui)",
-                fontSize: 15,
-                color: "var(--text-primary)",
-                padding: "11px 0",
-              }}
-            />
-            <button
-              onClick={() => go(q)}
-              disabled={!q.trim()}
-              style={{
-                padding: "10px 22px",
-                borderRadius: 14,
-                background: q.trim() ? "var(--brand)" : "var(--surface-2)",
-                color: q.trim() ? "#000" : "var(--text-faint)",
-                border: "none",
-                fontFamily: "var(--font-ui)",
-                fontSize: 13,
-                fontWeight: 700,
-                cursor: q.trim() ? "pointer" : "default",
+                marginTop: 36,
                 display: "flex",
                 alignItems: "center",
-                gap: 6,
-                transition: "all .15s",
-                flexShrink: 0,
+                gap: 14,
               }}
             >
-              Search <ArrowRight size={13} />
-            </button>
-          </div>
-        </div>
-
-        {/* Example chips */}
-        <div
-          className="anim-up d4"
-          style={{
-            display: "flex",
-            flexWrap: "wrap",
-            justifyContent: "center",
-            gap: 7,
-          }}
-        >
-          {EXAMPLES.map((ex) => (
-            <button
-              key={ex}
-              onClick={() => go(ex)}
-              style={{
-                padding: "5px 13px",
-                borderRadius: 99,
-                fontSize: 12,
-                background: "rgba(255,255,255,.03)",
-                border: "1px solid rgba(255,255,255,.08)",
-                color: "var(--text-muted)",
-                cursor: "pointer",
-                fontFamily: "var(--font-ui)",
-                transition: "all .15s",
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.borderColor = "rgba(232,160,69,.3)";
-                e.currentTarget.style.color = "var(--text-primary)";
-                e.currentTarget.style.background = "rgba(232,160,69,.06)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = "rgba(255,255,255,.08)";
-                e.currentTarget.style.color = "var(--text-muted)";
-                e.currentTarget.style.background = "rgba(255,255,255,.03)";
-              }}
-            >
-              {ex}
-            </button>
-          ))}
-        </div>
-      </section>
-
-      {/* Stats */}
-      <div
-        style={{
-          position: "relative",
-          zIndex: 1,
-          borderTop: "1px solid rgba(255,255,255,.05)",
-          borderBottom: "1px solid rgba(255,255,255,.05)",
-          background: "rgba(255,255,255,.018)",
-          padding: "32px 24px",
-        }}
-      >
-        <div
-          style={{
-            maxWidth: 680,
-            margin: "0 auto",
-            display: "grid",
-            gridTemplateColumns: "repeat(4,1fr)",
-            gap: 8,
-            textAlign: "center",
-          }}
-        >
-          {[
-            { val: 200, suffix: "M+", label: "Papers indexed" },
-            { val: 6, suffix: "", label: "Citation formats" },
-            { val: 15, suffix: "s", label: "Avg answer time" },
-            { val: 99, suffix: "%", label: "Uptime SLA" },
-          ].map(({ val, suffix, label }) => (
-            <div key={label}>
-              <p
-                style={{
-                  fontSize: 28,
-                  fontWeight: 700,
-                  color: "var(--brand)",
-                  fontFamily: "var(--font-display)",
-                  letterSpacing: "-1px",
-                  lineHeight: 1,
-                }}
-              >
-                <Counter end={val} suffix={suffix} />
-              </p>
-              <p
-                style={{
-                  fontSize: 11,
-                  color: "var(--text-faint)",
-                  marginTop: 6,
-                }}
-              >
-                {label}
-              </p>
+              <div style={{ display: "flex" }}>
+                {["#5b99df", "#52c97a", "#e8a045", "#b07ef0", "#e05c5c"].map(
+                  (c, i) => (
+                    <div
+                      key={i}
+                      style={{
+                        width: 30,
+                        height: 30,
+                        borderRadius: "50%",
+                        background: c,
+                        border: "2px solid #070707",
+                        marginLeft: i > 0 ? -8 : 0,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        fontSize: 11,
+                        fontWeight: 700,
+                        color: "#000",
+                        position: "relative",
+                        zIndex: 5 - i,
+                      }}
+                    >
+                      {["P", "A", "R", "K", "S"][i]}
+                    </div>
+                  ),
+                )}
+              </div>
+              <div>
+                <div style={{ display: "flex", gap: 2, marginBottom: 3 }}>
+                  {[1, 2, 3, 4, 5].map((i) => (
+                    <Star key={i} size={11} fill="#e8a045" color="#e8a045" />
+                  ))}
+                </div>
+                <p style={{ fontSize: 12.5, color: "#555" }}>
+                  Loved by <strong style={{ color: "#999" }}>10,000+</strong>{" "}
+                  students & researchers
+                </p>
+              </div>
             </div>
-          ))}
-        </div>
-      </div>
+          </div>
 
-      {/* Features */}
-      <section
-        style={{
-          position: "relative",
-          zIndex: 1,
-          maxWidth: 980,
-          margin: "0 auto",
-          padding: "96px 24px",
-        }}
-      >
-        <div style={{ textAlign: "center", marginBottom: 60 }}>
-          <p
-            style={{
-              fontSize: 11,
-              fontWeight: 700,
-              letterSpacing: "2px",
-              textTransform: "uppercase",
-              color: "var(--brand)",
-              marginBottom: 14,
-            }}
+          {/* Right: UI mockup */}
+          <div
+            className="lp-hero-visual sr scale sr-d3"
+            style={{ position: "relative" }}
           >
-            Features
-          </p>
-          <h2
-            style={{
-              fontFamily: "var(--font-display)",
-              fontSize: "clamp(1.8rem,4vw,2.8rem)",
-              fontWeight: 400,
-              color: "var(--text-primary)",
-              lineHeight: 1.12,
-              letterSpacing: "-1.5px",
-            }}
-          >
-            Four powerful tools.
-            <br />
-            One research workflow.
-          </h2>
-        </div>
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))",
-            gap: 16,
-          }}
-        >
-          {FEATURES.map(({ icon: Icon, color, bg, title, desc, tag }, i) => (
+            <div className="lp-ui-window lp-float-a">
+              <div className="lp-ui-titlebar">
+                <div className="lp-ui-dot" style={{ background: "#ff5f57" }} />
+                <div className="lp-ui-dot" style={{ background: "#febc2e" }} />
+                <div className="lp-ui-dot" style={{ background: "#28c840" }} />
+                <div
+                  style={{
+                    flex: 1,
+                    textAlign: "center",
+                    fontSize: 11,
+                    color: "#444",
+                    fontFamily: "monospace",
+                  }}
+                >
+                  researchly.in/search
+                </div>
+              </div>
+              <div style={{ padding: "20px" }}>
+                <div
+                  style={{
+                    background: "rgba(255,255,255,.04)",
+                    border: "1px solid rgba(232,160,69,.3)",
+                    borderRadius: 10,
+                    padding: "11px 15px",
+                    marginBottom: 18,
+                    fontSize: 13.5,
+                    color: "#e8e8e8",
+                    boxShadow: "0 0 0 3px rgba(232,160,69,.07)",
+                  }}
+                >
+                  <TypingText />
+                </div>
+                {[
+                  { w: "100%", h: 10, mb: 9 },
+                  { w: "88%", h: 10, mb: 9 },
+                  { w: "70%", h: 10, mb: 20 },
+                ].map((r, i) => (
+                  <div
+                    key={i}
+                    className="lp-shimmer"
+                    style={{
+                      width: r.w,
+                      height: r.h,
+                      marginBottom: r.mb,
+                      borderRadius: 5,
+                    }}
+                  />
+                ))}
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                  {["[1] Nature 2023", "[2] Cell 2022", "[3] PNAS 2024"].map(
+                    (c) => (
+                      <span
+                        key={c}
+                        style={{
+                          padding: "3px 10px",
+                          borderRadius: 99,
+                          background: "rgba(91,153,223,.12)",
+                          border: "1px solid rgba(91,153,223,.2)",
+                          fontSize: 11,
+                          color: "#5b99df",
+                          fontWeight: 600,
+                        }}
+                      >
+                        {c}
+                      </span>
+                    ),
+                  )}
+                </div>
+              </div>
+            </div>
             <div
-              key={title}
-              className={`anim-up d${i + 1}`}
-              style={{
-                padding: 26,
-                borderRadius: 18,
-                background: "rgba(255,255,255,.02)",
-                border: "1px solid rgba(255,255,255,.06)",
-                transition: "all .22s",
-                cursor: "default",
-              }}
-              onMouseEnter={(e) => {
-                const el = e.currentTarget as HTMLDivElement;
-                el.style.background = "rgba(255,255,255,.04)";
-                el.style.borderColor = `${color}35`;
-                el.style.transform = "translateY(-5px)";
-                el.style.boxShadow = `0 24px 48px rgba(0,0,0,.35), 0 0 0 1px ${color}18`;
-              }}
-              onMouseLeave={(e) => {
-                const el = e.currentTarget as HTMLDivElement;
-                el.style.background = "rgba(255,255,255,.02)";
-                el.style.borderColor = "rgba(255,255,255,.06)";
-                el.style.transform = "";
-                el.style.boxShadow = "";
-              }}
+              className="lp-chip lp-float-b"
+              style={{ position: "absolute", bottom: -20, left: -40 }}
             >
               <div
                 style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  marginBottom: 18,
+                  width: 8,
+                  height: 8,
+                  borderRadius: "50%",
+                  background: "#52c97a",
+                }}
+              />
+              18 sources found
+            </div>
+            <div
+              className="lp-chip lp-float-c"
+              style={{ position: "absolute", top: 60, right: -50 }}
+            >
+              <Zap size={12} color="#e8a045" /> Answer in 1.4s
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ════════════════════════════════════
+          2. TRUST
+      ════════════════════════════════════ */}
+      <div className="lp-trust">
+        <p className="lp-trust-label">
+          Used by students at India&apos;s top institutions
+        </p>
+        <div className="lp-trust-track-wrap">
+          <div className="lp-trust-track">
+            {[...UNIS, ...UNIS].map((u, i) => (
+              <div key={i} className="lp-trust-item">
+                <GraduationCapIcon /> {u}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="lp-divider" />
+
+      {/* Stats */}
+      <section
+        style={{ padding: "80px 28px", position: "relative", zIndex: 1 }}
+      >
+        <div className="lp-inner">
+          <div className="lp-stats-grid sr up">
+            {[
+              { val: 200, suffix: "M+", label: "Academic Papers Indexed" },
+              { val: 10000, suffix: "+", label: "Active Researchers" },
+              { val: 14, suffix: "s", label: "Avg Response Time (1.4s)" },
+              { val: 30, suffix: "+", label: "Universities Represented" },
+            ].map((s, i) => (
+              <div key={i} className="lp-stat">
+                <div className="lp-stat-val">
+                  <AnimCounter to={s.val} suffix={s.suffix} />
+                </div>
+                <div className="lp-stat-label">{s.label}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ════════════════════════════════════
+          3. FEATURES
+      ════════════════════════════════════ */}
+      <section id="features" className="lp-section">
+        <div className="lp-inner">
+          <div className="lp-text-center" style={{ marginBottom: 56 }}>
+            <div className="lp-label sr up">Capabilities</div>
+            <h2 className="lp-heading sr up sr-d1">
+              Everything you need to
+              <br />
+              <em>research like a PhD</em>
+            </h2>
+            <p
+              className="lp-sub lp-sub-center sr up sr-d2"
+              style={{ textAlign: "center" }}
+            >
+              Four powerful AI tools, one unified research workspace.
+            </p>
+          </div>
+          <div className="lp-features-grid">
+            {FEATURES.map((f, i) => (
+              <div key={i} className={`lp-feat-card sr up sr-d${i + 1}`}>
+                <div className="lp-feat-glow" style={{ background: f.color }} />
+                <div className="lp-feat-icon" style={{ background: f.bg }}>
+                  <f.icon size={22} color={f.color} />
+                </div>
+                <span
+                  className="lp-feat-tag"
+                  style={{ background: f.tagBg, color: f.tagC }}
+                >
+                  {f.tag}
+                </span>
+                <h3 className="lp-feat-title">{f.title}</h3>
+                <p className="lp-feat-desc">{f.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ════════════════════════════════════
+          4. PRODUCT DEMO
+      ════════════════════════════════════ */}
+      <section
+        id="demo"
+        className="lp-section lp-demo"
+        style={{ paddingTop: 40 }}
+      >
+        <div className="lp-inner">
+          <div className="lp-label sr up">Product Preview</div>
+          <h2 className="lp-heading sr up sr-d1">See it in action</h2>
+          <p
+            className="lp-sub lp-sub-center sr up sr-d2"
+            style={{ textAlign: "center", marginBottom: 52 }}
+          >
+            A research workflow so fast, it feels like cheating.
+          </p>
+          <div className="lp-demo-frame sr scale sr-d2">
+            <div className="lp-demo-bar">
+              <div style={{ display: "flex", gap: 6 }}>
+                {["#ff5f57", "#febc2e", "#28c840"].map((c) => (
+                  <div
+                    key={c}
+                    style={{
+                      width: 12,
+                      height: 12,
+                      borderRadius: "50%",
+                      background: c,
+                    }}
+                  />
+                ))}
+              </div>
+              <div className="lp-demo-url">researchly.in/search</div>
+            </div>
+            <div className="lp-demo-content">
+              <div
+                style={{
+                  padding: "22px 28px",
+                  borderBottom: "1px solid rgba(255,255,255,.04)",
                 }}
               >
                 <div
                   style={{
-                    width: 42,
-                    height: 42,
+                    background: "rgba(255,255,255,.04)",
+                    border: "1px solid rgba(232,160,69,.22)",
                     borderRadius: 12,
-                    background: bg,
+                    padding: "12px 18px",
                     display: "flex",
                     alignItems: "center",
-                    justifyContent: "center",
+                    gap: 10,
                   }}
                 >
-                  <Icon size={19} style={{ color }} />
+                  <Search size={16} color="#e8a045" />
+                  <span style={{ fontSize: 14, color: "#888" }}>
+                    How does neuroplasticity affect learning and memory
+                    formation?
+                  </span>
                 </div>
-                <span
+              </div>
+              <div
+                style={{ display: "grid", gridTemplateColumns: "1fr 280px" }}
+              >
+                <div
                   style={{
-                    fontSize: 10,
-                    fontWeight: 700,
-                    color,
-                    background: bg,
-                    padding: "3px 9px",
-                    borderRadius: 99,
-                    letterSpacing: ".3px",
+                    padding: "24px 28px",
+                    borderRight: "1px solid rgba(255,255,255,.04)",
                   }}
                 >
-                  {tag}
-                </span>
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 10,
+                      marginBottom: 18,
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: 30,
+                        height: 30,
+                        borderRadius: 8,
+                        background: "rgba(232,160,69,.12)",
+                        border: "1px solid rgba(232,160,69,.22)",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      <BookOpen size={13} color="#e8a045" />
+                    </div>
+                    <span style={{ fontSize: 13, color: "#555" }}>
+                      Researchly AI · 18 sources
+                    </span>
+                  </div>
+                  {[
+                    { w: "100%", t: true },
+                    { w: "95%", t: false },
+                    { w: "88%", t: false },
+                    { w: "72%", t: false },
+                    { w: "0", gap: 16 },
+                    { w: "100%", t: true },
+                    { w: "92%", t: false },
+                    { w: "60%", t: false },
+                  ].map((l, i) =>
+                    (l as any).gap ? (
+                      <div key={i} style={{ height: (l as any).gap }} />
+                    ) : (
+                      <div
+                        key={i}
+                        className="lp-shimmer"
+                        style={{
+                          width: l.w,
+                          height: (l as any).t ? 12 : 9,
+                          marginBottom: 9,
+                          borderRadius: 5,
+                          opacity: (l as any).t ? 0.9 : 0.5,
+                        }}
+                      />
+                    ),
+                  )}
+                  <div style={{ display: "flex", gap: 7, marginTop: 18 }}>
+                    {[
+                      "[1] Neuron 2023",
+                      "[2] Nature Neuro 2022",
+                      "[3] Science 2024",
+                    ].map((c) => (
+                      <span
+                        key={c}
+                        style={{
+                          padding: "3px 10px",
+                          borderRadius: 99,
+                          background: "rgba(91,153,223,.1)",
+                          border: "1px solid rgba(91,153,223,.2)",
+                          fontSize: 11,
+                          color: "#5b99df",
+                          fontWeight: 600,
+                        }}
+                      >
+                        {c}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+                <div style={{ padding: "18px 16px" }}>
+                  <p
+                    style={{
+                      fontSize: 11,
+                      fontWeight: 700,
+                      color: "#444",
+                      letterSpacing: ".08em",
+                      textTransform: "uppercase",
+                      marginBottom: 14,
+                    }}
+                  >
+                    Sources
+                  </p>
+                  {[
+                    {
+                      title: "Synaptic plasticity and memory",
+                      journal: "Nature Neuroscience · 2023",
+                    },
+                    {
+                      title: "BDNF in hippocampal learning",
+                      journal: "Neuron · 2023",
+                    },
+                    {
+                      title: "LTP mechanisms review",
+                      journal: "Science · 2024",
+                    },
+                  ].map((p, i) => (
+                    <div
+                      key={i}
+                      style={{
+                        padding: "10px 12px",
+                        background: "rgba(255,255,255,.03)",
+                        border: "1px solid rgba(255,255,255,.06)",
+                        borderRadius: 10,
+                        marginBottom: 8,
+                      }}
+                    >
+                      <div
+                        style={{
+                          fontSize: 12,
+                          color: "#ccc",
+                          fontWeight: 600,
+                          marginBottom: 4,
+                          lineHeight: 1.4,
+                        }}
+                      >
+                        {p.title}
+                      </div>
+                      <div style={{ fontSize: 10.5, color: "#555" }}>
+                        {p.journal}
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
-              <h3
-                style={{
-                  fontFamily: "var(--font-display)",
-                  fontSize: 15.5,
-                  fontWeight: 600,
-                  color: "var(--text-primary)",
-                  marginBottom: 9,
-                }}
-              >
-                {title}
-              </h3>
-              <p
-                style={{
-                  fontSize: 13,
-                  color: "var(--text-secondary)",
-                  lineHeight: 1.68,
-                }}
-              >
-                {desc}
-              </p>
             </div>
-          ))}
+          </div>
         </div>
       </section>
 
-      {/* Testimonials */}
-      <section
-        style={{
-          position: "relative",
-          zIndex: 1,
-          background: "rgba(255,255,255,.015)",
-          borderTop: "1px solid rgba(255,255,255,.05)",
-          borderBottom: "1px solid rgba(255,255,255,.05)",
-          padding: "88px 24px",
-        }}
-      >
-        <div style={{ maxWidth: 980, margin: "0 auto" }}>
-          <div style={{ textAlign: "center", marginBottom: 52 }}>
-            <p
-              style={{
-                fontSize: 11,
-                fontWeight: 700,
-                letterSpacing: "2px",
-                textTransform: "uppercase",
-                color: "var(--brand)",
-                marginBottom: 14,
-              }}
-            >
-              Testimonials
-            </p>
-            <h2
-              style={{
-                fontFamily: "var(--font-display)",
-                fontSize: "clamp(1.6rem,4vw,2.4rem)",
-                fontWeight: 400,
-                color: "var(--text-primary)",
-                letterSpacing: "-1px",
-              }}
-            >
-              Loved by Indian researchers
+      {/* ════════════════════════════════════
+          5. HOW IT WORKS
+      ════════════════════════════════════ */}
+      <section id="how-it-works" className="lp-section">
+        <div className="lp-inner">
+          <div className="lp-text-center" style={{ marginBottom: 56 }}>
+            <div className="lp-label sr up">Process</div>
+            <h2 className="lp-heading sr up sr-d1">
+              From question to
+              <br />
+              <em>publication-ready</em> in minutes
             </h2>
           </div>
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit,minmax(270px,1fr))",
-              gap: 16,
-            }}
-          >
-            {TESTIMONIALS.map(({ name, role, text, avatar }) => (
+          <div className="lp-steps-grid">
+            {STEPS.map((s, i) => (
               <div
-                key={name}
-                style={{
-                  padding: 26,
-                  borderRadius: 18,
-                  background: "rgba(255,255,255,.02)",
-                  border: "1px solid rgba(255,255,255,.06)",
-                  transition: "all .2s",
-                }}
-                onMouseEnter={(e) => {
-                  const el = e.currentTarget as HTMLDivElement;
-                  el.style.borderColor = "rgba(232,160,69,.2)";
-                  el.style.transform = "translateY(-3px)";
-                }}
-                onMouseLeave={(e) => {
-                  const el = e.currentTarget as HTMLDivElement;
-                  el.style.borderColor = "rgba(255,255,255,.06)";
-                  el.style.transform = "";
-                }}
+                key={i}
+                className={`lp-step-card sr up sr-d${i + 1}`}
+                style={{ position: "relative" }}
               >
-                <div style={{ display: "flex", gap: 3, marginBottom: 16 }}>
-                  {[...Array(5)].map((_, i) => (
-                    <Star
-                      key={i}
-                      size={13}
-                      style={{ color: "var(--brand)", fill: "var(--brand)" }}
-                    />
+                <span className="lp-step-num">{s.n}</span>
+                <div className="lp-step-icon">
+                  <s.icon size={22} color={s.color} />
+                </div>
+                <h3 className="lp-step-title">{s.title}</h3>
+                <p className="lp-step-desc">{s.desc}</p>
+                {i < STEPS.length - 1 && (
+                  <div className="lp-step-connector">
+                    <ChevronRight size={14} />
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ════════════════════════════════════
+          6. TESTIMONIALS
+      ════════════════════════════════════ */}
+      <section
+        id="testimonials"
+        className="lp-section"
+        style={{ paddingTop: 40 }}
+      >
+        <div className="lp-inner">
+          <div className="lp-text-center" style={{ marginBottom: 56 }}>
+            <div className="lp-label sr up">Social Proof</div>
+            <h2 className="lp-heading sr up sr-d1">
+              Researchers love it.
+              <br />
+              <em>Results prove it.</em>
+            </h2>
+          </div>
+          <div className="lp-testi-grid">
+            {TESTIMONIALS.map((t, i) => (
+              <div key={i} className={`lp-testi-card sr up sr-d${(i % 3) + 1}`}>
+                <div style={{ display: "flex", gap: 2, marginBottom: 16 }}>
+                  {[1, 2, 3, 4, 5].map((j) => (
+                    <Star key={j} size={12} fill="#e8a045" color="#e8a045" />
                   ))}
                 </div>
-                <p
-                  style={{
-                    fontSize: 13.5,
-                    color: "var(--text-secondary)",
-                    lineHeight: 1.72,
-                    marginBottom: 20,
-                    fontStyle: "italic",
-                  }}
-                >
-                  "{text}"
-                </p>
-                <div style={{ display: "flex", alignItems: "center", gap: 11 }}>
-                  <div
-                    style={{
-                      width: 38,
-                      height: 38,
-                      borderRadius: "50%",
-                      background:
-                        "linear-gradient(135deg, var(--brand), #5c9ae0)",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      fontSize: 12,
-                      fontWeight: 700,
-                      color: "#000",
-                      flexShrink: 0,
-                    }}
-                  >
-                    {avatar}
+                <p className="lp-testi-quote">&ldquo;{t.text}&rdquo;</p>
+                <div className="lp-testi-author">
+                  <div className="lp-testi-av" style={{ background: t.avBg }}>
+                    {t.av}
                   </div>
                   <div>
-                    <p
-                      style={{
-                        fontSize: 13,
-                        fontWeight: 600,
-                        color: "var(--text-primary)",
-                      }}
-                    >
-                      {name}
-                    </p>
-                    <p
-                      style={{
-                        fontSize: 11,
-                        color: "var(--text-faint)",
-                        marginTop: 2,
-                      }}
-                    >
-                      {role}
-                    </p>
+                    <p className="lp-testi-name">{t.name}</p>
+                    <p className="lp-testi-role">{t.role}</p>
                   </div>
+                  <span
+                    className="lp-testi-plan"
+                    style={{
+                      background: `${t.planC}18`,
+                      color: t.planC,
+                      border: `1px solid ${t.planC}30`,
+                    }}
+                  >
+                    {t.plan}
+                  </span>
                 </div>
               </div>
             ))}
@@ -1149,366 +1254,246 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Pricing */}
-      <section
-        style={{
-          position: "relative",
-          zIndex: 1,
-          maxWidth: 920,
-          margin: "0 auto",
-          padding: "96px 24px",
-        }}
-      >
-        <div style={{ textAlign: "center", marginBottom: 56 }}>
-          <p
-            style={{
-              fontSize: 11,
-              fontWeight: 700,
-              letterSpacing: "2px",
-              textTransform: "uppercase",
-              color: "var(--brand)",
-              marginBottom: 14,
-            }}
-          >
-            Pricing
-          </p>
-          <h2
-            style={{
-              fontFamily: "var(--font-display)",
-              fontSize: "clamp(1.8rem,4vw,2.6rem)",
-              fontWeight: 400,
-              color: "var(--text-primary)",
-              letterSpacing: "-1.5px",
-              marginBottom: 12,
-            }}
-          >
-            Simple. Transparent. Fair.
-          </h2>
-          <p style={{ fontSize: 14, color: "var(--text-secondary)" }}>
-            Pay via UPI, card or net banking · No hidden fees · Cancel anytime
-          </p>
-        </div>
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit,minmax(260px,1fr))",
-            gap: 16,
-          }}
-        >
-          {PLANS.map(({ n, p, period, hi, fs, cta, href }) => (
-            <div
-              key={n}
-              style={{
-                padding: 30,
-                borderRadius: 20,
-                background: hi
-                  ? "rgba(232,160,69,.05)"
-                  : "rgba(255,255,255,.02)",
-                border: hi
-                  ? "1px solid rgba(232,160,69,.28)"
-                  : "1px solid rgba(255,255,255,.06)",
-                position: "relative",
-                display: "flex",
-                flexDirection: "column",
-                transition: "transform .2s, box-shadow .2s",
-                boxShadow: hi ? "0 0 50px rgba(232,160,69,.09)" : "none",
-              }}
-              onMouseEnter={(e) => {
-                const el = e.currentTarget as HTMLDivElement;
-                el.style.transform = "translateY(-5px)";
-                el.style.boxShadow = "0 28px 56px rgba(0,0,0,.45)";
-              }}
-              onMouseLeave={(e) => {
-                const el = e.currentTarget as HTMLDivElement;
-                el.style.transform = "";
-                el.style.boxShadow = hi
-                  ? "0 0 50px rgba(232,160,69,.09)"
-                  : "none";
-              }}
+      {/* ════════════════════════════════════
+          7. PRICING
+      ════════════════════════════════════ */}
+      <section id="pricing" className="lp-section">
+        <div className="lp-inner">
+          <div className="lp-text-center" style={{ marginBottom: 20 }}>
+            <div className="lp-label sr up">Pricing</div>
+            <h2 className="lp-heading sr up sr-d1">
+              Simple, honest pricing.
+              <br />
+              <em>No surprises.</em>
+            </h2>
+            <p
+              className="lp-sub lp-sub-center sr up sr-d2"
+              style={{ textAlign: "center" }}
             >
-              {hi && (
-                <div
-                  style={{
-                    position: "absolute",
-                    top: -13,
-                    left: "50%",
-                    transform: "translateX(-50%)",
-                    padding: "3px 16px",
-                    borderRadius: 99,
-                    background: "var(--brand)",
-                    color: "#000",
-                    fontSize: 11,
-                    fontWeight: 700,
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  ⭐ Most Popular
-                </div>
-              )}
-              <p
-                style={{
-                  fontSize: 11,
-                  fontWeight: 700,
-                  letterSpacing: "1.5px",
-                  textTransform: "uppercase",
-                  color: "var(--text-muted)",
-                  marginBottom: 10,
-                }}
-              >
-                {n}
-              </p>
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "baseline",
-                  gap: 5,
-                  marginBottom: 22,
-                }}
-              >
-                <span
-                  style={{
-                    fontFamily: "var(--font-display)",
-                    fontSize: 42,
-                    fontWeight: 700,
-                    color: hi ? "var(--brand)" : "var(--text-primary)",
-                    lineHeight: 1,
-                    letterSpacing: "-2px",
-                  }}
-                >
-                  {p}
-                </span>
-                {period && (
-                  <span style={{ fontSize: 13, color: "var(--text-faint)" }}>
-                    {period}
-                  </span>
-                )}
-              </div>
-              <div
-                style={{
-                  height: 1,
-                  background: "rgba(255,255,255,.06)",
-                  marginBottom: 22,
-                }}
-              />
-              <ul
-                style={{
-                  listStyle: "none",
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 11,
-                  flex: 1,
-                  marginBottom: 26,
-                }}
-              >
-                {fs.map((f) => (
-                  <li
-                    key={f}
-                    style={{
-                      display: "flex",
-                      alignItems: "flex-start",
-                      gap: 10,
-                      fontSize: 13.5,
-                      color: "var(--text-secondary)",
-                      lineHeight: 1.4,
-                    }}
-                  >
-                    <Check
-                      size={13}
-                      style={{
-                        color: hi ? "var(--brand)" : "var(--green)",
-                        flexShrink: 0,
-                        marginTop: 1,
-                      }}
-                    />
-                    {f}
-                  </li>
-                ))}
-              </ul>
-              <Link
-                href={href}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: 6,
-                  padding: "13px 16px",
-                  borderRadius: 12,
-                  background: hi ? "var(--brand)" : "rgba(255,255,255,.05)",
-                  color: hi ? "#000" : "var(--text-secondary)",
-                  border: hi ? "none" : "1px solid rgba(255,255,255,.1)",
-                  fontFamily: "var(--font-ui)",
-                  fontSize: 14,
-                  fontWeight: 700,
-                  textDecoration: "none",
-                  transition: "opacity .15s",
-                }}
-                onMouseEnter={(e) => (e.currentTarget.style.opacity = ".85")}
-                onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
-              >
-                {cta} <ArrowRight size={13} />
-              </Link>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* Final CTA */}
-      <section
-        style={{
-          position: "relative",
-          zIndex: 1,
-          padding: "40px 24px 96px",
-          textAlign: "center",
-        }}
-      >
-        <div
-          style={{
-            maxWidth: 580,
-            margin: "0 auto",
-            padding: "64px 44px",
-            borderRadius: 28,
-            background: "rgba(232,160,69,.04)",
-            border: "1px solid rgba(232,160,69,.14)",
-            boxShadow: "0 0 100px rgba(232,160,69,.07)",
-          }}
-        >
-          <div
-            style={{
-              width: 52,
-              height: 52,
-              borderRadius: 16,
-              background: "var(--brand)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              margin: "0 auto 22px",
-            }}
-          >
-            <BookOpen size={24} color="#000" />
+              Start free. Upgrade when you&apos;re ready. Cancel anytime.
+            </p>
           </div>
-          <h2
-            style={{
-              fontFamily: "var(--font-display)",
-              fontSize: "clamp(1.6rem,4vw,2.3rem)",
-              fontWeight: 400,
-              color: "var(--text-primary)",
-              letterSpacing: "-1px",
-              marginBottom: 14,
-            }}
-          >
-            Start researching smarter today
-          </h2>
+          <div className="lp-pricing-toggle sr up sr-d2">
+            <span className={`lp-toggle-label${!yearly ? " active" : ""}`}>
+              Monthly
+            </span>
+            <button
+              className={`lp-toggle-pill${yearly ? " on" : ""}`}
+              onClick={() => setYearly((y) => !y)}
+            >
+              <div className="lp-toggle-thumb" />
+            </button>
+            <span className={`lp-toggle-label${yearly ? " active" : ""}`}>
+              Yearly
+            </span>
+            {yearly && <span className="lp-save-badge">Save 33%</span>}
+          </div>
+          <div className="lp-plans-grid sr up sr-d3">
+            {PLANS.map((p, i) => (
+              <div
+                key={i}
+                className={`lp-plan-card${p.highlight ? " hi" : ""}`}
+              >
+                {p.badge && (
+                  <div className="lp-plan-badge">
+                    <Sparkles size={10} /> {p.badge}
+                  </div>
+                )}
+                <h3 className="lp-plan-name">{p.name}</h3>
+                <p className="lp-plan-desc">{p.desc}</p>
+                <div className="lp-plan-price">
+                  <span className="lp-plan-amount">{p.price}</span>
+                  <span className="lp-plan-period">{p.period}</span>
+                </div>
+                <div className="lp-plan-divider" />
+                <ul className="lp-plan-features">
+                  {p.features.map((f, j) => (
+                    <li key={j} className="lp-plan-feature">
+                      <Check
+                        size={15}
+                        color={p.highlight ? "#e8a045" : "#52c97a"}
+                        className="lp-plan-check"
+                      />
+                      {f}
+                    </li>
+                  ))}
+                </ul>
+                <Link href={p.href} className={`lp-plan-cta ${p.ctaStyle}`}>
+                  {p.cta}
+                </Link>
+              </div>
+            ))}
+          </div>
           <p
+            className="sr up"
             style={{
-              fontSize: 14.5,
-              color: "var(--text-muted)",
-              marginBottom: 36,
-              lineHeight: 1.65,
+              textAlign: "center",
+              marginTop: 28,
+              fontSize: 13,
+              color: "#3a3a3a",
             }}
           >
-            Free forever. No credit card needed.
-            <br />
-            Join thousands of Indian students and researchers.
-          </p>
-          <Link
-            href={session ? "/search" : "/auth/signin"}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 8,
-              padding: "14px 32px",
-              borderRadius: 99,
-              background: "var(--brand)",
-              color: "#000",
-              fontSize: 15,
-              fontWeight: 700,
-              textDecoration: "none",
-              transition: "opacity .15s",
-            }}
-            onMouseEnter={(e) => (e.currentTarget.style.opacity = ".85")}
-            onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
-          >
-            {session ? "Continue Researching" : "Get started free"}{" "}
-            <ArrowRight size={15} />
-          </Link>
-          <p
-            style={{
-              fontSize: 12,
-              color: "var(--text-faint)",
-              marginTop: 18,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 5,
-            }}
-          >
-            <Shield size={11} /> Secured by Razorpay · Cancel anytime ·
-            hello.researchly@gmail.com
+            All plans include 14-day money-back guarantee · Secure payment via
+            Razorpay
           </p>
         </div>
       </section>
 
-      {/* Footer */}
-      <footer
-        style={{
-          position: "relative",
-          zIndex: 1,
-          borderTop: "1px solid rgba(255,255,255,.05)",
-          padding: "22px 28px",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          flexWrap: "wrap",
-          gap: 12,
-        }}
-      >
-        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-          <span style={{ fontSize: 12, color: "var(--text-faint)" }}>
-            © 2026 Researchly · Built by{" "}
-            <strong style={{ color: "var(--text-secondary)" }}>
-              Rahulkumar Pal
-            </strong>{" "}
-            · Made with ❤️ in India 🇮🇳
-          </span>
-          <a
-            href="mailto:hello.researchly@gmail.com"
+      {/* ════════════════════════════════════
+          8. FINAL CTA
+      ════════════════════════════════════ */}
+      <section className="lp-cta-section">
+        <div className="lp-cta-bg" />
+        <div style={{ position: "relative", zIndex: 1 }}>
+          <div className="lp-label" style={{ justifyContent: "center" }}>
+            Get Started Today
+          </div>
+          <h2 className="lp-cta-title sr up">
+            Your research,
+            <br />
+            <em>accelerated.</em>
+          </h2>
+          <p className="lp-cta-sub sr up sr-d1">
+            Join 10,000+ students and researchers who have made Researchly their
+            go-to research tool.
+          </p>
+          <div
+            className="sr up sr-d2"
             style={{
-              fontSize: 11,
-              color: "var(--brand)",
-              textDecoration: "none",
+              display: "flex",
+              gap: 14,
+              justifyContent: "center",
+              flexWrap: "wrap",
             }}
           >
-            hello.researchly@gmail.com
-          </a>
-        </div>
-        <div style={{ display: "flex", gap: 18 }}>
-          {[
-            ["Search", "/search"],
-            ["Review", "/review"],
-            ["PDF Chat", "/upload"],
-            ["Pricing", "/pricing"],
-          ].map(([l, h]) => (
             <Link
-              key={l}
-              href={h}
-              style={{
-                fontSize: 12,
-                color: "var(--text-faint)",
-                textDecoration: "none",
-                transition: "color .15s",
-              }}
-              onMouseEnter={(e) =>
-                (e.currentTarget.style.color = "var(--text-secondary)")
-              }
-              onMouseLeave={(e) =>
-                (e.currentTarget.style.color = "var(--text-faint)")
-              }
+              href="/auth/signin"
+              className="lp-btn-primary"
+              style={{ padding: "14px 28px", fontSize: 15 }}
             >
-              {l}
+              Start Researching Free <ArrowRight size={16} />
             </Link>
-          ))}
+            <Link
+              href="/pricing"
+              className="lp-btn-ghost"
+              style={{ padding: "14px 24px", fontSize: 15 }}
+            >
+              View Pricing
+            </Link>
+          </div>
+          <p className="lp-cta-note sr up sr-d3">
+            Free forever · No credit card required · Google or GitHub login
+          </p>
+        </div>
+      </section>
+
+      {/* ════════════════════════════════════
+          9. FOOTER
+      ════════════════════════════════════ */}
+      <footer className="lp-footer">
+        <div className="lp-footer-grid">
+          <div className="lp-footer-brand">
+            <div className="lp-footer-logo">
+              <div className="lp-logo-mark" style={{ width: 28, height: 28 }}>
+                <BookOpen size={13} color="#000" strokeWidth={2.5} />
+              </div>
+              <span style={{ fontSize: 15, fontWeight: 700, color: "#e8e8e8" }}>
+                Researchly
+              </span>
+            </div>
+            <p className="lp-footer-tagline">
+              AI-powered academic research for India&apos;s students and
+              researchers. Search smarter, write faster, cite perfectly.
+            </p>
+            <div className="lp-footer-socials">
+              {[
+                { icon: Twitter, href: "#" },
+                { icon: Github, href: "#" },
+                { icon: Linkedin, href: "#" },
+              ].map(({ icon: Icon, href }) => (
+                <a key={href} href={href} className="lp-social-btn">
+                  <Icon size={15} />
+                </a>
+              ))}
+            </div>
+          </div>
+          <div>
+            <p className="lp-footer-col-title">Product</p>
+            {[
+              ["Research Search", "/search"],
+              ["Literature Review", "/review"],
+              ["PDF Chat", "/upload"],
+              ["My Library", "/dashboard"],
+              ["Pricing", "/pricing"],
+            ].map(([l, h]) => (
+              <Link key={h} href={h} className="lp-footer-link">
+                {l}
+              </Link>
+            ))}
+          </div>
+          <div>
+            <p className="lp-footer-col-title">Company</p>
+            {[
+              ["About", "#"],
+              ["Blog", "#"],
+              ["Careers", "#"],
+              ["Contact", "#"],
+              ["Privacy Policy", "#"],
+            ].map(([l, h]) => (
+              <a key={l} href={h} className="lp-footer-link">
+                {l}
+              </a>
+            ))}
+          </div>
+          <div>
+            <p className="lp-footer-col-title">For Students</p>
+            {[
+              ["JEE Prep", "#"],
+              ["NEET Research", "#"],
+              ["UPSC Current Affairs", "#"],
+              ["GATE Resources", "#"],
+              ["Citation Guide", "#"],
+            ].map(([l, h]) => (
+              <a key={l} href={h} className="lp-footer-link">
+                {l}
+              </a>
+            ))}
+          </div>
+        </div>
+        <div className="lp-footer-bottom">
+          <span>© 2025 Researchly. Made with ♥ in India 🇮🇳</span>
+          <div style={{ display: "flex", gap: 24 }}>
+            {[
+              ["Terms", "#"],
+              ["Privacy", "#"],
+              ["Cookies", "#"],
+            ].map(([l, h]) => (
+              <a
+                key={l}
+                href={h}
+                style={{
+                  color: "#3a3a3a",
+                  fontSize: 13,
+                  transition: "color .15s",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.color = "#777";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.color = "#3a3a3a";
+                }}
+              >
+                {l}
+              </a>
+            ))}
+          </div>
         </div>
       </footer>
     </div>
   );
+}
+
+/* Inline icon to avoid import issues with GraduationCap in .map */
+function GraduationCapIcon() {
+  return <GraduationCap size={14} />;
 }
