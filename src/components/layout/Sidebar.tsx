@@ -28,6 +28,14 @@ const NAV = [
   { href: "/pricing", label: "Plans & Billing", icon: Tag },
 ];
 
+// ── Public types ─────────────────────────────────────────────
+export interface Conversation {
+  _id: string;
+  title: string;
+  updatedAt: string;
+}
+
+// Legacy type kept for any component still importing it
 export interface SidebarHistoryItem {
   query: string;
   searchedAt: string;
@@ -35,47 +43,50 @@ export interface SidebarHistoryItem {
   papers?: unknown[];
 }
 
-function groupHistory(items: SidebarHistoryItem[]) {
+// ── Date grouping ─────────────────────────────────────────────
+function groupConversations(items: Conversation[]) {
   const now = new Date();
   const today = new Date(
     now.getFullYear(),
     now.getMonth(),
     now.getDate(),
   ).getTime();
-  const yest = today - 86400000;
-  const week = today - 6 * 86400000;
-  const groups: { label: string; items: SidebarHistoryItem[] }[] = [
+  const yest = today - 86_400_000;
+  const week = today - 6 * 86_400_000;
+
+  const groups: { label: string; items: Conversation[] }[] = [
     { label: "Today", items: [] },
     { label: "Yesterday", items: [] },
     { label: "Previous 7 Days", items: [] },
     { label: "Older", items: [] },
   ];
-  for (const h of items) {
-    const t = new Date(h.searchedAt).getTime();
-    if (t >= today) groups[0].items.push(h);
-    else if (t >= yest) groups[1].items.push(h);
-    else if (t >= week) groups[2].items.push(h);
-    else groups[3].items.push(h);
+
+  for (const c of items) {
+    const t = new Date(c.updatedAt).getTime();
+    if (t >= today) groups[0].items.push(c);
+    else if (t >= yest) groups[1].items.push(c);
+    else if (t >= week) groups[2].items.push(c);
+    else groups[3].items.push(c);
   }
+
   return groups.filter((g) => g.items.length > 0);
 }
 
+// ── Component ─────────────────────────────────────────────────
 export default function Sidebar({
   onClose,
   onNewSearch,
-  activeQuery,
-  onSelectHistory,
+  activeConversationId,
 }: {
   onClose?: () => void;
   onNewSearch?: () => void;
-  activeQuery?: string;
-  onSelectHistory?: (item: SidebarHistoryItem) => void;
+  activeConversationId?: string;
 }) {
   const path = usePathname();
   const router = useRouter();
   const { data: session } = useSession();
 
-  const [history, setHistory] = useState<SidebarHistoryItem[]>([]);
+  const [conversations, setConversations] = useState<Conversation[]>([]);
   const [searchesToday, setSearchesToday] = useState(0);
   const [searchesThisMonth, setSearchesThisMonth] = useState(0);
 
@@ -91,35 +102,48 @@ export default function Sidebar({
       ? "var(--brand)"
       : "var(--text-muted)";
 
-  const fetchHistory = useCallback(() => {
+  // ── Fetch conversations ──────────────────────────────────────
+  const fetchConversations = useCallback(() => {
+    if (!session?.user?.email) return;
+    fetch("/api/conversations")
+      .then((r) => r.json())
+      .then((d: { conversations?: Conversation[] }) => {
+        setConversations(d.conversations ?? []);
+      })
+      .catch(() => {});
+  }, [session?.user?.email]);
+
+  // Fetch counters separately (keep existing logic)
+  const fetchCounters = useCallback(() => {
     if (!session?.user?.email) return;
     fetch("/api/user/history")
       .then((r) => r.json())
-      .then(
-        (d: {
-          history?: SidebarHistoryItem[];
-          searchesToday?: number;
-          searchesThisMonth?: number;
-        }) => {
-          setHistory(d.history ?? []);
-          setSearchesToday(d.searchesToday ?? 0);
-          setSearchesThisMonth(d.searchesThisMonth ?? 0);
-        },
-      )
+      .then((d: { searchesToday?: number; searchesThisMonth?: number }) => {
+        setSearchesToday(d.searchesToday ?? 0);
+        setSearchesThisMonth(d.searchesThisMonth ?? 0);
+      })
       .catch(() => {});
   }, [session?.user?.email]);
 
   useEffect(() => {
-    fetchHistory();
-  }, [fetchHistory]);
+    fetchConversations();
+    fetchCounters();
+  }, [fetchConversations, fetchCounters]);
 
-  // Listen for history-updated events from search page
+  // Auto-refresh sidebar when a new message is sent
   useEffect(() => {
-    const handler = () => fetchHistory();
+    const handler = () => {
+      fetchConversations();
+      fetchCounters();
+    };
+    window.addEventListener("researchly:conversation-updated", handler);
+    // Keep legacy event name working too
     window.addEventListener("researchly:history-updated", handler);
-    return () =>
+    return () => {
+      window.removeEventListener("researchly:conversation-updated", handler);
       window.removeEventListener("researchly:history-updated", handler);
-  }, [fetchHistory]);
+    };
+  }, [fetchConversations, fetchCounters]);
 
   const counter = isFree
     ? { used: searchesToday, max: 5, warn: 4, period: "today" }
@@ -127,19 +151,12 @@ export default function Sidebar({
       ? { used: searchesThisMonth, max: 500, warn: 450, period: "this month" }
       : null;
 
-  const onSearchPage = path === "/search";
-
-  const handleHistoryClick = (item: SidebarHistoryItem) => {
-    if (onSearchPage && onSelectHistory) {
-      onSelectHistory(item);
-      onClose?.();
-    } else {
-      router.push(`/search?q=${encodeURIComponent(item.query)}`);
-      onClose?.();
-    }
+  const handleConversationClick = (conv: Conversation) => {
+    router.push(`/chat/${conv._id}`);
+    onClose?.();
   };
 
-  const grouped = groupHistory(history);
+  const grouped = groupConversations(conversations);
 
   return (
     <div className="sidebar-inner">
@@ -193,7 +210,7 @@ export default function Sidebar({
           <Plus size={14} style={{ color: "var(--brand)" }} /> New Research
         </button>
 
-        {/* Usage counter */}
+        {/* Usage counter — unchanged */}
         {session && counter && (
           <div className="sidebar-counter">
             <div className="sidebar-counter-top">
@@ -255,7 +272,7 @@ export default function Sidebar({
           </div>
         )}
 
-        {/* Nav */}
+        {/* Nav — unchanged */}
         <p className="sidebar-section-label">Tools</p>
         {NAV.map(({ href, label, icon: Icon }) => (
           <Link
@@ -268,8 +285,8 @@ export default function Sidebar({
           </Link>
         ))}
 
-        {/* ── Grouped history (Claude-style) ── */}
-        {session && history.length > 0 && (
+        {/* ── Conversations grouped by date ── */}
+        {session && conversations.length > 0 && (
           <div style={{ marginTop: 16 }}>
             <p className="sidebar-section-label">History</p>
             {grouped.map((group) => (
@@ -287,14 +304,15 @@ export default function Sidebar({
                 >
                   {group.label}
                 </p>
-                {group.items.map((h, i) => {
+                {group.items.map((conv) => {
                   const isActive =
-                    activeQuery?.toLowerCase() === h.query.toLowerCase();
+                    activeConversationId === conv._id ||
+                    path === `/chat/${conv._id}`;
                   return (
                     <button
-                      key={i}
-                      onClick={() => handleHistoryClick(h)}
-                      title={h.query}
+                      key={conv._id}
+                      onClick={() => handleConversationClick(conv)}
+                      title={conv.title}
                       style={{
                         display: "flex",
                         alignItems: "center",
@@ -340,7 +358,7 @@ export default function Sidebar({
                           fontWeight: isActive ? 600 : 400,
                         }}
                       >
-                        {h.query}
+                        {conv.title}
                       </span>
                     </button>
                   );
@@ -392,7 +410,7 @@ export default function Sidebar({
         )}
       </div>
 
-      {/* ── Footer ── */}
+      {/* ── Footer — unchanged ── */}
       <div className="sidebar-footer">
         {session ? (
           <>
@@ -457,7 +475,6 @@ export default function Sidebar({
         )}
       </div>
 
-      {/* hide PlanIcon from linter — referenced but only via variable */}
       <span style={{ display: "none" }}>
         <PlanIcon size={0} />
       </span>
