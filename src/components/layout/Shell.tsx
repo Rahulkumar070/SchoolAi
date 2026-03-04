@@ -1,20 +1,18 @@
 "use client";
 import { useState, useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import Sidebar, { SidebarHistoryItem } from "./Sidebar";
+import Sidebar from "./Sidebar";
 import { Menu, BookOpen, Plus } from "lucide-react";
 import Link from "next/link";
 
 export default function Shell({
   children,
   rightPanel,
-  activeQuery,
-  onSelectHistory,
+  activeConversationId,
 }: {
   children: React.ReactNode;
   rightPanel?: React.ReactNode;
-  activeQuery?: string;
-  onSelectHistory?: (item: SidebarHistoryItem) => void;
+  activeConversationId?: string;
 }) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
@@ -42,8 +40,7 @@ export default function Shell({
         <Sidebar
           onClose={() => setOpen(false)}
           onNewSearch={handleNewSearch}
-          activeQuery={activeQuery}
-          onSelectHistory={onSelectHistory}
+          activeConversationId={activeConversationId}
         />
       </aside>
 
@@ -82,7 +79,6 @@ export default function Shell({
             <Plus size={18} />
           </button>
         </header>
-
         <div className="main-content">{children}</div>
       </div>
 
