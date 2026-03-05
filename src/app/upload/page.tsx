@@ -1,11 +1,11 @@
 "use client";
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 declare global {
   interface Window {
     pdfjsLib: any;
   }
 }
-import { useState, useRef, useCallback } from "react";
+
+import { useState, useRef, useCallback, useEffect } from "react";
 import Shell from "@/components/layout/Shell";
 import ReactMarkdown from "react-markdown";
 import {
@@ -19,20 +19,121 @@ import {
   AlertCircle,
   MessageSquare,
   Sparkles,
+  Loader2,
 } from "lucide-react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import toast from "react-hot-toast";
 import { ChatMessage } from "@/types";
 
-const QUICK = [
-  "What is the main research question?",
-  "What methodology was used?",
+const DEFAULT_QUESTIONS = [
+  "Summarise this paper in simple terms",
+  "What methodology did the authors use?",
   "What are the key findings?",
-  "What are the limitations?",
+  "What are the limitations of this study?",
   "How does this compare to prior work?",
-  "Summarise the conclusions",
+  "What are the practical implications?",
 ];
+
+const MD_COMPONENTS = {
+  h2: ({ children }: any) => (
+    <h2
+      style={{
+        fontFamily: "var(--font-display)",
+        fontSize: "1rem",
+        color: "var(--text-primary)",
+        margin: "1.2em 0 .4em",
+        fontWeight: 600,
+      }}
+    >
+      {children}
+    </h2>
+  ),
+  h3: ({ children }: any) => (
+    <h3
+      style={{
+        fontSize: ".9rem",
+        color: "var(--text-primary)",
+        fontWeight: 600,
+        margin: ".8em 0 .3em",
+      }}
+    >
+      {children}
+    </h3>
+  ),
+  p: ({ children }: any) => (
+    <p
+      style={{
+        marginBottom: ".65em",
+        lineHeight: 1.72,
+        fontSize: 14,
+        color: "var(--text-secondary)",
+      }}
+    >
+      {children}
+    </p>
+  ),
+  strong: ({ children }: any) => (
+    <strong style={{ color: "var(--text-primary)", fontWeight: 600 }}>
+      {children}
+    </strong>
+  ),
+  code: ({ children }: any) => (
+    <code
+      style={{
+        fontFamily: "var(--font-mono)",
+        fontSize: 11.5,
+        background: "var(--surface-2)",
+        color: "var(--brand)",
+        padding: "2px 5px",
+        borderRadius: 4,
+      }}
+    >
+      {children}
+    </code>
+  ),
+  ul: ({ children }: any) => (
+    <ul style={{ paddingLeft: "1.2em", marginBottom: ".5em" }}>{children}</ul>
+  ),
+  li: ({ children }: any) => (
+    <li
+      style={{
+        marginBottom: ".2em",
+        fontSize: 14,
+        color: "var(--text-secondary)",
+      }}
+    >
+      {children}
+    </li>
+  ),
+  blockquote: ({ children }: any) => (
+    <blockquote
+      style={{
+        borderLeft: "3px solid var(--brand)",
+        paddingLeft: 12,
+        margin: "8px 0",
+        color: "var(--text-secondary)",
+        fontStyle: "italic",
+      }}
+    >
+      {children}
+    </blockquote>
+  ),
+  a: ({ href, children }: any) => (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      style={{
+        color: "var(--brand)",
+        textDecoration: "underline",
+        textUnderlineOffset: 3,
+      }}
+    >
+      {children}
+    </a>
+  ),
+};
 
 export default function UploadPage() {
   const [file, setFile] = useState<File | null>(null);
@@ -44,6 +145,9 @@ export default function UploadPage() {
   const [loading, setLoading] = useState(false);
   const [drag, setDrag] = useState(false);
   const [remaining, setRemaining] = useState<number | null>(null);
+  const [quickQs, setQuickQs] = useState<string[]>(DEFAULT_QUESTIONS);
+  const [loadingQs, setLoadingQs] = useState(false);
+
   const fileRef = useRef<HTMLInputElement>(null);
   const endRef = useRef<HTMLDivElement>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
@@ -62,6 +166,53 @@ export default function UploadPage() {
     el.style.height = Math.min(el.scrollHeight, 140) + "px";
   };
 
+  // ── Generate dynamic starter questions from paper title ──────
+  const fetchStarterQuestions = async (fileName: string) => {
+    setLoadingQs(true);
+    try {
+      const r = await fetch("/api/pdf-questions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: fileName.replace(".pdf", "") }),
+      });
+      const d = (await r.json()) as { questions?: string[] };
+      if (d.questions?.length) setQuickQs(d.questions);
+    } catch {
+      // fallback to defaults — already set
+    } finally {
+      setLoadingQs(false);
+    }
+  };
+
+  const extractTextFromPDF = async (buf: ArrayBuffer): Promise<string> => {
+    if (!window.pdfjsLib) {
+      await new Promise<void>((resolve, reject) => {
+        const script = document.createElement("script");
+        script.src =
+          "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";
+        script.onload = () => resolve();
+        script.onerror = () => reject(new Error("Failed to load PDF.js"));
+        document.head.appendChild(script);
+      });
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc =
+        "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+    }
+    const pdf = await window.pdfjsLib.getDocument({ data: buf }).promise;
+    const maxPages = Math.min(pdf.numPages, 20);
+    const texts: string[] = [];
+    for (let i = 1; i <= maxPages; i++) {
+      const page = await pdf.getPage(i);
+      const content = await page.getTextContent();
+      const pageText = content.items
+        .map((item: any) => item.str)
+        .join(" ")
+        .replace(/\s+/g, " ")
+        .trim();
+      if (pageText) texts.push(`--- Page ${i} ---\n${pageText}`);
+    }
+    return texts.join("\n\n").slice(0, 40000);
+  };
+
   const processFile = useCallback(async (f: File) => {
     if (!f.name.endsWith(".pdf") && !f.type.includes("pdf")) {
       toast.error("Please upload a PDF");
@@ -77,11 +228,11 @@ export default function UploadPage() {
     setParseErr("");
     setMsgs([]);
     setPdfText("");
+    setQuickQs(DEFAULT_QUESTIONS); // reset to defaults while loading
 
     try {
       const buf = await f.arrayBuffer();
       const text = await extractTextFromPDF(buf);
-
       if (!text || text.length < 50) {
         setParseErr(
           "Could not extract text from this PDF. It may be a scanned/image PDF.",
@@ -90,7 +241,6 @@ export default function UploadPage() {
         setParsing(false);
         return;
       }
-
       setPdfText(text);
       setMsgs([
         {
@@ -99,6 +249,8 @@ export default function UploadPage() {
         },
       ]);
       toast.success("PDF ready!");
+      // Generate dynamic questions from the paper title
+      void fetchStarterQuestions(f.name);
     } catch (e) {
       console.error(e);
       setParseErr("Failed to read PDF. Try another file.");
@@ -108,42 +260,6 @@ export default function UploadPage() {
     }
   }, []);
 
-  // Extract text from PDF using pdf.js from CDN
-  const extractTextFromPDF = async (buf: ArrayBuffer): Promise<string> => {
-    // Dynamically load pdf.js from CDN
-    if (!window.pdfjsLib) {
-      await new Promise<void>((resolve, reject) => {
-        const script = document.createElement("script");
-        script.src =
-          "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";
-        script.onload = () => resolve();
-        script.onerror = () => reject(new Error("Failed to load PDF.js"));
-        document.head.appendChild(script);
-      });
-      // Set worker
-      window.pdfjsLib.GlobalWorkerOptions.workerSrc =
-        "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
-    }
-
-    const pdf = await window.pdfjsLib.getDocument({ data: buf }).promise;
-    const maxPages = Math.min(pdf.numPages, 20); // cap at 20 pages to stay within token limits
-    const texts: string[] = [];
-
-    for (let i = 1; i <= maxPages; i++) {
-      const page = await pdf.getPage(i);
-      const content = await page.getTextContent();
-      const pageText = content.items
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        .map((item: any) => item.str)
-        .join(" ")
-        .replace(/\s+/g, " ")
-        .trim();
-      if (pageText) texts.push(`--- Page ${i} ---\n${pageText}`);
-    }
-
-    return texts.join("\n\n").slice(0, 40000);
-  };
-
   const onDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setDrag(false);
@@ -151,51 +267,98 @@ export default function UploadPage() {
     if (f) void processFile(f);
   };
 
+  // ── Send message with streaming ───────────────────────────────
   const send = async (q?: string) => {
     const question = (q ?? input).trim();
     if (!question || loading || !pdfText) return;
-    setMsgs((prev) => [...prev, { role: "user", content: question }]);
+
+    const userMsg: ChatMessage = { role: "user", content: question };
+    setMsgs((prev) => [...prev, userMsg]);
     setInput("");
     if (taRef.current) taRef.current.style.height = "auto";
     setLoading(true);
     scrollDown();
+
+    // Add empty assistant message that we'll stream into
+    setMsgs((prev) => [...prev, { role: "assistant", content: "" }]);
+
     try {
-      const r = await fetch("/api/upload", {
+      const resp = await fetch("/api/upload", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question, pdfText, history: msgs.slice(-8) }),
+        body: JSON.stringify({ question, pdfText, history: msgs.slice(-6) }),
       });
-      const d = (await r.json()) as {
-        answer?: string;
-        error?: string;
-        remaining?: number | null;
-      };
-      if (!r.ok) {
+
+      if (!resp.ok) {
+        const d = (await resp.json()) as { error?: string };
         toast.error(d.error ?? "Failed");
-        setMsgs((prev) => [
-          ...prev,
-          {
+        setMsgs((prev) => {
+          const u = [...prev];
+          u[u.length - 1] = {
             role: "assistant",
-            content: `❌ Error: ${d.error ?? "Something went wrong. Please try again."}`,
-          },
-        ]);
-      } else {
-        setMsgs((prev) => [
-          ...prev,
-          { role: "assistant", content: d.answer ?? "" },
-        ]);
-        if (d.remaining !== undefined && d.remaining !== null)
-          setRemaining(d.remaining);
-        scrollDown();
+            content: `❌ ${d.error ?? "Something went wrong."}`,
+          };
+          return u;
+        });
+        return;
+      }
+
+      const reader = resp.body!.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
+
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) continue;
+          try {
+            const evt = JSON.parse(line.slice(6)) as {
+              type: string;
+              text?: string;
+              remaining?: number | null;
+            };
+            if (evt.type === "text" && evt.text) {
+              setMsgs((prev) => {
+                const u = [...prev];
+                u[u.length - 1] = {
+                  role: "assistant",
+                  content: u[u.length - 1].content + evt.text,
+                };
+                return u;
+              });
+              scrollDown();
+            } else if (evt.type === "done") {
+              if (evt.remaining !== undefined && evt.remaining !== null)
+                setRemaining(evt.remaining);
+            } else if (evt.type === "error") {
+              toast.error(evt.text ?? "Chat failed");
+            }
+          } catch {
+            /* ignore parse errors */
+          }
+        }
       }
     } catch {
       toast.error("Network error");
+      setMsgs((prev) => {
+        const u = [...prev];
+        u[u.length - 1] = {
+          role: "assistant",
+          content: "❌ Network error. Please try again.",
+        };
+        return u;
+      });
     } finally {
       setLoading(false);
+      scrollDown();
     }
   };
 
-  // Left panel
   const LeftPanel = (
     <div
       style={{ padding: 14, display: "flex", flexDirection: "column", gap: 12 }}
@@ -466,6 +629,7 @@ export default function UploadPage() {
                   setPdfText("");
                   setMsgs([]);
                   setParseErr("");
+                  setQuickQs(DEFAULT_QUESTIONS);
                 }}
                 style={{
                   background: "none",
@@ -506,12 +670,25 @@ export default function UploadPage() {
         </div>
       )}
 
-      {/* Quick questions */}
+      {/* Quick questions — dynamic from paper title */}
       {pdfText && (
         <>
-          <p className="label-xs">Quick Questions</p>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <p className="label-xs" style={{ flex: 1 }}>
+              Quick Questions
+            </p>
+            {loadingQs && (
+              <Loader2
+                size={10}
+                style={{
+                  color: "var(--brand)",
+                  animation: "spin 1s linear infinite",
+                }}
+              />
+            )}
+          </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-            {QUICK.map((q) => (
+            {quickQs.map((q) => (
               <button
                 key={q}
                 onClick={() => void send(q)}
@@ -544,8 +721,8 @@ export default function UploadPage() {
         </>
       )}
 
-      {/* PDF upload counter for student plan */}
-      {session && (session?.user?.plan ?? "free") === "student" && (
+      {/* Student PDF counter */}
+      {session && session?.user?.plan === "student" && (
         <div
           style={{
             padding: "10px 12px",
@@ -688,7 +865,7 @@ export default function UploadPage() {
                     ? "PDF Chat requires a free account. Sign in with Google or GitHub — it takes 10 seconds."
                     : isFree
                       ? "PDF Chat is a paid feature. Upgrade to Student or Pro to upload and chat with academic papers."
-                      : "Upload any academic paper, textbook chapter, or research document and ask anything about it."}
+                      : "Upload any academic paper or research document and ask anything about it."}
                 </p>
                 {!session && (
                   <Link
@@ -720,121 +897,17 @@ export default function UploadPage() {
                       <div className="msg-bubble">{m.content}</div>
                     ) : (
                       <div className="msg-ai-content">
-                        <ReactMarkdown
-                          components={{
-                            h2: ({ children }) => (
-                              <h2
-                                style={{
-                                  fontFamily: "var(--font-display)",
-                                  fontSize: "1rem",
-                                  color: "var(--text-primary)",
-                                  margin: "1.2em 0 .4em",
-                                  fontWeight: 600,
-                                }}
-                              >
-                                {children}
-                              </h2>
-                            ),
-                            h3: ({ children }) => (
-                              <h3
-                                style={{
-                                  fontSize: ".9rem",
-                                  color: "var(--text-primary)",
-                                  fontWeight: 600,
-                                  margin: ".8em 0 .3em",
-                                }}
-                              >
-                                {children}
-                              </h3>
-                            ),
-                            p: ({ children }) => (
-                              <p
-                                style={{
-                                  marginBottom: ".65em",
-                                  lineHeight: 1.72,
-                                  fontSize: 14,
-                                  color: "var(--text-secondary)",
-                                }}
-                              >
-                                {children}
-                              </p>
-                            ),
-                            strong: ({ children }) => (
-                              <strong
-                                style={{
-                                  color: "var(--text-primary)",
-                                  fontWeight: 600,
-                                }}
-                              >
-                                {children}
-                              </strong>
-                            ),
-                            code: ({ children }) => (
-                              <code
-                                style={{
-                                  fontFamily: "var(--font-mono)",
-                                  fontSize: 11.5,
-                                  background: "var(--surface-2)",
-                                  color: "var(--brand)",
-                                  padding: "2px 5px",
-                                  borderRadius: 4,
-                                }}
-                              >
-                                {children}
-                              </code>
-                            ),
-                            ul: ({ children }) => (
-                              <ul
-                                style={{
-                                  paddingLeft: "1.2em",
-                                  marginBottom: ".5em",
-                                }}
-                              >
-                                {children}
-                              </ul>
-                            ),
-                            li: ({ children }) => (
-                              <li
-                                style={{
-                                  marginBottom: ".2em",
-                                  fontSize: 14,
-                                  color: "var(--text-secondary)",
-                                }}
-                              >
-                                {children}
-                              </li>
-                            ),
-                            blockquote: ({ children }) => (
-                              <blockquote
-                                style={{
-                                  borderLeft: "3px solid var(--brand)",
-                                  paddingLeft: 12,
-                                  margin: "8px 0",
-                                  color: "var(--text-secondary)",
-                                  fontStyle: "italic",
-                                }}
-                              >
-                                {children}
-                              </blockquote>
-                            ),
-                            a: ({ href, children }) => (
-                              <a
-                                href={href}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                style={{
-                                  color: "var(--brand)",
-                                  textDecoration: "underline",
-                                  textUnderlineOffset: 3,
-                                }}
-                              >
-                                {children}
-                              </a>
-                            ),
-                          }}
-                        >
-                          {m.content}
-                        </ReactMarkdown>
+                        {m.content ? (
+                          <ReactMarkdown components={MD_COMPONENTS as any}>
+                            {m.content}
+                          </ReactMarkdown>
+                        ) : loading && i === msgs.length - 1 ? (
+                          <div className="typing-bubble">
+                            <span className="typing-dot" />
+                            <span className="typing-dot" />
+                            <span className="typing-dot" />
+                          </div>
+                        ) : null}
                       </div>
                     )}
                     {m.role === "user" && (
@@ -858,28 +931,6 @@ export default function UploadPage() {
                     )}
                   </div>
                 ))}
-                {loading && (
-                  <div className="msg-row">
-                    <div className="msg-avatar">
-                      <BookOpen size={12} style={{ color: "var(--brand)" }} />
-                    </div>
-                    <div
-                      style={{
-                        padding: "10px 13px",
-                        background: "var(--bg-overlay)",
-                        border: "1px solid var(--border)",
-                        borderRadius: "4px 12px 12px 12px",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 4,
-                      }}
-                    >
-                      <span className="typing-dot" />
-                      <span className="typing-dot" />
-                      <span className="typing-dot" />
-                    </div>
-                  </div>
-                )}
                 <div ref={endRef} />
               </div>
             )}
