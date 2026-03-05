@@ -16,7 +16,6 @@ import {
   History,
   Clock,
   ArrowRight,
-  TrendingUp,
   Lock,
   ChevronLeft,
   FileText,
@@ -24,6 +23,8 @@ import {
   Download,
   Activity,
   ChevronRight,
+  Plus,
+  TrendingUp,
 } from "lucide-react";
 import Link from "next/link";
 import ReactMarkdown from "react-markdown";
@@ -56,7 +57,6 @@ interface HistoryItem {
   searchedAt: string;
 }
 
-/* ── responsive hook ─────────────────────────────────────────── */
 function useIsMobile() {
   const [w, setW] = useState(0);
   useEffect(() => {
@@ -68,7 +68,6 @@ function useIsMobile() {
   return { isMobile: w > 0 && w < 640, isTablet: w >= 640 && w < 900, w };
 }
 
-/* ── markdown ────────────────────────────────────────────────── */
 const mdComponents = {
   h2: ({ children }: any) => (
     <h2
@@ -135,7 +134,6 @@ const mdComponents = {
         color: "var(--brand)",
         textDecoration: "underline",
         textUnderlineOffset: 3,
-        wordBreak: "break-word",
       }}
     >
       {children}
@@ -165,52 +163,59 @@ function timeAgo(d: string) {
   return `${Math.floor(s / 86400)}d ago`;
 }
 
-/* ── stat card ───────────────────────────────────────────────── */
+function getGreeting() {
+  const h = new Date().getHours();
+  if (h < 12) return "Good morning";
+  if (h < 17) return "Good afternoon";
+  return "Good evening";
+}
+
+/* ── Stat Card ──────────────────────────────────────────────── */
 function StatCard({
   value,
   label,
+  icon: Icon,
   color,
-  icon,
   sub,
 }: {
   value: string | number;
   label: string;
+  icon: any;
   color: string;
-  icon: string;
   sub?: string;
 }) {
   return (
     <div
       style={{
-        padding: "16px 16px 14px",
-        borderRadius: 14,
+        padding: "20px",
+        borderRadius: 16,
         background: "var(--bg-raised)",
         border: "1px solid var(--border)",
         position: "relative",
         overflow: "hidden",
-        transition: "transform .18s, box-shadow .18s",
+        transition: "border-color .18s, transform .18s",
+        cursor: "default",
       }}
       onMouseEnter={(e) => {
-        const el = e.currentTarget as HTMLDivElement;
-        el.style.transform = "translateY(-2px)";
-        el.style.boxShadow = "0 10px 32px rgba(0,0,0,.35)";
+        (e.currentTarget as HTMLElement).style.borderColor =
+          "var(--border-mid)";
+        (e.currentTarget as HTMLElement).style.transform = "translateY(-2px)";
       }}
       onMouseLeave={(e) => {
-        const el = e.currentTarget as HTMLDivElement;
-        el.style.transform = "";
-        el.style.boxShadow = "";
+        (e.currentTarget as HTMLElement).style.borderColor = "var(--border)";
+        (e.currentTarget as HTMLElement).style.transform = "";
       }}
     >
       <div
         style={{
           position: "absolute",
-          top: -16,
-          right: -16,
-          width: 64,
-          height: 64,
+          top: -20,
+          right: -20,
+          width: 80,
+          height: 80,
           borderRadius: "50%",
-          background: `${color}18`,
-          filter: "blur(16px)",
+          background: `${color}14`,
+          filter: "blur(18px)",
           pointerEvents: "none",
         }}
       />
@@ -219,18 +224,32 @@ function StatCard({
           display: "flex",
           alignItems: "flex-start",
           justifyContent: "space-between",
-          marginBottom: 10,
+          marginBottom: 14,
         }}
       >
-        <span style={{ fontSize: 18 }}>{icon}</span>
+        <div
+          style={{
+            width: 36,
+            height: 36,
+            borderRadius: 10,
+            background: `${color}14`,
+            border: `1px solid ${color}28`,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <Icon size={16} style={{ color }} />
+        </div>
         {sub && (
           <span
             style={{
-              fontSize: 9.5,
+              fontSize: 10,
               fontWeight: 700,
-              color: "#5db87a",
+              color: "var(--green)",
               background: "rgba(93,184,122,.12)",
-              padding: "2px 6px",
+              border: "1px solid rgba(93,184,122,.2)",
+              padding: "2px 8px",
               borderRadius: 99,
             }}
           >
@@ -240,32 +259,31 @@ function StatCard({
       </div>
       <p
         style={{
-          fontSize: 26,
-          fontWeight: 800,
-          color,
-          fontFamily: "var(--font-display)",
+          fontSize: 28,
+          fontWeight: 700,
+          color: "var(--text-primary)",
           lineHeight: 1,
-          marginBottom: 4,
-          letterSpacing: "-1px",
+          marginBottom: 5,
+          letterSpacing: "-1.5px",
+          fontFamily: "var(--font-ui)",
         }}
       >
         {value}
       </p>
-      <p style={{ fontSize: 11, color: "var(--text-faint)", fontWeight: 500 }}>
+      <p style={{ fontSize: 12, color: "var(--text-faint)", fontWeight: 500 }}>
         {label}
       </p>
     </div>
   );
 }
 
-/* ── action card ─────────────────────────────────────────────── */
+/* ── Action Card ─────────────────────────────────────────────── */
 function ActionCard({
   label,
   desc,
   cta,
   href,
   color,
-  bg,
   Icon,
 }: {
   label: string;
@@ -273,31 +291,33 @@ function ActionCard({
   cta: string;
   href: string;
   color: string;
-  bg: string;
   Icon: any;
 }) {
   return (
     <Link
       href={href}
       style={{
-        padding: "18px 16px 16px",
-        borderRadius: 14,
-        background: bg,
-        border: `1px solid ${color}28`,
+        padding: "20px",
+        borderRadius: 16,
+        background: "var(--bg-raised)",
+        border: "1px solid var(--border)",
         textDecoration: "none",
         display: "flex",
         flexDirection: "column",
-        transition: "all .2s",
+        gap: 0,
+        transition: "border-color .18s, transform .18s, box-shadow .18s",
         position: "relative",
         overflow: "hidden",
       }}
       onMouseEnter={(e) => {
-        const el = e.currentTarget as HTMLAnchorElement;
+        const el = e.currentTarget as HTMLElement;
+        el.style.borderColor = `${color}40`;
         el.style.transform = "translateY(-3px)";
-        el.style.boxShadow = `0 14px 36px rgba(0,0,0,.3), inset 0 1px 0 ${color}25`;
+        el.style.boxShadow = `0 16px 48px rgba(0,0,0,.3)`;
       }}
       onMouseLeave={(e) => {
-        const el = e.currentTarget as HTMLAnchorElement;
+        const el = e.currentTarget as HTMLElement;
+        el.style.borderColor = "var(--border)";
         el.style.transform = "";
         el.style.boxShadow = "";
       }}
@@ -305,47 +325,48 @@ function ActionCard({
       <div
         style={{
           position: "absolute",
-          bottom: -16,
-          right: -16,
-          width: 70,
-          height: 70,
+          bottom: -20,
+          right: -20,
+          width: 80,
+          height: 80,
           borderRadius: "50%",
-          background: `${color}12`,
-          filter: "blur(14px)",
+          background: `${color}10`,
+          filter: "blur(20px)",
           pointerEvents: "none",
         }}
       />
       <div
         style={{
-          width: 38,
-          height: 38,
-          borderRadius: 10,
-          background: `${color}18`,
-          border: `1px solid ${color}30`,
+          width: 40,
+          height: 40,
+          borderRadius: 12,
+          background: `${color}14`,
+          border: `1px solid ${color}28`,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          marginBottom: 12,
+          marginBottom: 14,
         }}
       >
-        <Icon size={16} style={{ color }} />
+        <Icon size={18} style={{ color }} />
       </div>
       <p
         style={{
-          fontSize: 13.5,
+          fontSize: 14,
           fontWeight: 700,
           color: "var(--text-primary)",
-          marginBottom: 4,
+          marginBottom: 6,
+          letterSpacing: "-.015em",
         }}
       >
         {label}
       </p>
       <p
         style={{
-          fontSize: 12,
-          color: "var(--text-secondary)",
-          lineHeight: 1.5,
-          marginBottom: 12,
+          fontSize: 12.5,
+          color: "var(--text-faint)",
+          lineHeight: 1.55,
+          marginBottom: 16,
           flex: 1,
         }}
       >
@@ -353,31 +374,22 @@ function ActionCard({
       </p>
       <span
         style={{
-          fontSize: 11.5,
-          fontWeight: 700,
+          fontSize: 12,
+          fontWeight: 600,
           color,
           display: "flex",
           alignItems: "center",
-          gap: 4,
+          gap: 5,
         }}
       >
-        {cta} <ArrowRight size={10} />
+        {cta} <ArrowRight size={11} />
       </span>
     </Link>
   );
 }
 
-/* ── list row ────────────────────────────────────────────────── */
-function ListRow({
-  iconEl,
-  iconBg,
-  iconBorder,
-  title,
-  meta,
-  badge,
-  badgeColor,
-  onClick,
-}: any) {
+/* ── List Row ─────────────────────────────────────────────────── */
+function ListRow({ iconEl, iconColor, title, meta, badge, onClick }: any) {
   return (
     <button
       onClick={onClick}
@@ -385,33 +397,32 @@ function ListRow({
         display: "flex",
         alignItems: "center",
         gap: 12,
-        padding: "13px 14px",
+        padding: "14px 16px",
         background: "var(--bg-raised)",
         border: "1px solid var(--border)",
         borderRadius: 12,
         cursor: "pointer",
         textAlign: "left",
         width: "100%",
-        transition: "all .14s",
+        transition: "border-color .14s, background .14s",
       }}
       onMouseEnter={(e) => {
-        const el = e.currentTarget;
-        el.style.background = "var(--surface)";
-        el.style.borderColor = iconBorder;
+        (e.currentTarget as HTMLElement).style.borderColor =
+          "var(--border-mid)";
+        (e.currentTarget as HTMLElement).style.background = "var(--surface)";
       }}
       onMouseLeave={(e) => {
-        const el = e.currentTarget;
-        el.style.background = "var(--bg-raised)";
-        el.style.borderColor = "var(--border)";
+        (e.currentTarget as HTMLElement).style.borderColor = "var(--border)";
+        (e.currentTarget as HTMLElement).style.background = "var(--bg-raised)";
       }}
     >
       <div
         style={{
-          width: 36,
-          height: 36,
-          borderRadius: 10,
-          background: iconBg,
-          border: `1px solid ${iconBorder}`,
+          width: 34,
+          height: 34,
+          borderRadius: 9,
+          background: `${iconColor}12`,
+          border: `1px solid ${iconColor}28`,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
@@ -434,24 +445,32 @@ function ListRow({
         >
           {title}
         </p>
-        <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           {meta}
           {badge && (
-            <span style={{ fontSize: 10, color: badgeColor, fontWeight: 700 }}>
+            <span
+              style={{
+                fontSize: 10,
+                fontWeight: 600,
+                color: "var(--text-faint)",
+                background: "var(--surface-2)",
+                padding: "1px 7px",
+                borderRadius: 99,
+              }}
+            >
               {badge}
             </span>
           )}
         </div>
       </div>
       <ChevronRight
-        size={13}
+        size={12}
         style={{ color: "var(--text-faint)", flexShrink: 0 }}
       />
     </button>
   );
 }
 
-/* ── shimmer ─────────────────────────────────────────────────── */
 function Shimmer({ h = 66 }: { h?: number }) {
   return (
     <div
@@ -461,7 +480,6 @@ function Shimmer({ h = 66 }: { h?: number }) {
   );
 }
 
-/* ── empty state ─────────────────────────────────────────────── */
 function Empty({
   icon: Icon,
   title,
@@ -478,29 +496,35 @@ function Empty({
   return (
     <div
       style={{
-        padding: "48px 24px",
+        padding: "52px 24px",
         textAlign: "center",
         background: "var(--bg-raised)",
         border: "1px dashed var(--border-mid)",
         borderRadius: 16,
       }}
     >
-      <Icon
-        size={30}
+      <div
         style={{
-          color: "var(--text-faint)",
-          opacity: 0.2,
-          margin: "0 auto 16px",
-          display: "block",
+          width: 52,
+          height: 52,
+          borderRadius: 14,
+          background: "var(--surface)",
+          border: "1px solid var(--border-mid)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          margin: "0 auto 18px",
         }}
-      />
+      >
+        <Icon size={22} style={{ color: "var(--text-faint)" }} />
+      </div>
       <p
         style={{
           fontSize: 15,
-          fontWeight: 600,
+          fontWeight: 700,
           color: "var(--text-primary)",
-          marginBottom: 7,
-          fontFamily: "var(--font-display)",
+          marginBottom: 8,
+          letterSpacing: "-.02em",
         }}
       >
         {title}
@@ -508,8 +532,9 @@ function Empty({
       <p
         style={{
           fontSize: 13,
-          color: "var(--text-secondary)",
+          color: "var(--text-faint)",
           marginBottom: href ? 22 : 0,
+          lineHeight: 1.6,
         }}
       >
         {desc}
@@ -518,7 +543,7 @@ function Empty({
         <Link
           href={href}
           style={{
-            padding: "9px 22px",
+            padding: "10px 22px",
             borderRadius: 10,
             background: "var(--brand)",
             color: "#000",
@@ -537,6 +562,370 @@ function Empty({
   );
 }
 
+/* ── Detail View (shared for history & reviews) ────────────────── */
+function DetailView({
+  type,
+  title,
+  content,
+  papers,
+  timestamp,
+  onBack,
+  atLimit,
+  query,
+  onDownload,
+  session,
+}: any) {
+  const accentColor = type === "review" ? "#5db87a" : "var(--brand)";
+  return (
+    <div style={{ flex: 1, overflowY: "auto" }}>
+      <div
+        style={{ maxWidth: 820, margin: "0 auto", padding: "28px 24px 60px" }}
+      >
+        <button
+          onClick={onBack}
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+            padding: "7px 14px",
+            background: "var(--bg-raised)",
+            border: "1px solid var(--border)",
+            borderRadius: 9,
+            cursor: "pointer",
+            fontSize: 12.5,
+            color: "var(--text-faint)",
+            marginBottom: 24,
+            fontFamily: "var(--font-ui)",
+            transition: "color .14s",
+          }}
+          onMouseEnter={(e) =>
+            ((e.currentTarget as HTMLElement).style.color =
+              "var(--text-primary)")
+          }
+          onMouseLeave={(e) =>
+            ((e.currentTarget as HTMLElement).style.color = "var(--text-faint)")
+          }
+        >
+          <ChevronLeft size={14} /> Back
+        </button>
+
+        <div
+          style={{
+            padding: "18px 20px",
+            borderRadius: 14,
+            background: `${type === "review" ? "rgba(93,184,122,.06)" : "var(--brand-dim)"}`,
+            border: `1px solid ${type === "review" ? "rgba(93,184,122,.18)" : "var(--brand-border)"}`,
+            marginBottom: 24,
+          }}
+        >
+          <p
+            style={{
+              fontSize: 10.5,
+              fontWeight: 700,
+              letterSpacing: "1.5px",
+              textTransform: "uppercase",
+              color: accentColor,
+              marginBottom: 8,
+            }}
+          >
+            {type === "review" ? "Literature Review" : "Research Query"}
+          </p>
+          <p
+            style={{
+              fontSize: 16,
+              fontWeight: 600,
+              color: "var(--text-primary)",
+              lineHeight: 1.5,
+            }}
+          >
+            {title}
+          </p>
+          <p
+            style={{
+              fontSize: 11,
+              color: "var(--text-faint)",
+              marginTop: 8,
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+            }}
+          >
+            <Clock size={10} /> {timeAgo(timestamp)}
+            {papers?.length > 0 && (
+              <span style={{ color: accentColor }}>
+                · {papers.length} sources
+              </span>
+            )}
+          </p>
+        </div>
+
+        {content ? (
+          <>
+            <div
+              style={{
+                background: "var(--bg-raised)",
+                border: "1px solid var(--border)",
+                borderRadius: 14,
+                padding: "22px 24px",
+                marginBottom: 20,
+              }}
+            >
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
+                components={mdComponents}
+              >
+                {content}
+              </ReactMarkdown>
+            </div>
+            {papers?.length > 0 && (
+              <div style={{ marginBottom: 24 }}>
+                <p
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 700,
+                    letterSpacing: "1.5px",
+                    textTransform: "uppercase",
+                    color: "var(--text-faint)",
+                    marginBottom: 12,
+                  }}
+                >
+                  Sources ({papers.length})
+                </p>
+                <div
+                  style={{ display: "flex", flexDirection: "column", gap: 7 }}
+                >
+                  {papers.map((p: any, i: number) => (
+                    <div
+                      key={i}
+                      style={{
+                        padding: "12px 14px",
+                        background: "var(--bg-raised)",
+                        border: "1px solid var(--border)",
+                        borderRadius: 10,
+                        display: "flex",
+                        gap: 10,
+                      }}
+                    >
+                      <span
+                        style={{
+                          width: 22,
+                          height: 22,
+                          borderRadius: 6,
+                          background: accentColor,
+                          color: type === "review" ? "#000" : "#000",
+                          fontSize: 9.5,
+                          fontWeight: 700,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          flexShrink: 0,
+                        }}
+                      >
+                        {i + 1}
+                      </span>
+                      <div style={{ minWidth: 0, flex: 1 }}>
+                        <p
+                          style={{
+                            fontSize: 12,
+                            fontWeight: 600,
+                            color: "var(--text-primary)",
+                            marginBottom: 3,
+                          }}
+                        >
+                          {p.title}
+                        </p>
+                        <p
+                          style={{ fontSize: 10.5, color: "var(--text-faint)" }}
+                        >
+                          {p.authors?.slice(0, 3).join(", ")}
+                          {(p.authors?.length ?? 0) > 3 ? " et al." : ""}
+                          {p.year ? ` · ${p.year}` : ""}
+                          {p.journal ? ` · ${p.journal}` : ""}
+                        </p>
+                        {p.url && (
+                          <a
+                            href={p.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{
+                              fontSize: 10.5,
+                              color: "var(--brand)",
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: 3,
+                              marginTop: 4,
+                            }}
+                          >
+                            View <ExternalLink size={8} />
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <button
+                onClick={onDownload}
+                style={{
+                  padding: "10px 18px",
+                  borderRadius: 10,
+                  border: "1px solid var(--border-mid)",
+                  color: "var(--text-secondary)",
+                  background: "transparent",
+                  fontSize: 13,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                  fontFamily: "var(--font-ui)",
+                  transition: "border-color .14s, color .14s",
+                }}
+                onMouseEnter={(e) => {
+                  (e.currentTarget as HTMLElement).style.borderColor =
+                    "var(--brand)";
+                  (e.currentTarget as HTMLElement).style.color = "var(--brand)";
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLElement).style.borderColor =
+                    "var(--border-mid)";
+                  (e.currentTarget as HTMLElement).style.color =
+                    "var(--text-secondary)";
+                }}
+              >
+                <Download size={13} /> Export PDF
+              </button>
+              {type === "history" && (
+                <Link
+                  href={
+                    atLimit
+                      ? "/pricing"
+                      : `/search?q=${encodeURIComponent(query)}`
+                  }
+                  style={{
+                    padding: "10px 18px",
+                    borderRadius: 10,
+                    background: "var(--brand)",
+                    color: "#000",
+                    fontSize: 13,
+                    fontWeight: 700,
+                    textDecoration: "none",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                  }}
+                >
+                  {atLimit ? (
+                    <>
+                      <Sparkles size={12} /> Upgrade
+                    </>
+                  ) : (
+                    <>
+                      <Search size={12} /> Search Again
+                    </>
+                  )}
+                </Link>
+              )}
+              {type === "review" && (
+                <Link
+                  href="/review"
+                  style={{
+                    padding: "10px 18px",
+                    borderRadius: 10,
+                    background: "var(--brand)",
+                    color: "#000",
+                    fontSize: 13,
+                    fontWeight: 700,
+                    textDecoration: "none",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                  }}
+                >
+                  <BookOpen size={12} /> New Review
+                </Link>
+              )}
+            </div>
+          </>
+        ) : (
+          <div
+            style={{
+              textAlign: "center",
+              padding: "48px 20px",
+              background: "var(--bg-raised)",
+              border: "1px solid var(--border)",
+              borderRadius: 14,
+            }}
+          >
+            <FileText
+              size={28}
+              style={{
+                color: "var(--text-faint)",
+                margin: "0 auto 14px",
+                display: "block",
+                opacity: 0.4,
+              }}
+            />
+            <p
+              style={{
+                fontSize: 14,
+                fontWeight: 600,
+                color: "var(--text-primary)",
+                marginBottom: 6,
+              }}
+            >
+              Content not available
+            </p>
+            <p
+              style={{
+                fontSize: 12.5,
+                color: "var(--text-faint)",
+                marginBottom: 20,
+                lineHeight: 1.6,
+              }}
+            >
+              This was saved before answers were stored.
+              <br />
+              All future searches save automatically.
+            </p>
+            <Link
+              href={
+                type === "history"
+                  ? `/search?q=${encodeURIComponent(query)}`
+                  : "/review"
+              }
+              style={{
+                padding: "9px 20px",
+                borderRadius: 10,
+                background: "var(--brand)",
+                color: "#000",
+                fontSize: 13,
+                fontWeight: 700,
+                textDecoration: "none",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+              }}
+            >
+              {type === "history" ? (
+                <>
+                  <Search size={12} /> Re-run search
+                </>
+              ) : (
+                <>
+                  <BookOpen size={12} /> Generate Again
+                </>
+              )}
+            </Link>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 /* ═══════════════════════════════════════════════════════════════
    MAIN COMPONENT
 ═══════════════════════════════════════════════════════════════ */
@@ -544,8 +933,7 @@ function DashContent() {
   const { data: session, status, update } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { isMobile, isTablet } = useIsMobile();
-  const isSmall = isMobile || isTablet; // < 900px
+  const { isMobile } = useIsMobile();
 
   const [papers, setPapers] = useState<SavedPaper[]>([]);
   const [history, setHistory] = useState<HistoryItem[]>([]);
@@ -568,14 +956,13 @@ function DashContent() {
   useEffect(() => {
     if (searchParams.get("upgraded") === "1") {
       void update();
-      toast.success("🎉 Plan upgraded! Enjoy your new plan.", {
+      toast.success("🎉 Plan upgraded successfully!", {
         id: "upgraded",
         duration: 5000,
       });
       router.replace("/dashboard", { scroll: false });
     }
     if (searchParams.get("tab") === "history") setActiveTab("history");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -584,23 +971,13 @@ function DashContent() {
       fetch("/api/papers").then((r) => r.json()),
       fetch("/api/user/history").then((r) => r.json()),
     ])
-      .then(
-        ([pd, hd]: [
-          { papers: SavedPaper[] },
-          {
-            history: HistoryItem[];
-            reviewHistory?: ReviewItem[];
-            searchesToday: number;
-            searchesThisMonth: number;
-          },
-        ]) => {
-          setPapers(pd.papers ?? []);
-          setHistory(hd.history ?? []);
-          setReviewHistory(hd.reviewHistory ?? []);
-          setSearchesToday(hd.searchesToday ?? 0);
-          setSearchesThisMonth(hd.searchesThisMonth ?? 0);
-        },
-      )
+      .then(([pd, hd]: any) => {
+        setPapers(pd.papers ?? []);
+        setHistory(hd.history ?? []);
+        setReviewHistory(hd.reviewHistory ?? []);
+        setSearchesToday(hd.searchesToday ?? 0);
+        setSearchesThisMonth(hd.searchesThisMonth ?? 0);
+      })
       .catch(() => toast.error("Failed to load data"))
       .finally(() => setLoading(false));
   }, [status]);
@@ -613,9 +990,9 @@ function DashContent() {
         body: JSON.stringify({ id }),
       });
       setPapers((p) => p.filter((x) => x.paperId !== id));
-      toast.success("Removed");
+      toast.success("Removed from library");
     } catch {
-      toast.error("Failed");
+      toast.error("Failed to remove");
     }
   };
 
@@ -624,11 +1001,7 @@ function DashContent() {
     setShowConfirm(false);
     try {
       const r = await fetch("/api/razorpay/cancel", { method: "POST" });
-      const d = (await r.json()) as {
-        success?: boolean;
-        message?: string;
-        error?: string;
-      };
+      const d = (await r.json()) as any;
       if (d.success) {
         await update();
         toast.success(d.message ?? "Subscription cancelled.");
@@ -655,10 +1028,10 @@ function DashContent() {
     );
 
   const plan = session?.user?.plan ?? "free";
-  const isFree = plan === "free";
-  const isStudent = plan === "student";
-  const isPro = plan === "pro";
-  const isPaid = !isFree;
+  const isFree = plan === "free",
+    isStudent = plan === "student",
+    isPro = plan === "pro",
+    isPaid = !isFree;
   const atLimit = isFree
     ? searchesToday >= 5
     : isStudent
@@ -675,750 +1048,104 @@ function DashContent() {
   const planMeta = {
     free: {
       icon: Zap,
-      color: "#888",
-      bg: "rgba(136,136,136,.1)",
-      border: "rgba(136,136,136,.2)",
+      color: "#6b7280",
       label: "Free",
       gradient: "linear-gradient(135deg,#555,#333)",
     },
     student: {
       icon: Sparkles,
       color: "#e8a045",
-      bg: "rgba(232,160,69,.1)",
-      border: "rgba(232,160,69,.25)",
       label: "Student",
       gradient: "linear-gradient(135deg,#e8a045,#f5c878)",
     },
     pro: {
       icon: Crown,
       color: "#5c9ae0",
-      bg: "rgba(92,154,224,.1)",
-      border: "rgba(92,154,224,.25)",
       label: "Pro",
       gradient: "linear-gradient(135deg,#5c9ae0,#91c8f8)",
     },
   }[plan] ?? {
     icon: Zap,
-    color: "#888",
-    bg: "rgba(136,136,136,.1)",
-    border: "rgba(136,136,136,.2)",
+    color: "#6b7280",
     label: "Free",
     gradient: "linear-gradient(135deg,#555,#333)",
   };
   const PlanIcon = planMeta.icon;
 
-  /* shared padding / max-width */
-  const px = isMobile ? 16 : 24;
-  const pb = isMobile ? "48px 20px 80px" : "32px 24px 60px";
-
-  /* ── REVIEW DETAIL ─────────────────────────────────────────── */
+  /* ── Detail views ── */
   if (activeTab === "reviews" && selectedReview)
     return (
       <Shell>
-        <div style={{ flex: 1, overflowY: "auto" }}>
-          <div
-            style={{
-              maxWidth: 820,
-              margin: "0 auto",
-              padding: `28px ${px}px 60px`,
-            }}
-          >
-            <button
-              onClick={() => setSelectedReview(null)}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 6,
-                padding: "7px 14px",
-                background: "var(--bg-raised)",
-                border: "1px solid var(--border)",
-                borderRadius: 9,
-                cursor: "pointer",
-                fontSize: 12.5,
-                color: "var(--text-secondary)",
-                marginBottom: 24,
-                fontFamily: "var(--font-ui)",
-              }}
-            >
-              <ChevronLeft size={14} /> Back
-            </button>
-            <div
-              style={{
-                background: "rgba(93,184,122,.07)",
-                borderLeft: "3px solid #5db87a",
-                borderRadius: "0 12px 12px 0",
-                padding: "16px 18px",
-                marginBottom: 20,
-              }}
-            >
-              <p
-                style={{
-                  fontSize: 10,
-                  fontWeight: 700,
-                  letterSpacing: "1.5px",
-                  textTransform: "uppercase",
-                  color: "#5db87a",
-                  marginBottom: 6,
-                }}
-              >
-                Literature Review
-              </p>
-              <p
-                style={{
-                  fontSize: isMobile ? 15 : 17,
-                  fontWeight: 600,
-                  color: "var(--text-primary)",
-                  lineHeight: 1.45,
-                }}
-              >
-                {selectedReview.topic}
-              </p>
-              <p
-                style={{
-                  fontSize: 11,
-                  color: "var(--text-faint)",
-                  marginTop: 8,
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8,
-                }}
-              >
-                <Clock size={10} /> {timeAgo(selectedReview.reviewedAt)}
-                {selectedReview.papers && selectedReview.papers.length > 0 && (
-                  <span style={{ color: "#5db87a" }}>
-                    · {selectedReview.papers.length} sources
-                  </span>
-                )}
-              </p>
-            </div>
-            {selectedReview.review ? (
-              <>
-                <div
-                  style={{
-                    background: "var(--bg-raised)",
-                    border: "1px solid var(--border)",
-                    borderRadius: 14,
-                    padding: isMobile ? "16px 16px" : "22px 24px",
-                    marginBottom: 20,
-                  }}
-                >
-                  <ReactMarkdown
-                    remarkPlugins={[remarkGfm]}
-                    components={mdComponents}
-                  >
-                    {selectedReview.review}
-                  </ReactMarkdown>
-                </div>
-                {selectedReview.papers && selectedReview.papers.length > 0 && (
-                  <div style={{ marginBottom: 24 }}>
-                    <p
-                      style={{
-                        fontSize: 10,
-                        fontWeight: 700,
-                        letterSpacing: "1.5px",
-                        textTransform: "uppercase",
-                        color: "var(--text-faint)",
-                        marginBottom: 12,
-                      }}
-                    >
-                      Sources ({selectedReview.papers.length})
-                    </p>
-                    <div
-                      style={{
-                        display: "flex",
-                        flexDirection: "column",
-                        gap: 7,
-                      }}
-                    >
-                      {selectedReview.papers.map((p, i) => (
-                        <div
-                          key={i}
-                          style={{
-                            padding: "12px 14px",
-                            background: "var(--bg-raised)",
-                            border: "1px solid var(--border)",
-                            borderRadius: 10,
-                            display: "flex",
-                            gap: 10,
-                          }}
-                        >
-                          <span
-                            style={{
-                              width: 22,
-                              height: 22,
-                              borderRadius: 6,
-                              background: "#5db87a",
-                              color: "#000",
-                              fontSize: 9.5,
-                              fontWeight: 700,
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              flexShrink: 0,
-                            }}
-                          >
-                            {i + 1}
-                          </span>
-                          <div style={{ minWidth: 0, flex: 1 }}>
-                            <p
-                              style={{
-                                fontSize: 12,
-                                fontWeight: 600,
-                                color: "var(--text-primary)",
-                                marginBottom: 2,
-                              }}
-                            >
-                              {p.title}
-                            </p>
-                            <p
-                              style={{
-                                fontSize: 10.5,
-                                color: "var(--text-faint)",
-                              }}
-                            >
-                              {p.authors?.slice(0, 3).join(", ")}
-                              {(p.authors?.length ?? 0) > 3 ? " et al." : ""}
-                              {p.year ? ` · ${p.year}` : ""}
-                            </p>
-                            {p.url && (
-                              <a
-                                href={p.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                style={{
-                                  fontSize: 10.5,
-                                  color: "var(--brand)",
-                                  textDecoration: "none",
-                                }}
-                              >
-                                View →
-                              </a>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                  <button
-                    onClick={() =>
-                      downloadResearchPDF(
-                        selectedReview.topic,
-                        selectedReview.review ?? "",
-                        (selectedReview.papers ??
-                          []) as import("@/types").Paper[],
-                        session?.user?.name ?? undefined,
-                      )
-                    }
-                    style={{
-                      padding: "10px 16px",
-                      borderRadius: 10,
-                      border: "1px solid var(--brand)",
-                      color: "var(--brand)",
-                      background: "transparent",
-                      fontSize: 13,
-                      fontWeight: 600,
-                      cursor: "pointer",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 6,
-                      fontFamily: "var(--font-ui)",
-                    }}
-                  >
-                    <Download size={13} /> PDF
-                  </button>
-                  <Link
-                    href="/review"
-                    style={{
-                      padding: "10px 16px",
-                      borderRadius: 10,
-                      background: "var(--brand)",
-                      color: "#000",
-                      fontSize: 13,
-                      fontWeight: 700,
-                      textDecoration: "none",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 6,
-                    }}
-                  >
-                    <BookOpen size={12} /> New Review
-                  </Link>
-                  <button
-                    onClick={() => setSelectedReview(null)}
-                    style={{
-                      padding: "10px 16px",
-                      borderRadius: 10,
-                      border: "1px solid var(--border)",
-                      color: "var(--text-secondary)",
-                      background: "transparent",
-                      fontSize: 13,
-                      cursor: "pointer",
-                      fontFamily: "var(--font-ui)",
-                    }}
-                  >
-                    ← Back
-                  </button>
-                </div>
-              </>
-            ) : (
-              <div
-                style={{
-                  textAlign: "center",
-                  padding: "44px 20px",
-                  background: "var(--bg-raised)",
-                  border: "1px solid var(--border)",
-                  borderRadius: 14,
-                }}
-              >
-                <FileText
-                  size={26}
-                  style={{
-                    color: "var(--text-faint)",
-                    opacity: 0.4,
-                    margin: "0 auto 12px",
-                    display: "block",
-                  }}
-                />
-                <p
-                  style={{
-                    fontSize: 14,
-                    fontWeight: 600,
-                    color: "var(--text-primary)",
-                    marginBottom: 6,
-                  }}
-                >
-                  Review not available
-                </p>
-                <Link
-                  href="/review"
-                  style={{
-                    padding: "9px 20px",
-                    borderRadius: 10,
-                    background: "var(--brand)",
-                    color: "#000",
-                    fontSize: 13,
-                    fontWeight: 700,
-                    textDecoration: "none",
-                    display: "inline-flex",
-                  }}
-                >
-                  Generate Again
-                </Link>
-              </div>
-            )}
-          </div>
-        </div>
+        <DetailView
+          type="review"
+          title={selectedReview.topic}
+          content={selectedReview.review}
+          papers={selectedReview.papers}
+          timestamp={selectedReview.reviewedAt}
+          onBack={() => setSelectedReview(null)}
+          onDownload={() =>
+            downloadResearchPDF(
+              selectedReview.topic,
+              selectedReview.review ?? "",
+              (selectedReview.papers ?? []) as any,
+              session?.user?.name ?? undefined,
+            )
+          }
+          session={session}
+        />
       </Shell>
     );
 
-  /* ── HISTORY DETAIL ────────────────────────────────────────── */
   if (activeTab === "history" && selectedItem)
     return (
       <Shell>
-        <div style={{ flex: 1, overflowY: "auto" }}>
-          <div
-            style={{
-              maxWidth: 820,
-              margin: "0 auto",
-              padding: `28px ${px}px 60px`,
-            }}
-          >
-            <button
-              onClick={() => setSelectedItem(null)}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 6,
-                padding: "7px 14px",
-                background: "var(--bg-raised)",
-                border: "1px solid var(--border)",
-                borderRadius: 9,
-                cursor: "pointer",
-                fontSize: 12.5,
-                color: "var(--text-secondary)",
-                marginBottom: 24,
-                fontFamily: "var(--font-ui)",
-              }}
-            >
-              <ChevronLeft size={14} /> Back
-            </button>
-            <div
-              style={{
-                background: "var(--brand-dim)",
-                borderLeft: "3px solid var(--brand)",
-                borderRadius: "0 12px 12px 0",
-                padding: "16px 18px",
-                marginBottom: 20,
-              }}
-            >
-              <p
-                style={{
-                  fontSize: 10,
-                  fontWeight: 700,
-                  letterSpacing: "1.5px",
-                  textTransform: "uppercase",
-                  color: "var(--brand)",
-                  marginBottom: 6,
-                }}
-              >
-                Research Query
-              </p>
-              <p
-                style={{
-                  fontSize: isMobile ? 15 : 17,
-                  fontWeight: 600,
-                  color: "var(--text-primary)",
-                  lineHeight: 1.45,
-                }}
-              >
-                {selectedItem.query}
-              </p>
-              <p
-                style={{
-                  fontSize: 11,
-                  color: "var(--text-faint)",
-                  marginTop: 8,
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8,
-                }}
-              >
-                <Clock size={10} /> {timeAgo(selectedItem.searchedAt)}
-                {selectedItem.papers && selectedItem.papers.length > 0 && (
-                  <span style={{ color: "var(--brand)" }}>
-                    · {selectedItem.papers.length} sources
-                  </span>
-                )}
-              </p>
-            </div>
-            {selectedItem.answer ? (
-              <>
-                <p
-                  style={{
-                    fontSize: 10,
-                    fontWeight: 700,
-                    letterSpacing: "1.5px",
-                    textTransform: "uppercase",
-                    color: "var(--text-faint)",
-                    marginBottom: 14,
-                  }}
-                >
-                  AI Research Summary
-                </p>
-                <div
-                  style={{
-                    background: "var(--bg-raised)",
-                    border: "1px solid var(--border)",
-                    borderRadius: 14,
-                    padding: isMobile ? "16px" : "22px 24px",
-                    marginBottom: 20,
-                  }}
-                >
-                  <ReactMarkdown
-                    remarkPlugins={[remarkGfm]}
-                    components={mdComponents}
-                  >
-                    {selectedItem.answer}
-                  </ReactMarkdown>
-                </div>
-                {selectedItem.papers && selectedItem.papers.length > 0 && (
-                  <>
-                    <p
-                      style={{
-                        fontSize: 10,
-                        fontWeight: 700,
-                        letterSpacing: "1.5px",
-                        textTransform: "uppercase",
-                        color: "var(--text-faint)",
-                        marginBottom: 12,
-                      }}
-                    >
-                      Sources ({selectedItem.papers.length})
-                    </p>
-                    <div
-                      style={{
-                        display: "flex",
-                        flexDirection: "column",
-                        gap: 8,
-                        marginBottom: 24,
-                      }}
-                    >
-                      {selectedItem.papers.map((p, i) => (
-                        <div
-                          key={i}
-                          style={{
-                            padding: "12px 14px",
-                            background: "var(--bg-raised)",
-                            border: "1px solid var(--border)",
-                            borderRadius: 10,
-                            display: "flex",
-                            gap: 10,
-                          }}
-                        >
-                          <span
-                            style={{
-                              width: 22,
-                              height: 22,
-                              borderRadius: 6,
-                              background: "var(--brand)",
-                              color: "#000",
-                              fontSize: 9.5,
-                              fontWeight: 700,
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              flexShrink: 0,
-                              marginTop: 1,
-                            }}
-                          >
-                            {i + 1}
-                          </span>
-                          <div style={{ minWidth: 0, flex: 1 }}>
-                            <p
-                              style={{
-                                fontSize: 12,
-                                fontWeight: 600,
-                                color: "var(--text-primary)",
-                                marginBottom: 3,
-                              }}
-                            >
-                              {p.title}
-                            </p>
-                            <p
-                              style={{
-                                fontSize: 10.5,
-                                color: "var(--text-faint)",
-                              }}
-                            >
-                              {p.authors?.slice(0, 3).join(", ")}
-                              {(p.authors?.length ?? 0) > 3 ? " et al." : ""}
-                              {p.year ? ` · ${p.year}` : ""}
-                              {p.journal ? ` · ${p.journal}` : ""}
-                            </p>
-                            {p.abstract && (
-                              <p
-                                style={{
-                                  fontSize: 11,
-                                  color: "var(--text-secondary)",
-                                  marginTop: 4,
-                                  lineHeight: 1.5,
-                                  display: "-webkit-box",
-                                  WebkitLineClamp: 2,
-                                  WebkitBoxOrient: "vertical",
-                                  overflow: "hidden",
-                                }}
-                              >
-                                {p.abstract}
-                              </p>
-                            )}
-                            {p.url && (
-                              <a
-                                href={p.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                style={{
-                                  fontSize: 10.5,
-                                  color: "var(--brand)",
-                                  textDecoration: "none",
-                                  display: "inline-flex",
-                                  alignItems: "center",
-                                  gap: 3,
-                                  marginTop: 4,
-                                }}
-                              >
-                                View <ExternalLink size={8} />
-                              </a>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </>
-                )}
-                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                  <button
-                    onClick={() =>
-                      downloadResearchPDF(
-                        selectedItem.query,
-                        selectedItem.answer ?? "",
-                        (selectedItem.papers ??
-                          []) as import("@/types").Paper[],
-                        session?.user?.name ?? undefined,
-                      )
-                    }
-                    style={{
-                      padding: "10px 16px",
-                      borderRadius: 10,
-                      border: "1px solid var(--brand)",
-                      color: "var(--brand)",
-                      background: "transparent",
-                      fontSize: 13,
-                      fontWeight: 600,
-                      cursor: "pointer",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 6,
-                      fontFamily: "var(--font-ui)",
-                    }}
-                  >
-                    <Download size={13} /> PDF
-                  </button>
-                  {!atLimit ? (
-                    <Link
-                      href={`/search?q=${encodeURIComponent(selectedItem.query)}`}
-                      style={{
-                        padding: "10px 16px",
-                        borderRadius: 10,
-                        background: "var(--brand)",
-                        color: "#000",
-                        fontSize: 13,
-                        fontWeight: 700,
-                        textDecoration: "none",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 6,
-                      }}
-                    >
-                      <Search size={12} /> Search Again
-                    </Link>
-                  ) : (
-                    <Link
-                      href="/pricing"
-                      style={{
-                        padding: "10px 16px",
-                        borderRadius: 10,
-                        background: "var(--brand)",
-                        color: "#000",
-                        fontSize: 13,
-                        fontWeight: 700,
-                        textDecoration: "none",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 6,
-                      }}
-                    >
-                      <Sparkles size={12} /> Upgrade
-                    </Link>
-                  )}
-                  <button
-                    onClick={() => setSelectedItem(null)}
-                    style={{
-                      padding: "10px 16px",
-                      borderRadius: 10,
-                      border: "1px solid var(--border)",
-                      color: "var(--text-secondary)",
-                      background: "transparent",
-                      fontSize: 13,
-                      cursor: "pointer",
-                      fontFamily: "var(--font-ui)",
-                    }}
-                  >
-                    ← Back
-                  </button>
-                </div>
-              </>
-            ) : (
-              <div
-                style={{
-                  textAlign: "center",
-                  padding: "44px 20px",
-                  background: "var(--bg-raised)",
-                  border: "1px solid var(--border)",
-                  borderRadius: 14,
-                }}
-              >
-                <FileText
-                  size={26}
-                  style={{
-                    color: "var(--text-faint)",
-                    opacity: 0.4,
-                    margin: "0 auto 12px",
-                    display: "block",
-                  }}
-                />
-                <p
-                  style={{
-                    fontSize: 14,
-                    fontWeight: 600,
-                    color: "var(--text-primary)",
-                    marginBottom: 6,
-                  }}
-                >
-                  Answer not saved
-                </p>
-                <p
-                  style={{
-                    fontSize: 12,
-                    color: "var(--text-secondary)",
-                    marginBottom: 18,
-                    lineHeight: 1.6,
-                  }}
-                >
-                  This search was made before answers were saved.
-                  <br />
-                  All future searches save automatically.
-                </p>
-                {!atLimit ? (
-                  <Link
-                    href={`/search?q=${encodeURIComponent(selectedItem.query)}`}
-                    style={{
-                      padding: "9px 20px",
-                      borderRadius: 10,
-                      background: "var(--brand)",
-                      color: "#000",
-                      fontSize: 13,
-                      fontWeight: 700,
-                      textDecoration: "none",
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: 6,
-                    }}
-                  >
-                    <Search size={12} /> Re-run search
-                  </Link>
-                ) : (
-                  <Link
-                    href="/pricing"
-                    style={{
-                      padding: "9px 20px",
-                      borderRadius: 10,
-                      background: "var(--brand)",
-                      color: "#000",
-                      fontSize: 13,
-                      fontWeight: 700,
-                      textDecoration: "none",
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: 6,
-                    }}
-                  >
-                    <Sparkles size={12} /> Upgrade
-                  </Link>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
+        <DetailView
+          type="history"
+          title={selectedItem.query}
+          content={selectedItem.answer}
+          papers={selectedItem.papers}
+          timestamp={selectedItem.searchedAt}
+          query={selectedItem.query}
+          atLimit={atLimit}
+          onBack={() => setSelectedItem(null)}
+          onDownload={() =>
+            downloadResearchPDF(
+              selectedItem.query,
+              selectedItem.answer ?? "",
+              (selectedItem.papers ?? []) as any,
+              session?.user?.name ?? undefined,
+            )
+          }
+          session={session}
+        />
       </Shell>
     );
 
-  /* ═══════════════════════════════════════════════════════════
-     MAIN DASHBOARD
-  ═══════════════════════════════════════════════════════════ */
+  const firstName = session?.user?.name?.split(" ")[0] ?? "Researcher";
+  const dateStr = new Date().toLocaleDateString("en-IN", {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+  });
+
   return (
     <Shell>
       <div style={{ flex: 1, overflowY: "auto" }}>
-        <div style={{ maxWidth: 900, margin: "0 auto", padding: pb }}>
-          {/* ── Top bar ── */}
+        <div
+          style={{
+            maxWidth: 920,
+            margin: "0 auto",
+            padding: isMobile ? "20px 16px 72px" : "28px 28px 60px",
+          }}
+        >
+          {/* ── Header ───────────────────────────────────────── */}
           <div
             style={{
               display: "flex",
               alignItems: isMobile ? "flex-start" : "center",
               justifyContent: "space-between",
-              gap: 12,
-              marginBottom: 24,
+              gap: 16,
+              marginBottom: 28,
               flexDirection: isMobile ? "column" : "row",
             }}
           >
@@ -1426,35 +1153,25 @@ function DashContent() {
               {!isMobile && (
                 <p
                   style={{
-                    fontSize: 11.5,
+                    fontSize: 12,
                     color: "var(--text-faint)",
-                    marginBottom: 3,
+                    marginBottom: 4,
                     fontWeight: 500,
                   }}
                 >
-                  {new Date().toLocaleDateString("en-IN", {
-                    weekday: "long",
-                    month: "long",
-                    day: "numeric",
-                  })}
+                  {dateStr}
                 </p>
               )}
               <h1
                 style={{
-                  fontFamily: "var(--font-display)",
-                  fontSize: isMobile ? 18 : 21,
+                  fontSize: isMobile ? 20 : 24,
                   fontWeight: 700,
                   color: "var(--text-primary)",
-                  letterSpacing: "-.4px",
+                  letterSpacing: "-.035em",
+                  lineHeight: 1.2,
                 }}
               >
-                Good{" "}
-                {new Date().getHours() < 12
-                  ? "morning"
-                  : new Date().getHours() < 17
-                    ? "afternoon"
-                    : "evening"}
-                , {session?.user?.name?.split(" ")[0]} 👋
+                {getGreeting()}, {firstName} 👋
               </h1>
             </div>
             <Link
@@ -1462,350 +1179,417 @@ function DashContent() {
               style={{
                 display: "inline-flex",
                 alignItems: "center",
-                gap: 7,
-                padding: "9px 18px",
-                borderRadius: 10,
+                gap: 8,
+                padding: "10px 20px",
+                borderRadius: 11,
                 background: "var(--brand)",
                 color: "#000",
-                fontSize: 13,
+                fontSize: 13.5,
                 fontWeight: 700,
                 textDecoration: "none",
                 flexShrink: 0,
-                alignSelf: isMobile ? "flex-start" : "auto",
+                boxShadow: "0 4px 20px rgba(232,160,69,.25)",
+                transition: "transform .15s, box-shadow .15s",
+              }}
+              onMouseEnter={(e) => {
+                (e.currentTarget as HTMLElement).style.transform =
+                  "translateY(-1px)";
+                (e.currentTarget as HTMLElement).style.boxShadow =
+                  "0 8px 28px rgba(232,160,69,.35)";
+              }}
+              onMouseLeave={(e) => {
+                (e.currentTarget as HTMLElement).style.transform = "";
+                (e.currentTarget as HTMLElement).style.boxShadow =
+                  "0 4px 20px rgba(232,160,69,.25)";
               }}
             >
-              <Search size={13} /> New Search
+              <Search size={14} /> New Search
             </Link>
           </div>
 
-          {/* ── Profile card (always single col, stacked on mobile) ── */}
+          {/* ── Profile + Plan row ───────────────────────────── */}
           <div
             style={{
-              padding: "18px 18px",
-              borderRadius: 16,
-              background: "var(--bg-raised)",
-              border: "1px solid var(--border)",
-              display: "flex",
-              alignItems: "center",
-              gap: 14,
-              marginBottom: 12,
-              position: "relative",
-              overflow: "hidden",
+              display: "grid",
+              gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr",
+              gap: 12,
+              marginBottom: 20,
             }}
           >
+            {/* Profile card */}
             <div
               style={{
-                position: "absolute",
-                top: 0,
-                right: 0,
-                width: 120,
-                height: 120,
-                background: `radial-gradient(circle, ${planMeta.color}12 0%, transparent 70%)`,
-                pointerEvents: "none",
+                padding: "18px 20px",
+                borderRadius: 16,
+                background: "var(--bg-raised)",
+                border: "1px solid var(--border)",
+                display: "flex",
+                alignItems: "center",
+                gap: 14,
+                position: "relative",
+                overflow: "hidden",
               }}
-            />
-            {/* Avatar */}
-            <div style={{ position: "relative", flexShrink: 0 }}>
-              {session?.user?.image ? (
-                <Image
-                  src={session.user.image}
-                  alt="avatar"
-                  width={52}
-                  height={52}
-                  style={{
-                    borderRadius: "50%",
-                    border: `2.5px solid ${planMeta.color}45`,
-                  }}
-                />
-              ) : (
-                <div
-                  style={{
-                    width: 52,
-                    height: 52,
-                    borderRadius: "50%",
-                    background: planMeta.gradient,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    fontSize: 20,
-                    fontWeight: 800,
-                    color: "#000",
-                    border: `2.5px solid ${planMeta.color}40`,
-                  }}
-                >
-                  {(session?.user?.name?.[0] ?? "U").toUpperCase()}
-                </div>
-              )}
+            >
               <div
                 style={{
                   position: "absolute",
-                  bottom: -3,
-                  right: -3,
-                  width: 18,
-                  height: 18,
+                  top: -24,
+                  right: -24,
+                  width: 90,
+                  height: 90,
                   borderRadius: "50%",
-                  background: planMeta.gradient,
-                  border: "2.5px solid var(--bg)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
+                  background: `${planMeta.color}10`,
+                  filter: "blur(20px)",
+                  pointerEvents: "none",
                 }}
-              >
-                <PlanIcon size={8} color="#000" />
-              </div>
-            </div>
-            {/* Name + plan */}
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <p
-                style={{
-                  fontSize: 14,
-                  fontWeight: 700,
-                  color: "var(--text-primary)",
-                  marginBottom: 1,
-                }}
-              >
-                {session?.user?.name ?? "Researcher"}
-              </p>
-              <p
-                style={{
-                  fontSize: 11,
-                  color: "var(--text-faint)",
-                  marginBottom: 8,
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {session?.user?.email}
-              </p>
-              <span
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 5,
-                  padding: "3px 10px",
-                  borderRadius: 99,
-                  fontSize: 10.5,
-                  fontWeight: 700,
-                  background: planMeta.bg,
-                  color: planMeta.color,
-                  border: `1px solid ${planMeta.border}`,
-                }}
-              >
-                <PlanIcon size={8} /> {planMeta.label} Plan
-              </span>
-            </div>
-            {/* Plan controls */}
-            {isPaid && !isMobile && (
-              <div
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 5,
-                  alignItems: "flex-end",
-                  flexShrink: 0,
-                }}
-              >
-                <Link
-                  href="/pricing"
-                  style={{
-                    fontSize: 11,
-                    color: "var(--text-faint)",
-                    textDecoration: "none",
-                    padding: "3px 9px",
-                    borderRadius: 6,
-                    border: "1px solid var(--border)",
-                  }}
-                >
-                  Change
-                </Link>
-                <button
-                  onClick={() => setShowConfirm(true)}
-                  disabled={cancelling}
-                  style={{
-                    fontSize: 11,
-                    color: "var(--red)",
-                    background: "transparent",
-                    border: "1px solid rgba(224,92,92,.3)",
-                    borderRadius: 6,
-                    padding: "3px 9px",
-                    cursor: "pointer",
-                    fontFamily: "var(--font-ui)",
-                  }}
-                >
-                  {cancelling ? "..." : "Cancel"}
-                </button>
-              </div>
-            )}
-          </div>
-
-          {/* ── Plan status banner ── */}
-          <div
-            style={{
-              padding: "14px 16px",
-              borderRadius: 14,
-              marginBottom: 12,
-              background: atLimit
-                ? "rgba(224,92,92,.04)"
-                : isPaid
-                  ? "rgba(93,184,122,.04)"
-                  : "var(--brand-dim)",
-              border: `1px solid ${atLimit ? "rgba(224,92,92,.18)" : isPaid ? "rgba(93,184,122,.18)" : "var(--brand-border)"}`,
-            }}
-          >
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                flexWrap: "wrap",
-                gap: 10,
-                marginBottom: !isPro ? 12 : 0,
-              }}
-            >
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                {atLimit && <Lock size={14} style={{ color: "var(--red)" }} />}
-                {!atLimit && isPaid && (
-                  <CheckCircle size={14} style={{ color: "var(--green)" }} />
-                )}
-                {!atLimit && isFree && (
-                  <Activity size={14} style={{ color: "var(--brand)" }} />
-                )}
-                <div>
-                  <p
+              />
+              {/* Avatar */}
+              <div style={{ position: "relative", flexShrink: 0 }}>
+                {session?.user?.image ? (
+                  <Image
+                    src={session.user.image}
+                    alt="av"
+                    width={48}
+                    height={48}
                     style={{
-                      fontSize: 13,
-                      fontWeight: 700,
-                      color: atLimit
-                        ? "var(--red)"
-                        : isPaid
-                          ? "var(--green)"
-                          : "var(--brand)",
+                      borderRadius: "50%",
+                      border: `2.5px solid ${planMeta.color}35`,
+                    }}
+                  />
+                ) : (
+                  <div
+                    style={{
+                      width: 48,
+                      height: 48,
+                      borderRadius: "50%",
+                      background: planMeta.gradient,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: 18,
+                      fontWeight: 800,
+                      color: "#000",
+                      border: `2.5px solid ${planMeta.color}35`,
                     }}
                   >
-                    {atLimit
-                      ? "Limit reached"
-                      : isPaid
-                        ? "Plan active"
-                        : "Free plan"}
-                  </p>
-                  <p style={{ fontSize: 11.5, color: "var(--text-secondary)" }}>
-                    {atLimit
-                      ? isFree
-                        ? "Resets at midnight"
-                        : "Resets next month"
-                      : isPro
-                        ? "Unlimited searches & PDF uploads"
-                        : isStudent
-                          ? `${searchesThisMonth} / 500 searches this month`
-                          : `${searchesToday} / 5 searches today`}
-                  </p>
+                    {(session?.user?.name?.[0] ?? "U").toUpperCase()}
+                  </div>
+                )}
+                <div
+                  style={{
+                    position: "absolute",
+                    bottom: -2,
+                    right: -2,
+                    width: 18,
+                    height: 18,
+                    borderRadius: "50%",
+                    background: planMeta.gradient,
+                    border: "2.5px solid var(--bg-raised)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <PlanIcon size={8} color="#000" />
                 </div>
               </div>
-              {!isPro && (
-                <Link
-                  href="/pricing"
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p
                   style={{
-                    padding: "7px 14px",
-                    borderRadius: 8,
-                    background: atLimit ? "var(--red)" : "var(--brand)",
-                    color: "#000",
-                    fontSize: 12,
+                    fontSize: 14,
                     fontWeight: 700,
-                    textDecoration: "none",
+                    color: "var(--text-primary)",
+                    marginBottom: 2,
+                  }}
+                >
+                  {session?.user?.name ?? "Researcher"}
+                </p>
+                <p
+                  style={{
+                    fontSize: 11.5,
+                    color: "var(--text-faint)",
+                    marginBottom: 9,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {session?.user?.email}
+                </p>
+                <span
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 5,
+                    padding: "3px 10px",
+                    borderRadius: 99,
+                    fontSize: 10.5,
+                    fontWeight: 700,
+                    background: `${planMeta.color}15`,
+                    color: planMeta.color,
+                    border: `1px solid ${planMeta.color}30`,
+                  }}
+                >
+                  <PlanIcon size={8} /> {planMeta.label} Plan
+                </span>
+              </div>
+              {isPaid && !isMobile && (
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 5,
                     flexShrink: 0,
                   }}
                 >
-                  {atLimit
-                    ? "Upgrade now"
-                    : isFree
-                      ? "Upgrade ✨"
-                      : "Change plan"}
-                </Link>
+                  <Link
+                    href="/pricing"
+                    style={{
+                      fontSize: 11.5,
+                      color: "var(--text-faint)",
+                      padding: "4px 10px",
+                      borderRadius: 7,
+                      border: "1px solid var(--border)",
+                      textDecoration: "none",
+                      textAlign: "center",
+                      transition: "color .14s, border-color .14s",
+                    }}
+                    onMouseEnter={(e) => {
+                      (e.currentTarget as HTMLElement).style.color =
+                        "var(--text-primary)";
+                      (e.currentTarget as HTMLElement).style.borderColor =
+                        "var(--border-mid)";
+                    }}
+                    onMouseLeave={(e) => {
+                      (e.currentTarget as HTMLElement).style.color =
+                        "var(--text-faint)";
+                      (e.currentTarget as HTMLElement).style.borderColor =
+                        "var(--border)";
+                    }}
+                  >
+                    Change
+                  </Link>
+                  <button
+                    onClick={() => setShowConfirm(true)}
+                    disabled={cancelling}
+                    style={{
+                      fontSize: 11.5,
+                      color: "var(--red)",
+                      background: "transparent",
+                      border: "1px solid rgba(224,92,92,.25)",
+                      borderRadius: 7,
+                      padding: "4px 10px",
+                      cursor: "pointer",
+                      fontFamily: "var(--font-ui)",
+                    }}
+                  >
+                    {cancelling ? "…" : "Cancel"}
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Plan status card */}
+            <div
+              style={{
+                padding: "18px 20px",
+                borderRadius: 16,
+                border: "1px solid var(--border)",
+                background: atLimit
+                  ? "rgba(224,92,92,.04)"
+                  : isPaid
+                    ? "rgba(93,184,122,.04)"
+                    : "var(--brand-dim)",
+                borderColor: atLimit
+                  ? "rgba(224,92,92,.2)"
+                  : isPaid
+                    ? "rgba(93,184,122,.2)"
+                    : "var(--brand-border)",
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "flex-start",
+                  justifyContent: "space-between",
+                  marginBottom: isPro ? 0 : 16,
+                  gap: 10,
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <div
+                    style={{
+                      width: 36,
+                      height: 36,
+                      borderRadius: 10,
+                      background: atLimit
+                        ? "rgba(224,92,92,.12)"
+                        : isPaid
+                          ? "rgba(93,184,122,.12)"
+                          : "var(--brand-dim)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      flexShrink: 0,
+                    }}
+                  >
+                    {atLimit ? (
+                      <Lock size={15} style={{ color: "var(--red)" }} />
+                    ) : isPaid ? (
+                      <CheckCircle
+                        size={15}
+                        style={{ color: "var(--green)" }}
+                      />
+                    ) : (
+                      <Activity size={15} style={{ color: "var(--brand)" }} />
+                    )}
+                  </div>
+                  <div>
+                    <p
+                      style={{
+                        fontSize: 13.5,
+                        fontWeight: 700,
+                        color: atLimit
+                          ? "var(--red)"
+                          : isPaid
+                            ? "var(--green)"
+                            : "var(--brand)",
+                        marginBottom: 3,
+                      }}
+                    >
+                      {atLimit
+                        ? "Limit reached"
+                        : isPaid
+                          ? "Plan active"
+                          : "Free plan"}
+                    </p>
+                    <p
+                      style={{
+                        fontSize: 12,
+                        color: "var(--text-faint)",
+                        lineHeight: 1.4,
+                      }}
+                    >
+                      {atLimit
+                        ? isFree
+                          ? "Resets at midnight"
+                          : "Resets next month"
+                        : isPro
+                          ? "Unlimited searches & uploads"
+                          : isStudent
+                            ? `${searchesThisMonth} / 500 this month`
+                            : `${searchesToday} / 5 today`}
+                    </p>
+                  </div>
+                </div>
+                {!isPro && (
+                  <Link
+                    href="/pricing"
+                    style={{
+                      padding: "7px 14px",
+                      borderRadius: 8,
+                      background: atLimit ? "var(--red)" : "var(--brand)",
+                      color: "#000",
+                      fontSize: 12,
+                      fontWeight: 700,
+                      textDecoration: "none",
+                      flexShrink: 0,
+                    }}
+                  >
+                    {atLimit ? "Upgrade" : isFree ? "Upgrade ✨" : "Change"}
+                  </Link>
+                )}
+              </div>
+              {!isPro && (
+                <>
+                  <div
+                    style={{
+                      height: 5,
+                      background: "var(--surface-2)",
+                      borderRadius: 99,
+                      overflow: "hidden",
+                      marginBottom: 8,
+                    }}
+                  >
+                    <div
+                      style={{
+                        height: "100%",
+                        width: `${pct}%`,
+                        background: atLimit
+                          ? "var(--red)"
+                          : pct >= 80
+                            ? "var(--brand)"
+                            : "var(--green)",
+                        borderRadius: 99,
+                        transition: "width .6s ease",
+                      }}
+                    />
+                  </div>
+                  <p style={{ fontSize: 11.5, color: "var(--text-faint)" }}>
+                    {atLimit ? "0" : counterMax - counterUsed}{" "}
+                    {isPro ? "" : "searches"} remaining
+                  </p>
+                </>
               )}
               {isPaid && isMobile && (
                 <button
                   onClick={() => setShowConfirm(true)}
                   disabled={cancelling}
                   style={{
-                    fontSize: 11,
+                    marginTop: 12,
+                    fontSize: 12,
                     color: "var(--text-faint)",
                     background: "transparent",
                     border: "1px solid var(--border)",
-                    borderRadius: 6,
-                    padding: "5px 10px",
+                    borderRadius: 7,
+                    padding: "6px 12px",
                     cursor: "pointer",
                     fontFamily: "var(--font-ui)",
                   }}
                 >
-                  {cancelling ? "..." : "Cancel plan"}
+                  {cancelling ? "…" : "Cancel plan"}
                 </button>
               )}
             </div>
-            {!isPro && (
-              <>
-                <div
-                  style={{
-                    height: 5,
-                    background: "var(--surface-3)",
-                    borderRadius: 99,
-                    overflow: "hidden",
-                    marginBottom: 6,
-                  }}
-                >
-                  <div
-                    style={{
-                      height: "100%",
-                      width: `${pct}%`,
-                      background: atLimit
-                        ? "var(--red)"
-                        : pct >= 80
-                          ? "var(--brand)"
-                          : "var(--green)",
-                      borderRadius: 99,
-                      transition: "width .6s ease",
-                    }}
-                  />
-                </div>
-                <p style={{ fontSize: 11, color: "var(--text-faint)" }}>
-                  {atLimit ? "0" : counterMax - counterUsed} remaining
-                </p>
-              </>
-            )}
           </div>
 
-          {/* ── Stats — 2 cols on mobile, 4 on tablet/desktop ── */}
+          {/* ── Stats ────────────────────────────────────────── */}
           <div
             style={{
               display: "grid",
               gridTemplateColumns: isMobile ? "repeat(2,1fr)" : "repeat(4,1fr)",
-              gap: 10,
-              marginBottom: 20,
+              gap: 12,
+              marginBottom: 24,
             }}
           >
             <StatCard
               value={papers.length}
               label="Saved Papers"
+              icon={BookmarkCheck}
               color="#5c9ae0"
-              icon="📚"
             />
             <StatCard
               value={history.length}
               label="Total Searches"
+              icon={Search}
               color="var(--brand)"
-              icon="🔬"
             />
             <StatCard
               value={reviewHistory.length}
               label="Lit. Reviews"
+              icon={BookOpen}
               color="#5db87a"
-              icon="📄"
             />
             <StatCard
               value={isPro ? "∞" : `${counterUsed}/${counterMax}`}
               label={
-                isFree ? "Daily Searches" : isStudent ? "Monthly" : "Searches"
+                isFree
+                  ? "Daily Searches"
+                  : isStudent
+                    ? "Monthly Searches"
+                    : "Searches"
               }
+              icon={TrendingUp}
               color={
                 atLimit
                   ? "var(--red)"
@@ -1813,21 +1597,20 @@ function DashContent() {
                     ? "#5db87a"
                     : "var(--text-primary)"
               }
-              icon="⚡"
               sub={isPro ? "Unlimited" : undefined}
             />
           </div>
 
-          {/* ── Quick actions — 1 col mobile, 3 col tablet+ ── */}
-          <div style={{ marginBottom: 26 }}>
+          {/* ── Quick Actions ─────────────────────────────────── */}
+          <div style={{ marginBottom: 28 }}>
             <p
               style={{
-                fontSize: 10.5,
+                fontSize: 11,
                 fontWeight: 700,
                 letterSpacing: "1.5px",
                 textTransform: "uppercase",
                 color: "var(--text-faint)",
-                marginBottom: 12,
+                marginBottom: 14,
               }}
             >
               Quick Actions
@@ -1836,7 +1619,7 @@ function DashContent() {
               style={{
                 display: "grid",
                 gridTemplateColumns: isMobile ? "1fr" : "repeat(3,1fr)",
-                gap: 10,
+                gap: 12,
               }}
             >
               <ActionCard
@@ -1845,75 +1628,69 @@ function DashContent() {
                 cta="Start searching"
                 href="/search"
                 color="var(--brand)"
-                bg="rgba(232,160,69,.06)"
                 Icon={Search}
               />
               <ActionCard
                 label="Literature Review"
-                desc="Generate a full structured academic review"
+                desc="Full structured review in under 30 seconds"
                 cta="Generate review"
                 href="/review"
                 color="#5db87a"
-                bg="rgba(93,184,122,.06)"
                 Icon={BookOpen}
               />
               <ActionCard
                 label="PDF Chat"
-                desc="Upload a paper and ask it questions"
+                desc="Upload any paper and ask it questions"
                 cta="Upload a PDF"
                 href="/upload"
                 color="#ad73e0"
-                bg="rgba(173,115,224,.06)"
                 Icon={FileText}
               />
             </div>
           </div>
 
-          {/* ── Tabs — scrollable on mobile ── */}
+          {/* ── Tabs + Content ────────────────────────────────── */}
           <div
             style={{
+              marginBottom: 16,
               display: "flex",
               alignItems: "center",
               justifyContent: "space-between",
               gap: 10,
-              marginBottom: 14,
-              flexWrap: isMobile ? "wrap" : "nowrap",
+              flexWrap: "wrap",
             }}
           >
+            {/* Tab pills */}
             <div
               style={{
                 display: "flex",
                 gap: 2,
                 background: "var(--bg-raised)",
-                padding: "3px",
-                borderRadius: 11,
+                padding: 4,
+                borderRadius: 12,
                 border: "1px solid var(--border)",
-                overflowX: "auto",
-                flexShrink: 0,
               }}
             >
-              {(
-                [
-                  {
-                    id: "library",
-                    label: "Library",
-                    icon: BookmarkCheck,
-                    count: papers.length,
-                  },
-                  {
-                    id: "history",
-                    label: "History",
-                    icon: History,
-                    count: history.length,
-                  },
-                  {
-                    id: "reviews",
-                    label: "Reviews",
-                    icon: BookOpen,
-                    count: reviewHistory.length,
-                  },
-                ] as const
-              ).map(({ id, label, icon: Icon, count }) => (
+              {[
+                {
+                  id: "library" as const,
+                  label: "Library",
+                  icon: BookmarkCheck,
+                  count: papers.length,
+                },
+                {
+                  id: "history" as const,
+                  label: "History",
+                  icon: History,
+                  count: history.length,
+                },
+                {
+                  id: "reviews" as const,
+                  label: "Reviews",
+                  icon: BookOpen,
+                  count: reviewHistory.length,
+                },
+              ].map(({ id, label, icon: Icon, count }) => (
                 <button
                   key={id}
                   onClick={() => {
@@ -1922,30 +1699,29 @@ function DashContent() {
                     setSelectedReview(null);
                   }}
                   style={{
-                    padding: isMobile ? "7px 12px" : "8px 14px",
+                    padding: "8px 14px",
                     borderRadius: 9,
                     border: "none",
                     cursor: "pointer",
-                    fontSize: isMobile ? 12 : 12.5,
+                    fontSize: 13,
                     fontWeight: 600,
                     fontFamily: "var(--font-ui)",
-                    transition: "all .15s",
                     display: "flex",
                     alignItems: "center",
-                    gap: 5,
+                    gap: 6,
                     whiteSpace: "nowrap",
                     background:
                       activeTab === id ? "var(--surface)" : "transparent",
                     color:
                       activeTab === id
                         ? "var(--text-primary)"
-                        : "var(--text-muted)",
+                        : "var(--text-faint)",
                     boxShadow:
-                      activeTab === id ? "0 1px 4px rgba(0,0,0,.25)" : "none",
+                      activeTab === id ? "0 1px 4px rgba(0,0,0,.3)" : "none",
+                    transition: "background .15s, color .15s",
                   }}
                 >
-                  <Icon size={11} />
-                  {label}
+                  <Icon size={12} /> {label}
                   <span
                     style={{
                       padding: "1px 6px",
@@ -1962,50 +1738,42 @@ function DashContent() {
                 </button>
               ))}
             </div>
-            {/* Contextual add button */}
-            {activeTab === "library" && !atLimit && (
-              <Link
-                href="/search"
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 5,
-                  padding: "7px 12px",
-                  borderRadius: 9,
-                  border: "1px solid var(--border)",
-                  color: "var(--text-secondary)",
-                  fontSize: 12,
-                  textDecoration: "none",
-                  background: "var(--bg-raised)",
-                  flexShrink: 0,
-                }}
-              >
-                <Search size={10} /> Search
-              </Link>
-            )}
-            {activeTab === "reviews" && (
-              <Link
-                href="/review"
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 5,
-                  padding: "7px 12px",
-                  borderRadius: 9,
-                  border: "1px solid var(--border)",
-                  color: "var(--text-secondary)",
-                  fontSize: 12,
-                  textDecoration: "none",
-                  background: "var(--bg-raised)",
-                  flexShrink: 0,
-                }}
-              >
-                <BookOpen size={10} /> New
-              </Link>
-            )}
+            {/* Contextual button */}
+            <Link
+              href={activeTab === "reviews" ? "/review" : "/search"}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+                padding: "8px 14px",
+                borderRadius: 9,
+                border: "1px solid var(--border)",
+                color: "var(--text-faint)",
+                fontSize: 12.5,
+                textDecoration: "none",
+                background: "var(--bg-raised)",
+                fontWeight: 600,
+                transition: "border-color .14s, color .14s",
+              }}
+              onMouseEnter={(e) => {
+                (e.currentTarget as HTMLElement).style.color =
+                  "var(--text-primary)";
+                (e.currentTarget as HTMLElement).style.borderColor =
+                  "var(--border-mid)";
+              }}
+              onMouseLeave={(e) => {
+                (e.currentTarget as HTMLElement).style.color =
+                  "var(--text-faint)";
+                (e.currentTarget as HTMLElement).style.borderColor =
+                  "var(--border)";
+              }}
+            >
+              <Plus size={12} />{" "}
+              {activeTab === "reviews" ? "New review" : "New search"}
+            </Link>
           </div>
 
-          {/* ── Saved Papers ── */}
+          {/* ── Library tab ── */}
           {activeTab === "library" &&
             (loading ? (
               [1, 2, 3].map((i) => <Shimmer key={i} h={76} />)
@@ -2023,38 +1791,40 @@ function DashContent() {
                   <div
                     key={p.paperId}
                     style={{
-                      padding: "13px 14px",
+                      padding: "14px 16px",
                       background: "var(--bg-raised)",
                       border: "1px solid var(--border)",
                       borderRadius: 12,
                       display: "flex",
                       gap: 12,
-                      transition: "all .14s",
+                      transition: "border-color .14s, background .14s",
                     }}
                     onMouseEnter={(e) => {
-                      const el = e.currentTarget as HTMLDivElement;
-                      el.style.background = "var(--surface)";
-                      el.style.borderColor = "rgba(92,154,224,.25)";
+                      (e.currentTarget as HTMLElement).style.borderColor =
+                        "var(--border-mid)";
+                      (e.currentTarget as HTMLElement).style.background =
+                        "var(--surface)";
                     }}
                     onMouseLeave={(e) => {
-                      const el = e.currentTarget as HTMLDivElement;
-                      el.style.background = "var(--bg-raised)";
-                      el.style.borderColor = "var(--border)";
+                      (e.currentTarget as HTMLElement).style.borderColor =
+                        "var(--border)";
+                      (e.currentTarget as HTMLElement).style.background =
+                        "var(--bg-raised)";
                     }}
                   >
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <p
                         className="truncate-1"
                         style={{
-                          fontSize: 13,
+                          fontSize: 13.5,
                           fontWeight: 600,
                           color: "var(--text-primary)",
-                          marginBottom: 3,
+                          marginBottom: 4,
                         }}
                       >
                         {p.title}
                       </p>
-                      <p style={{ fontSize: 11, color: "var(--text-faint)" }}>
+                      <p style={{ fontSize: 11.5, color: "var(--text-faint)" }}>
                         {(p.authors ?? []).slice(0, 3).join(", ")}
                         {(p.authors?.length ?? 0) > 3 ? " et al." : ""}
                         {p.year ? ` · ${p.year}` : ""}
@@ -2064,8 +1834,8 @@ function DashContent() {
                         <p
                           className="truncate-2"
                           style={{
-                            fontSize: 11.5,
-                            color: "var(--text-secondary)",
+                            fontSize: 12,
+                            color: "var(--text-faint)",
                             marginTop: 5,
                             lineHeight: 1.55,
                           }}
@@ -2077,7 +1847,7 @@ function DashContent() {
                     <div
                       style={{
                         display: "flex",
-                        gap: 5,
+                        gap: 6,
                         flexShrink: 0,
                         alignItems: "flex-start",
                       }}
@@ -2098,6 +1868,19 @@ function DashContent() {
                             justifyContent: "center",
                             color: "var(--text-faint)",
                             textDecoration: "none",
+                            transition: "border-color .14s, color .14s",
+                          }}
+                          onMouseEnter={(e) => {
+                            (e.currentTarget as HTMLElement).style.borderColor =
+                              "var(--border-mid)";
+                            (e.currentTarget as HTMLElement).style.color =
+                              "var(--text-primary)";
+                          }}
+                          onMouseLeave={(e) => {
+                            (e.currentTarget as HTMLElement).style.borderColor =
+                              "var(--border)";
+                            (e.currentTarget as HTMLElement).style.color =
+                              "var(--text-faint)";
                           }}
                         >
                           <ExternalLink size={12} />
@@ -2116,7 +1899,16 @@ function DashContent() {
                           justifyContent: "center",
                           cursor: "pointer",
                           color: "var(--red)",
+                          transition: "background .14s",
                         }}
+                        onMouseEnter={(e) =>
+                          ((e.currentTarget as HTMLElement).style.background =
+                            "rgba(224,92,92,.14)")
+                        }
+                        onMouseLeave={(e) =>
+                          ((e.currentTarget as HTMLElement).style.background =
+                            "rgba(224,92,92,.07)")
+                        }
                       >
                         <Trash2 size={12} />
                       </button>
@@ -2126,33 +1918,29 @@ function DashContent() {
               </div>
             ))}
 
-          {/* ── Search History ── */}
+          {/* ── History tab ── */}
           {activeTab === "history" && (
             <>
               {atLimit && (
                 <div
                   style={{
                     display: "flex",
-                    alignItems: "flex-start",
-                    gap: 8,
-                    padding: "10px 13px",
+                    alignItems: "center",
+                    gap: 10,
+                    padding: "12px 16px",
                     background: "rgba(232,160,69,.06)",
-                    border: "1px solid rgba(232,160,69,.18)",
+                    border: "1px solid var(--brand-border)",
                     borderRadius: 10,
-                    marginBottom: 12,
+                    marginBottom: 14,
                   }}
                 >
                   <History
-                    size={12}
-                    style={{
-                      color: "var(--brand)",
-                      flexShrink: 0,
-                      marginTop: 2,
-                    }}
+                    size={13}
+                    style={{ color: "var(--brand)", flexShrink: 0 }}
                   />
                   <p
                     style={{
-                      fontSize: 12,
+                      fontSize: 12.5,
                       color: "var(--text-secondary)",
                       lineHeight: 1.5,
                     }}
@@ -2181,20 +1969,19 @@ function DashContent() {
                       iconEl={
                         <Search size={13} style={{ color: "var(--brand)" }} />
                       }
-                      iconBg="rgba(232,160,69,.08)"
-                      iconBorder="rgba(232,160,69,.22)"
+                      iconColor="var(--brand)"
                       title={h.query}
                       meta={
                         <span
                           style={{
-                            fontSize: 10,
+                            fontSize: 10.5,
                             color: "var(--text-faint)",
                             display: "flex",
                             alignItems: "center",
                             gap: 3,
                           }}
                         >
-                          <Clock size={8} /> {timeAgo(h.searchedAt)}
+                          <Clock size={9} /> {timeAgo(h.searchedAt)}
                         </span>
                       }
                       badge={
@@ -2204,11 +1991,6 @@ function DashContent() {
                             ? "✓ saved"
                             : undefined
                       }
-                      badgeColor={
-                        h.papers && h.papers.length > 0
-                          ? "var(--brand)"
-                          : "var(--green)"
-                      }
                     />
                   ))}
                 </div>
@@ -2216,7 +1998,7 @@ function DashContent() {
             </>
           )}
 
-          {/* ── Literature Reviews ── */}
+          {/* ── Reviews tab ── */}
           {activeTab === "reviews" &&
             (loading ? (
               [1, 2, 3].map((i) => <Shimmer key={i} />)
@@ -2235,20 +2017,19 @@ function DashContent() {
                     key={i}
                     onClick={() => setSelectedReview(r)}
                     iconEl={<BookOpen size={13} style={{ color: "#5db87a" }} />}
-                    iconBg="rgba(93,184,122,.08)"
-                    iconBorder="rgba(93,184,122,.22)"
+                    iconColor="#5db87a"
                     title={r.topic}
                     meta={
                       <span
                         style={{
-                          fontSize: 10,
+                          fontSize: 10.5,
                           color: "var(--text-faint)",
                           display: "flex",
                           alignItems: "center",
                           gap: 3,
                         }}
                       >
-                        <Clock size={8} /> {timeAgo(r.reviewedAt)}
+                        <Clock size={9} /> {timeAgo(r.reviewedAt)}
                       </span>
                     }
                     badge={
@@ -2258,11 +2039,6 @@ function DashContent() {
                           ? "✓ saved"
                           : undefined
                     }
-                    badgeColor={
-                      r.papers && r.papers.length > 0
-                        ? "#5db87a"
-                        : "var(--green)"
-                    }
                   />
                 ))}
               </div>
@@ -2270,37 +2046,39 @@ function DashContent() {
         </div>
       </div>
 
-      {/* ── Cancel modal ── */}
+      {/* ── Cancel modal ────────────────────────────────────── */}
       {showConfirm && (
         <div
           style={{
             position: "fixed",
             inset: 0,
-            background: "rgba(0,0,0,.72)",
+            background: "rgba(0,0,0,.75)",
             zIndex: 100,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             padding: 20,
           }}
+          onClick={() => setShowConfirm(false)}
         >
           <div
             style={{
               maxWidth: 380,
               width: "100%",
-              padding: isMobile ? 22 : 28,
+              padding: 28,
               background: "var(--bg-overlay)",
               border: "1px solid var(--border-mid)",
-              borderRadius: 18,
-              boxShadow: "0 28px 72px rgba(0,0,0,.6)",
+              borderRadius: 20,
+              boxShadow: "0 32px 80px rgba(0,0,0,.7)",
             }}
+            onClick={(e) => e.stopPropagation()}
           >
-            <div style={{ display: "flex", gap: 13, marginBottom: 18 }}>
+            <div style={{ display: "flex", gap: 14, marginBottom: 20 }}>
               <div
                 style={{
-                  width: 40,
-                  height: 40,
-                  borderRadius: 11,
+                  width: 44,
+                  height: 44,
+                  borderRadius: 12,
                   background: "rgba(224,92,92,.1)",
                   border: "1px solid rgba(224,92,92,.2)",
                   display: "flex",
@@ -2309,28 +2087,28 @@ function DashContent() {
                   flexShrink: 0,
                 }}
               >
-                <AlertTriangle size={18} style={{ color: "var(--red)" }} />
+                <AlertTriangle size={20} style={{ color: "var(--red)" }} />
               </div>
               <div>
                 <p
                   style={{
-                    fontSize: 14,
+                    fontSize: 15,
                     fontWeight: 700,
                     color: "var(--text-primary)",
-                    marginBottom: 7,
+                    marginBottom: 8,
                   }}
                 >
                   Cancel subscription?
                 </p>
                 <p
                   style={{
-                    fontSize: 12.5,
+                    fontSize: 13,
                     color: "var(--text-secondary)",
-                    lineHeight: 1.6,
+                    lineHeight: 1.65,
                   }}
                 >
                   You keep access until end of billing period. After that,
-                  reverts to Free (5 searches/day).
+                  you'll revert to Free (5 searches/day).
                 </p>
               </div>
             </div>
@@ -2340,12 +2118,13 @@ function DashContent() {
               <button
                 onClick={() => setShowConfirm(false)}
                 style={{
-                  padding: "9px 18px",
+                  padding: "10px 18px",
                   borderRadius: 10,
-                  border: "1px solid var(--border)",
+                  border: "1px solid var(--border-mid)",
                   color: "var(--text-secondary)",
                   background: "transparent",
                   fontSize: 13,
+                  fontWeight: 600,
                   cursor: "pointer",
                   fontFamily: "var(--font-ui)",
                 }}
@@ -2355,7 +2134,7 @@ function DashContent() {
               <button
                 onClick={() => void cancelSubscription()}
                 style={{
-                  padding: "9px 18px",
+                  padding: "10px 18px",
                   borderRadius: 10,
                   background: "var(--red)",
                   color: "#fff",
