@@ -18,7 +18,7 @@ import { Paper } from "@/types";
 // ── Constants ──────────────────────────────────────────────────
 const CHUNK_SIZE = 300; // words per chunk
 const CHUNK_OVERLAP = 60; // word overlap between consecutive chunks
-const TOP_K_CHUNKS = 8; // number of chunks sent to Claude
+const TOP_K_CHUNKS = 12; // number of chunks sent to Claude (was 8)
 const FETCH_TIMEOUT = 9_000; // ms per source
 
 // ── Timeout helper ─────────────────────────────────────────────
@@ -93,7 +93,6 @@ async function fetchOpenAlex(q: string, n = 8): Promise<Paper[]> {
       }[];
     };
     return (data.results ?? []).map((p) => {
-      // Reconstruct abstract from inverted index
       let abstract = "";
       if (p.abstract_inverted_index) {
         const pos: Record<number, string> = {};
@@ -147,7 +146,7 @@ async function fetchArXiv(q: string, n = 4): Promise<Paper[]> {
           .replace(/\s+/g, " ") ?? "";
       const published = e.match(/<published>([\s\S]*?)<\/published>/)?.[1];
       const id = e.match(/<id>([\s\S]*?)<\/id>/)?.[1]?.trim() ?? "";
-      const authorMatches = e.match(/<name>[\s\S]*?<\/name>/g) ?? [];
+      const authorMatches = e.match(/<n>[\s\S]*?<\/name>/g) ?? [];
       const authors = authorMatches.map((a) =>
         a.replace(/<\/?name>/g, "").trim(),
       );
@@ -169,14 +168,8 @@ async function fetchArXiv(q: string, n = 4): Promise<Paper[]> {
   }
 }
 
-/**
- * PubMed two-step fetch:
- *  Step 1 — esearch → get PMIDs
- *  Step 2 — efetch  → get full records (title, abstract, authors, year)
- */
 async function fetchPubMed(q: string, n = 6): Promise<Paper[]> {
   try {
-    // Step 1: search
     const searchUrl = `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=pubmed&term=${encodeURIComponent(q)}&retmax=${n}&retmode=json&sort=relevance`;
     const searchData = (await withTimeout(
       fetch(searchUrl).then((r) => r.json()),
@@ -184,7 +177,6 @@ async function fetchPubMed(q: string, n = 6): Promise<Paper[]> {
     const ids = searchData.esearchresult?.idlist ?? [];
     if (ids.length === 0) return [];
 
-    // Step 2: fetch details
     const fetchUrl = `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pubmed&id=${ids.join(",")}&retmode=xml`;
     const xml = await withTimeout(fetch(fetchUrl).then((r) => r.text()));
 
@@ -194,21 +186,15 @@ async function fetchPubMed(q: string, n = 6): Promise<Paper[]> {
 
     while ((m = articleRe.exec(xml)) !== null) {
       const article = m[1];
-
-      // Title
       const title =
         article
           .match(/<ArticleTitle>([\s\S]*?)<\/ArticleTitle>/)?.[1]
           ?.replace(/<[^>]+>/g, "")
           .trim() ?? "";
-
-      // Abstract (may have multiple AbstractText sections)
       const abstractParts = [
         ...article.matchAll(/<AbstractText[^>]*>([\s\S]*?)<\/AbstractText>/g),
       ].map((am) => am[1].replace(/<[^>]+>/g, "").trim());
       const abstract = abstractParts.join(" ");
-
-      // Authors
       const authorMatches = [
         ...article.matchAll(
           /<Author[^>]*>[\s\S]*?<LastName>([\s\S]*?)<\/LastName>(?:[\s\S]*?<ForeName>([\s\S]*?)<\/ForeName>)?/g,
@@ -217,20 +203,12 @@ async function fetchPubMed(q: string, n = 6): Promise<Paper[]> {
       const authors = authorMatches
         .slice(0, 6)
         .map((am) => `${am[1]} ${am[2] ?? ""}`.trim());
-
-      // Year
       const yearMatch = article.match(/<PubDate>[\s\S]*?<Year>(\d{4})<\/Year>/);
       const year = yearMatch ? parseInt(yearMatch[1]) : null;
-
-      // Journal
       const journal =
         article.match(/<Title>([\s\S]*?)<\/Title>/)?.[1]?.trim() ?? undefined;
-
-      // PMID
       const pmidMatch = article.match(/<PMID[^>]*>(\d+)<\/PMID>/);
       const pmid = pmidMatch?.[1] ?? "";
-
-      // DOI
       const doiMatch = article.match(
         /<ArticleId IdType="doi">([\s\S]*?)<\/ArticleId>/,
       );
@@ -276,7 +254,6 @@ export async function searchAllWithPubMed(q: string): Promise<Paper[]> {
     ...(pm.status === "fulfilled" ? pm.value : []),
   ];
 
-  // Deduplicate by normalised title prefix
   const seen = new Set<string>();
   return all
     .filter((p) => {
@@ -293,12 +270,12 @@ export async function searchAllWithPubMed(q: string): Promise<Paper[]> {
 }
 
 // ══════════════════════════════════════════════════════════════
-// 3. CHUNKING  — split each paper's abstract into overlapping windows
+// 3. CHUNKING
 // ══════════════════════════════════════════════════════════════
 
 export interface Chunk {
   paperId: string;
-  paperIdx: number; // 1-based citation number
+  paperIdx: number;
   title: string;
   source: string;
   year: number | null;
@@ -309,36 +286,31 @@ export interface Chunk {
 
 export function chunkPapers(papers: Paper[]): Chunk[] {
   const chunks: Chunk[] = [];
-
   papers.forEach((paper, idx) => {
     const words = paper.abstract.split(/\s+/).filter(Boolean);
     if (words.length === 0) return;
-
     let start = 0;
     while (start < words.length) {
       const end = Math.min(start + CHUNK_SIZE, words.length);
-      const text = words.slice(start, end).join(" ");
       chunks.push({
         paperId: paper.id,
         paperIdx: idx + 1,
         title: paper.title,
         source: paper.source,
         year: paper.year,
-        text,
+        text: words.slice(start, end).join(" "),
         url: paper.url,
         doi: paper.doi,
       });
       if (end === words.length) break;
-      start += CHUNK_SIZE - CHUNK_OVERLAP; // overlap
+      start += CHUNK_SIZE - CHUNK_OVERLAP;
     }
   });
-
   return chunks;
 }
 
 // ══════════════════════════════════════════════════════════════
-// 4. RANKING  — BM25-inspired TF·IDF keyword scoring
-//    No external vector DB needed; works entirely in memory.
+// 4. RANKING — BM25-inspired TF·IDF keyword scoring
 // ══════════════════════════════════════════════════════════════
 
 function tokenize(text: string): string[] {
@@ -349,7 +321,6 @@ function tokenize(text: string): string[] {
     .filter((w) => w.length > 2);
 }
 
-// BM25 constants
 const K1 = 1.5;
 const B = 0.75;
 
@@ -364,7 +335,6 @@ export function rankChunks(
   const avgLen =
     chunks.reduce((s, c) => s + c.text.split(/\s+/).length, 0) / chunks.length;
 
-  // Compute IDF for each query token
   const idf: Record<string, number> = {};
   for (const token of queryTokens) {
     const df = chunks.filter((c) =>
@@ -382,19 +352,14 @@ export function rankChunks(
       const t = w.toLowerCase().replace(/[^a-z0-9]/g, "");
       tf[t] = (tf[t] ?? 0) + 1;
     }
-
     let score = 0;
     for (const token of queryTokens) {
       const freq = tf[token] ?? 0;
-      const bm25 =
+      score +=
         (idf[token] * freq * (K1 + 1)) /
         (freq + K1 * (1 - B + B * (dl / avgLen)));
-      score += bm25;
     }
-
-    // Boost recent papers slightly
     if (chunk.year && chunk.year >= 2020) score *= 1.1;
-
     return { chunk, score };
   });
 
@@ -405,14 +370,15 @@ export function rankChunks(
 }
 
 // ══════════════════════════════════════════════════════════════
-// 5. CONTEXT BUILDER — format top-K chunks into a prompt string
+// 5. CONTEXT BUILDER
 // ══════════════════════════════════════════════════════════════
 
 export function buildRAGContext(topChunks: Chunk[]): string {
   return topChunks
     .map(
       (c, i) =>
-        `[Chunk ${i + 1} | Ref ${c.paperIdx}: "${c.title}" (${c.source}, ${c.year ?? "n.d."})]\n${c.text}${c.url ? `\nURL: ${c.url}` : ""}${c.doi ? `\nDOI: https://doi.org/${c.doi}` : ""}`,
+        `[Chunk ${i + 1} | Ref ${c.paperIdx}: "${c.title}" (${c.source}, ${c.year ?? "n.d."})]
+${c.text}${c.url ? `\nURL: ${c.url}` : ""}${c.doi ? `\nDOI: https://doi.org/${c.doi}` : ""}`,
     )
     .join("\n\n---\n\n");
 }
@@ -435,23 +401,22 @@ CONTEXT USAGE RULES:
 - If the context is insufficient, supplement with your knowledge and say so explicitly.
 
 WRITING RULES:
-- Never start with "Great question!" or "Certainly!" or filler phrases.
+- Never start with "Great question!" or "Certainly!" or any filler phrases.
 - Use ## for main headings, bold **key terms** on first use.
-- Research answers: 400-600 words.
-- Study explanations: 300-500 words.
-- Always end with ## What To Search Next (3 related query suggestions).`;
+- Research answers: 500-700 words — be thorough and specific.
+- Study explanations: 400-600 words with real-world analogies and examples.
+- Always end with ## What To Search Next (3 clickable query suggestions).
+- Be authoritative, specific, and genuinely useful — like Nature or Scientific American.`;
 
 export async function generateRAGAnswer(
   query: string,
   papers: Paper[],
   stream = false,
 ): Promise<string | AsyncIterable<string>> {
-  // Chunk + rank
   const chunks = chunkPapers(papers);
   const topChunks = rankChunks(query, chunks);
   const ragCtx = buildRAGContext(topChunks);
 
-  // Full paper list for the citation index
   const paperList = papers
     .slice(0, 18)
     .map(
@@ -470,17 +435,16 @@ ${paperList}
 
 ## INSTRUCTIONS
 1. Classify as: Research / Study Help / Exam Practice.
-2. Answer using ONLY the retrieved context above; cite with [Ref M].
+2. Answer using the retrieved context above; cite with [Ref M].
 3. For research: cite every claim [n], end with ## Key Takeaways, ## Useful Links, ## What To Search Next.
-4. For study help: clear structure with examples, ## Quick Revision Points, ## What To Search Next.
-5. For exam practice: original questions, 4 options (A-D), correct answer, detailed explanation.
+4. For study help: clear structure with real-world examples, ## Quick Revision Points, ## What To Search Next.
+5. For exam practice: original questions with 4 options (A-D), correct answer clearly marked, detailed explanations.
 6. Make every sentence count — no filler, maximum insight.`;
 
   if (stream) {
-    // Return an async generator that yields text chunks
     const streamResp = await ant.messages.stream({
-      model: "claude-haiku-4-5-20251001",
-      max_tokens: 3000,
+      model: "claude-sonnet-4-6", // ← upgraded from haiku
+      max_tokens: 3500,
       system: RAG_SYSTEM,
       messages: [{ role: "user", content: userPrompt }],
     });
@@ -498,10 +462,9 @@ ${paperList}
     return textGen();
   }
 
-  // Non-streaming (used by /api/search)
   const response = await ant.messages.create({
-    model: "claude-haiku-4-5-20251001",
-    max_tokens: 3000,
+    model: "claude-sonnet-4-6", // ← upgraded from haiku
+    max_tokens: 3500,
     system: RAG_SYSTEM,
     messages: [{ role: "user", content: userPrompt }],
   });
@@ -510,8 +473,7 @@ ${paperList}
 }
 
 // ══════════════════════════════════════════════════════════════
-// 7. CONVENIENCE RE-EXPORT (keeps existing imports working)
+// 7. CONVENIENCE RE-EXPORT
 // ══════════════════════════════════════════════════════════════
 
-/** Drop-in replacement for the old searchAll() — now includes PubMed */
 export { searchAllWithPubMed as searchAll };

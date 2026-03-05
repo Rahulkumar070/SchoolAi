@@ -20,6 +20,8 @@ import {
   Copy,
   Check,
   RotateCcw,
+  Search,
+  Loader2,
 } from "lucide-react";
 import { Paper } from "@/types";
 import toast from "react-hot-toast";
@@ -31,6 +33,8 @@ interface Turn {
   answer: string;
   papers: Paper[];
   streaming?: boolean;
+  related?: string[];
+  status?: string;
 }
 
 const MD = {
@@ -179,6 +183,115 @@ function Cursor() {
   );
 }
 
+// ── Status indicator shown while streaming ────────────────────
+function StatusPill({ text }: { text: string }) {
+  return (
+    <div
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 8,
+        padding: "7px 14px",
+        borderRadius: 99,
+        background: "var(--bg-raised)",
+        border: "1px solid var(--border)",
+        marginBottom: 14,
+      }}
+    >
+      <Loader2
+        size={12}
+        style={{ color: "var(--brand)", animation: "spin 1s linear infinite" }}
+      />
+      <span
+        style={{ fontSize: 12.5, color: "var(--text-faint)", fontWeight: 500 }}
+      >
+        {text}
+      </span>
+    </div>
+  );
+}
+
+// ── Related questions after answer ────────────────────────────
+function RelatedQuestions({
+  questions,
+  onSearch,
+}: {
+  questions: string[];
+  onSearch: (q: string) => void;
+}) {
+  if (!questions.length) return null;
+  return (
+    <div
+      style={{
+        marginTop: 18,
+        paddingTop: 14,
+        borderTop: "1px solid var(--border)",
+      }}
+    >
+      <p
+        style={{
+          fontSize: 11,
+          fontWeight: 700,
+          letterSpacing: "1.2px",
+          textTransform: "uppercase",
+          color: "var(--text-faint)",
+          marginBottom: 10,
+        }}
+      >
+        Related searches
+      </p>
+      <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
+        {questions.map((q, i) => (
+          <button
+            key={i}
+            onClick={() => onSearch(q)}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              padding: "10px 14px",
+              borderRadius: 10,
+              background: "var(--bg-raised)",
+              border: "1px solid var(--border)",
+              cursor: "pointer",
+              textAlign: "left",
+              width: "100%",
+              transition: "border-color .14s, background .14s",
+              fontFamily: "var(--font-ui)",
+            }}
+            onMouseEnter={(e) => {
+              (e.currentTarget as HTMLElement).style.borderColor =
+                "var(--border-mid)";
+              (e.currentTarget as HTMLElement).style.background =
+                "var(--surface)";
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget as HTMLElement).style.borderColor =
+                "var(--border)";
+              (e.currentTarget as HTMLElement).style.background =
+                "var(--bg-raised)";
+            }}
+          >
+            <Search
+              size={12}
+              style={{ color: "var(--brand)", flexShrink: 0 }}
+            />
+            <span
+              style={{ fontSize: 13, color: "var(--text-secondary)", flex: 1 }}
+            >
+              {q}
+            </span>
+            <ArrowRight
+              size={11}
+              style={{ color: "var(--text-faint)", flexShrink: 0 }}
+            />
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function SearchApp() {
   const params = useSearchParams();
   const router = useRouter();
@@ -195,7 +308,6 @@ function SearchApp() {
   const [searchesThisMonth, setSearchesThisMonth] = useState(0);
   const [panelTurn, setPanelTurn] = useState<Turn | null>(null);
   const [panelTab, setPanelTab] = useState<"sources" | "cite">("sources");
-  // Track which conversation we're building in this session
   const [conversationId, setConversationId] = useState<string | null>(null);
 
   const taRef = useRef<HTMLTextAreaElement>(null);
@@ -229,7 +341,6 @@ function SearchApp() {
       .catch(() => {});
   }, [session]);
 
-  // Reset everything when "New Research" is clicked
   useEffect(() => {
     if (newKey) {
       setTurns([]);
@@ -267,9 +378,16 @@ function SearchApp() {
       setInput("");
       if (taRef.current) taRef.current.style.height = "auto";
 
+      // Add turn with empty status
       setTurns((prev) => [
         ...prev,
-        { query, answer: "", papers: [], streaming: true },
+        {
+          query,
+          answer: "",
+          papers: [],
+          streaming: true,
+          status: "Searching 200M+ papers…",
+        },
       ]);
       scrollDown();
 
@@ -311,12 +429,11 @@ function SearchApp() {
                 papers?: Paper[];
                 conversationId?: string;
                 isNewConversation?: boolean;
+                related?: string[];
               };
 
               if (evt.type === "meta" && evt.conversationId) {
                 setConversationId(evt.conversationId);
-                // If it's a new conversation, replace the URL silently so the
-                // browser back button works and the sidebar highlights it
                 if (evt.isNewConversation) {
                   window.history.replaceState(
                     null,
@@ -324,6 +441,13 @@ function SearchApp() {
                     `/chat/${evt.conversationId}`,
                   );
                 }
+              } else if (evt.type === "status" && evt.text) {
+                // Update the loading status text on the last turn
+                setTurns((prev) => {
+                  const u = [...prev];
+                  u[u.length - 1] = { ...u[u.length - 1], status: evt.text };
+                  return u;
+                });
               } else if (evt.type === "papers" && evt.papers) {
                 setTurns((prev) => {
                   const u = [...prev];
@@ -344,14 +468,24 @@ function SearchApp() {
                 setTurns((prev) => {
                   const u = [...prev];
                   const last = u[u.length - 1];
-                  u[u.length - 1] = { ...last, answer: last.answer + evt.text };
+                  u[u.length - 1] = {
+                    ...last,
+                    answer: last.answer + evt.text,
+                    status: undefined,
+                  };
                   return u;
                 });
                 scrollDown();
               } else if (evt.type === "done") {
+                const relatedQuestions = evt.related ?? [];
                 setTurns((prev) => {
                   const u = [...prev];
-                  u[u.length - 1] = { ...u[u.length - 1], streaming: false };
+                  u[u.length - 1] = {
+                    ...u[u.length - 1],
+                    streaming: false,
+                    status: undefined,
+                    related: relatedQuestions,
+                  };
                   return u;
                 });
                 setTurns((curr) => {
@@ -361,7 +495,6 @@ function SearchApp() {
                 if (isFree) setSearchesToday((c) => Math.min(c + 1, 5));
                 if (isStudent)
                   setSearchesThisMonth((c) => Math.min(c + 1, 500));
-                // Notify sidebar to refresh
                 window.dispatchEvent(
                   new Event("researchly:conversation-updated"),
                 );
@@ -430,6 +563,7 @@ function SearchApp() {
       rightPanel={RightPanel}
       activeConversationId={conversationId ?? undefined}
     >
+      {/* Counter bar */}
       {session && !isPro && (
         <div className="search-counter-bar">
           <div className="search-counter-inner">
@@ -464,6 +598,7 @@ function SearchApp() {
 
       <div className="chat-col">
         {turns.length === 0 && !loading ? (
+          /* ── Welcome screen ── */
           <div className="welcome">
             <div className="welcome-mark">
               <BookOpen size={22} style={{ color: "var(--brand)" }} />
@@ -512,17 +647,26 @@ function SearchApp() {
             </div>
           </div>
         ) : (
+          /* ── Conversation turns ── */
           <div className="messages-wrap">
             {turns.map((turn, i) => (
               <div key={i} style={{ marginBottom: 36 }}>
+                {/* User bubble */}
                 <div className="msg-row user">
                   <div className="msg-bubble">{turn.query}</div>
                 </div>
+
+                {/* AI response */}
                 <div className="msg-row">
                   <div className="msg-avatar">
                     <BookOpen size={12} style={{ color: "var(--brand)" }} />
                   </div>
                   <div className="msg-ai-content">
+                    {/* Status pill shown before answer starts */}
+                    {turn.streaming && !turn.answer && turn.status && (
+                      <StatusPill text={turn.status} />
+                    )}
+
                     {turn.answer ? (
                       <>
                         <ReactMarkdown
@@ -532,85 +676,99 @@ function SearchApp() {
                           {turn.answer}
                         </ReactMarkdown>
                         {turn.streaming && <Cursor />}
+
+                        {/* Action bar + related questions */}
                         {!turn.streaming && (
-                          <div
-                            style={{
-                              display: "flex",
-                              gap: 6,
-                              marginTop: 14,
-                              flexWrap: "wrap",
-                              alignItems: "center",
-                              borderTop: "1px solid var(--border)",
-                              paddingTop: 12,
-                            }}
-                          >
-                            {turn.papers.length > 0 && (
-                              <button
-                                onClick={() => {
-                                  setPanelTurn(turn);
-                                  setPanelTab("sources");
-                                }}
-                                className="sources-chip"
-                              >
-                                <Layers size={11} /> {turn.papers.length}{" "}
-                                sources
-                              </button>
-                            )}
-                            <CopyBtn text={turn.answer} />
-                            <button
-                              onClick={() =>
-                                downloadResearchPDF(
-                                  turn.query,
-                                  turn.answer,
-                                  turn.papers,
-                                  session?.user?.name ?? undefined,
-                                )
-                              }
-                              className="sources-chip"
+                          <>
+                            <div
                               style={{
-                                color: "var(--brand)",
-                                borderColor: "var(--brand-border)",
+                                display: "flex",
+                                gap: 6,
+                                marginTop: 14,
+                                flexWrap: "wrap",
+                                alignItems: "center",
+                                borderTop: "1px solid var(--border)",
+                                paddingTop: 12,
                               }}
                             >
-                              <FileDown size={11} /> PDF
-                            </button>
-                            {!atLimit && (
+                              {turn.papers.length > 0 && (
+                                <button
+                                  onClick={() => {
+                                    setPanelTurn(turn);
+                                    setPanelTab("sources");
+                                  }}
+                                  className="sources-chip"
+                                >
+                                  <Layers size={11} /> {turn.papers.length}{" "}
+                                  sources
+                                </button>
+                              )}
+                              <CopyBtn text={turn.answer} />
                               <button
-                                onClick={() => void doSearch(turn.query)}
+                                onClick={() =>
+                                  downloadResearchPDF(
+                                    turn.query,
+                                    turn.answer,
+                                    turn.papers,
+                                    session?.user?.name ?? undefined,
+                                  )
+                                }
                                 className="sources-chip"
-                                title="Search again"
-                              >
-                                <RotateCcw size={11} /> Re-run
-                              </button>
-                            )}
-                            {session && (
-                              <span
                                 style={{
-                                  fontSize: 10.5,
-                                  color: "var(--green)",
-                                  display: "flex",
-                                  alignItems: "center",
-                                  gap: 4,
+                                  color: "var(--brand)",
+                                  borderColor: "var(--brand-border)",
                                 }}
                               >
-                                ✓ Saved
-                              </span>
-                            )}
-                          </div>
+                                <FileDown size={11} /> PDF
+                              </button>
+                              {!atLimit && (
+                                <button
+                                  onClick={() => void doSearch(turn.query)}
+                                  className="sources-chip"
+                                  title="Search again"
+                                >
+                                  <RotateCcw size={11} /> Re-run
+                                </button>
+                              )}
+                              {session && (
+                                <span
+                                  style={{
+                                    fontSize: 10.5,
+                                    color: "var(--green)",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: 4,
+                                  }}
+                                >
+                                  ✓ Saved
+                                </span>
+                              )}
+                            </div>
+
+                            {/* Related questions */}
+                            <RelatedQuestions
+                              questions={turn.related ?? []}
+                              onSearch={(q) => void doSearch(q)}
+                            />
+                          </>
                         )}
                       </>
                     ) : turn.streaming ? (
-                      <div className="typing-bubble">
-                        <span className="typing-dot" />
-                        <span className="typing-dot" />
-                        <span className="typing-dot" />
-                      </div>
+                      /* Typing dots while waiting for first text chunk */
+                      !turn.status && (
+                        <div className="typing-bubble">
+                          <span className="typing-dot" />
+                          <span className="typing-dot" />
+                          <span className="typing-dot" />
+                        </div>
+                      )
                     ) : null}
                   </div>
                 </div>
               </div>
             ))}
 
+            {/* Limit error */}
             {limitError && !loading && (
               <div className="msg-row">
                 <div className="msg-avatar">
@@ -728,6 +886,7 @@ function SearchApp() {
               </div>
             )}
 
+            {/* General error */}
             {errorMsg && !loading && !limitError && (
               <div className="error-card">
                 <AlertCircle
@@ -739,11 +898,13 @@ function SearchApp() {
                 </p>
               </div>
             )}
+
             <div ref={endRef} style={{ height: 16 }} />
           </div>
         )}
       </div>
 
+      {/* Input bar */}
       <div className="input-bar-wrap">
         <div className="input-bar">
           <textarea
@@ -783,7 +944,7 @@ function SearchApp() {
           {session && !isPro
             ? `${isFree ? `${searchesToday}/5 today` : `${searchesThisMonth}/500 this month`} · `
             : ""}
-          Semantic Scholar · OpenAlex · arXiv
+          Semantic Scholar · OpenAlex · arXiv · PubMed
         </p>
       </div>
     </Shell>

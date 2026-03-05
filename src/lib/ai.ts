@@ -60,17 +60,14 @@ For anything else academic:
 2. NEVER say "I cannot find papers" — always provide value from your knowledge
 3. NEVER say "As an AI language model..." — just answer directly
 4. NEVER give vague answers — always be specific with facts, numbers, examples
-5. If the query is unclear or too broad, ask ONE clarifying question before answering:
-   e.g. "Are you asking about [X] or [Y]? I want to give you the most relevant answer."
-6. If a user seems confused about what Researchly does, explain clearly:
-   "Researchly helps you: 🔬 Search 200M+ academic papers | 📄 Generate literature reviews | 💬 Chat with your PDFs"
-7. Use ## for main headings, ### for subheadings
-8. Bold **key terms** on first use
-9. Keep paragraphs to 3-4 sentences max
-10. Use numbered lists for steps/processes, bullet points for features/facts
-11. Include real numbers, statistics, and specific details when available
-12. Always cite sources as [1], [2] etc when papers are provided
-13. Always end research/study answers with ## What To Search Next with 3 clickable query suggestions
+5. If the query is unclear or too broad, ask ONE clarifying question before answering
+6. Use ## for main headings, ### for subheadings
+7. Bold **key terms** on first use
+8. Keep paragraphs to 3-4 sentences max
+9. Use numbered lists for steps/processes, bullet points for features/facts
+10. Include real numbers, statistics, and specific details when available
+11. Always cite sources as [1], [2] etc when papers are provided
+12. Always end research/study answers with ## What To Search Next with 3 clickable query suggestions
 
 ## INDIAN STUDENT CONTEXT
 - You understand JEE, NEET, UPSC, GATE, CAT, CUET exam patterns deeply
@@ -79,14 +76,77 @@ For anything else academic:
 - You understand the pressure Indian students face and motivate when appropriate
 
 ## OUTPUT LENGTH
-- Research answers: 400-600 words
-- Study explanations: 300-500 words  
+- Research answers: 500-700 words — be thorough
+- Study explanations: 400-600 words  
 - Exam questions: as many as requested (default 5-10)
 - Be thorough but never padded`;
 
-// ── Paper context builder ─────────────────────────────────────
-function ctx(papers: Paper[]) {
-  return papers
+// ── Generate search answer (RAG-powered) ─────────────────────
+export async function generateAnswer(query: string, papers: Paper[]) {
+  // Always use the RAG pipeline when papers exist
+  if (papers.length > 0) {
+    return generateRAGAnswer(query, papers, false) as Promise<string>;
+  }
+
+  // No papers found — answer from knowledge
+  const userPrompt = `QUESTION: "${query}"
+
+No academic papers were found for this query.
+
+Instructions:
+1. Classify as: Study Help / Exam Practice / General Academic / Non-Academic
+2. If NON-ACADEMIC: politely redirect the user to academic topics
+3. For study: give a thorough, well-structured explanation with examples and ## What To Search Next
+4. For exam (JEE/NEET/UPSC/GATE/etc): generate ORIGINAL practice questions with 4 options, correct answers clearly marked, and detailed explanations
+5. For general academic: answer accurately from your knowledge with helpful links and ## What To Search Next
+6. NEVER say you cannot help — always provide maximum value`;
+
+  const r = await ant.messages.create({
+    model: "claude-sonnet-4-6",
+    max_tokens: 3500,
+    system: MASTER_PROMPT,
+    messages: [{ role: "user", content: userPrompt }],
+  });
+  const b = r.content[0];
+  return b.type === "text" ? b.text : "";
+}
+
+// ── Generate related questions after a search ─────────────────
+export async function generateRelatedQuestions(
+  query: string,
+): Promise<string[]> {
+  try {
+    const r = await ant.messages.create({
+      model: "claude-haiku-4-5-20251001", // fast + cheap for this small task
+      max_tokens: 200,
+      system: "You are a helpful academic research assistant.",
+      messages: [
+        {
+          role: "user",
+          content: `Based on this research question: "${query}"
+        
+Suggest exactly 3 short follow-up research questions a student would want to explore next.
+Return ONLY a JSON array of 3 strings. No explanation, no markdown, no backticks.
+Example format: ["Question 1?","Question 2?","Question 3?"]`,
+        },
+      ],
+    });
+    const b = r.content[0];
+    if (b.type !== "text") return [];
+    const text = b.text
+      .trim()
+      .replace(/^```json|```$/g, "")
+      .trim();
+    const parsed = JSON.parse(text) as string[];
+    return Array.isArray(parsed) ? parsed.slice(0, 3) : [];
+  } catch {
+    return [];
+  }
+}
+
+// ── Generate literature review ────────────────────────────────
+export async function generateReview(topic: string, papers: Paper[]) {
+  const paperCtx = papers
     .slice(0, 12)
     .map(
       (p, i) =>
@@ -96,79 +156,18 @@ Abstract: ${p.abstract.slice(0, 550)}
 ${p.url ? `URL: ${p.url}` : ""}${p.doi ? `\nDOI: https://doi.org/${p.doi}` : ""}`,
     )
     .join("\n\n---\n\n");
-}
 
-// ── Single AI caller ──────────────────────────────────────────
-async function callAI(
-  userPrompt: string,
-  maxTokens: number,
-  model = "claude-haiku-4-5-20251001",
-): Promise<string> {
   const r = await ant.messages.create({
-    model,
-    max_tokens: maxTokens,
+    model: "claude-sonnet-4-6", // Sonnet for reviews (always was)
+    max_tokens: 4500,
     system: MASTER_PROMPT,
-    messages: [{ role: "user", content: userPrompt }],
-  });
-  const b = r.content[0];
-  return b.type === "text" ? b.text : "";
-}
-
-// ── Generate search answer (RAG-powered) ─────────────────────
-export async function generateAnswer(query: string, papers: Paper[]) {
-  if (papers.length > 0) {
-    // Use the RAG pipeline: chunk → rank → build context → generate
-    const result = await generateRAGAnswer(query, papers, false);
-    return result as string;
-  }
-  const hasPapers = false;
-
-  const sourcesCtx = papers
-    .slice(0, 12)
-    .map(
-      (p, i) =>
-        `[${i + 1}] "${p.title}"
-Authors: ${p.authors.slice(0, 4).join(", ")}${p.authors.length > 4 ? " et al." : ""} | Year: ${p.year ?? "n.d."} | Source: ${p.journal ?? p.source}
-Abstract: ${p.abstract.slice(0, 450)}
-${p.url ? `URL: ${p.url}` : ""}${p.doi ? `\nDOI: https://doi.org/${p.doi}` : ""}`,
-    )
-    .join("\n\n---\n\n");
-
-  const userPrompt = hasPapers
-    ? `RESEARCH QUESTION: "${query}"
-
-AVAILABLE ACADEMIC SOURCES (${papers.length} papers):
-${sourcesCtx}
-
-Instructions:
-1. Classify this as: Research / Study Help / Exam Practice
-2. Respond according to your classification rules
-3. For research: cite EVERY claim with [n], end with ## Key Takeaways, ## Useful Links, and ## What To Search Next
-4. For study help: use clear structure with real examples, ## Quick Revision Points, and ## What To Search Next
-5. For exam: generate high-quality questions with answers and explanations
-6. Make every sentence count — no filler, maximum insight`
-    : `QUESTION: "${query}"
-
-No academic papers found for this query.
-
-Instructions:
-1. Classify this as: Study Help / Exam Practice / General Academic / Non-Academic
-2. If NON-ACADEMIC: politely redirect the user to academic topics
-3. For study: give a thorough, well-structured explanation with examples and ## What To Search Next
-4. For exam (JEE/NEET/UPSC/GATE/etc): generate ORIGINAL practice questions with 4 options, correct answers clearly marked, and detailed explanations
-5. For general academic: answer accurately from your knowledge with helpful links and ## What To Search Next
-6. NEVER say you cannot help — always provide maximum value`;
-
-  return callAI(userPrompt, 3000, "claude-haiku-4-5-20251001");
-}
-
-// ── Generate literature review ────────────────────────────────
-export async function generateReview(topic: string, papers: Paper[]) {
-  return callAI(
-    `LITERATURE REVIEW TOPIC: "${topic}"
+    messages: [
+      {
+        role: "user",
+        content: `LITERATURE REVIEW TOPIC: "${topic}"
 
 SOURCES (${papers.length} papers):
-${ctx(papers)}
+${paperCtx}
 
 Write a comprehensive, publication-quality academic literature review with EXACTLY these sections:
 
@@ -202,9 +201,11 @@ CRITICAL RULES:
 - Minimum 1400 words
 - No bullet points in the main sections — only flowing academic paragraphs
 - Synthesize ideas across papers, don't just summarize each one separately`,
-    4500,
-    "claude-sonnet-4-6",
-  );
+      },
+    ],
+  });
+  const b = r.content[0];
+  return b.type === "text" ? b.text : "";
 }
 
 // ── PDF chat ──────────────────────────────────────────────────
@@ -214,7 +215,7 @@ export async function chatPDF(
   history: ChatMessage[],
 ) {
   const r = await ant.messages.create({
-    model: "claude-haiku-4-5-20251001",
+    model: "claude-haiku-4-5-20251001", // Haiku is fine for PDF chat (faster)
     max_tokens: 1800,
     system: `You are Researchly's PDF Assistant — an expert at reading and explaining academic documents.
 
@@ -243,4 +244,47 @@ YOUR RULES:
   });
   const b = r.content[0];
   return b.type === "text" ? b.text : "";
+}
+
+// ── Generate PDF starter questions ───────────────────────────
+export async function generatePDFStarterQuestions(
+  title: string,
+): Promise<string[]> {
+  try {
+    const r = await ant.messages.create({
+      model: "claude-haiku-4-5-20251001",
+      max_tokens: 200,
+      system: "You are a helpful academic research assistant.",
+      messages: [
+        {
+          role: "user",
+          content: `A user just uploaded a research paper titled: "${title}"
+
+Generate exactly 4 starter questions they can click to begin exploring this paper.
+Include: 1 summary question, 1 methodology question, 1 findings question, 1 critical question.
+Return ONLY a JSON array of 4 strings. No explanation, no markdown, no backticks.
+Example: ["Summarise this paper in simple terms","What methodology did the authors use?","What are the key findings?","What are the limitations of this study?"]`,
+        },
+      ],
+    });
+    const b = r.content[0];
+    if (b.type !== "text") return defaultPDFQuestions();
+    const text = b.text
+      .trim()
+      .replace(/^```json|```$/g, "")
+      .trim();
+    const parsed = JSON.parse(text) as string[];
+    return Array.isArray(parsed) ? parsed.slice(0, 4) : defaultPDFQuestions();
+  } catch {
+    return defaultPDFQuestions();
+  }
+}
+
+function defaultPDFQuestions(): string[] {
+  return [
+    "Summarise this paper in simple terms",
+    "What methodology did the authors use?",
+    "What are the key findings?",
+    "What are the limitations of this study?",
+  ];
 }
