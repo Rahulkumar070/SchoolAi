@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { Paper, ChatMessage } from "@/types";
+import { generateRAGAnswer } from "./rag";
 
 const ant = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -113,9 +114,14 @@ async function callAI(
   return b.type === "text" ? b.text : "";
 }
 
-// ── Generate search answer ────────────────────────────────────
+// ── Generate search answer (RAG-powered) ─────────────────────
 export async function generateAnswer(query: string, papers: Paper[]) {
-  const hasPapers = papers.length > 0;
+  if (papers.length > 0) {
+    // Use the RAG pipeline: chunk → rank → build context → generate
+    const result = await generateRAGAnswer(query, papers, false);
+    return result as string;
+  }
+  const hasPapers = false;
 
   const sourcesCtx = papers
     .slice(0, 12)

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { searchAll } from "@/lib/papers";
+import { chunkPapers, rankChunks, buildRAGContext } from "@/lib/rag";
 import { connectDB } from "@/lib/mongodb";
 import { UserModel } from "@/models/User";
 import { ConversationModel } from "@/models/Conversation";
@@ -39,26 +40,39 @@ type UserDoc = {
   searchHistory?: { query: string }[];
 };
 
-function buildCtx(papers: PaperRow[]) {
-  return papers
-    .slice(0, 12)
-    .map(
-      (p, i) =>
-        `[${i + 1}] "${p.title}"\nAuthors: ${p.authors.slice(0, 4).join(", ")}${p.authors.length > 4 ? " et al." : ""} | Year: ${p.year ?? "n.d."} | Source: ${p.journal ?? p.source}\nAbstract: ${p.abstract.slice(0, 450)}\n${p.url ? `URL: ${p.url}` : ""}${p.doi ? `\nDOI: https://doi.org/${p.doi}` : ""}`,
-    )
-    .join("\n\n---\n\n");
-}
-
 function buildPrompt(query: string, papers: PaperRow[]) {
   if (papers.length > 0) {
-    return `RESEARCH QUESTION: "${query}"\n\nAVAILABLE ACADEMIC SOURCES (${papers.length} papers):\n${buildCtx(papers)}\n\nClassify and respond:\n- Research: cite every claim [n], end with ## Key Takeaways, ## Useful Links, ## What To Search Next\n- Study help: clear structure, real examples, ## Quick Revision Points, ## What To Search Next\n- Exam practice: original questions with answers and explanations\nMake every sentence count — no filler, maximum insight.`;
+    // RAG: chunk + rank + build context
+    const chunks = chunkPapers(papers as any);
+    const topChunks = rankChunks(query, chunks);
+    const ragCtx = buildRAGContext(topChunks);
+    const paperList = papers
+      .slice(0, 18)
+      .map(
+        (p, i) =>
+          `[${i + 1}] "${p.title}" — ${p.authors.slice(0, 3).join(", ")}${p.authors.length > 3 ? " et al." : ""} (${p.year ?? "n.d."}) · ${p.source}${p.url ? " · " + p.url : ""}`,
+      )
+      .join("\n");
+    return `RESEARCH QUESTION: "${query}"\n\n## RETRIEVED CONTEXT (RAG — top ${topChunks.length} chunks ranked by relevance)\n${ragCtx}\n\n## FULL PAPER INDEX (for citations)\n${paperList}\n\nClassify and respond:\n- Research: cite every claim [Ref n], end with ## Key Takeaways, ## Useful Links, ## What To Search Next\n- Study help: clear structure, real examples, ## Quick Revision Points, ## What To Search Next\n- Exam practice: original questions with answers and explanations\nMake every sentence count — no filler, maximum insight.`;
   }
   return `QUESTION: "${query}"\n\nNo academic papers found.\n\nClassify as Study Help / Exam Practice / General Academic / Non-Academic.\nIf non-academic: politely redirect. For study: thorough explanation + ## What To Search Next. For exam (JEE/NEET/UPSC/GATE): generate original questions with detailed answers. NEVER say you cannot help.`;
 }
 
-const SYSTEM = `You are Researchly, an elite academic research assistant built for Indian students and researchers. You ONLY help with academic, research, and study topics. If asked something non-academic, politely redirect. You explain like an excellent professor and generate exam content like an expert for JEE/NEET/UPSC/GATE.
+const SYSTEM = `You are Researchly, an elite academic research assistant for Indian students and researchers.
+You ONLY help with academic, research, and study topics.
 
-RULES: Never start with "Great question!" or "Certainly!". Never say "I cannot find papers". Cite every claim as [n] when papers given. Use ## headings, bold **key terms**. Research: 400-600 words. Study: 300-500 words. Always end with ## What To Search Next.`;
+CONTEXT USAGE RULES:
+- You are given ranked, relevant excerpts from academic papers retrieved via RAG (Retrieval-Augmented Generation).
+- Each excerpt is labelled [Chunk N | Ref M: "Title" (Source, Year)].
+- Cite facts using the Ref number: e.g. [2] or [1,3].
+- If a chunk is not relevant to the question, ignore it.
+- Never fabricate facts not present in the context.
+
+WRITING RULES:
+- Never start with "Great question!" or "Certainly!" or filler phrases.
+- Use ## for main headings, bold **key terms** on first use.
+- Research answers: 400-600 words. Study explanations: 300-500 words.
+- Always end with ## What To Search Next (3 related query suggestions).`;
 
 export async function POST(req: NextRequest) {
   try {
