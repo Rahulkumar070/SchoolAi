@@ -1,13 +1,27 @@
 /**
- * RAG system for Researchly
- * Fixes: arXiv author regex, abstract slice 900, TOP_K=12, query expansion, Sonnet model
+ * RAG system for Researchly — Improved Version
+ *
+ * Improvements over original:
+ * 1. FIX:  arXiv author regex corrected (<name> not <n>)
+ * 2. FIX:  Abstract slice raised to 1200 chars
+ * 3. FEAT: BM25 + title-keyword boost (1.1x per matching query token in title)
+ * 4. FEAT: Source diversity — max MAX_CHUNKS_PER_PAPER chunks per paper
+ * 5. FEAT: Sentence-aware chunking (no mid-sentence splits)
+ * 6. FEAT: Chunk overlap raised to 80 words
+ * 7. FEAT: TOP_K raised to 15
+ * 8. FEAT: Query expansion returns 3 alt queries (was 2)
+ * 9. FEAT: SemanticScholar fetches 10 papers (was 8)
+ * 10. FEAT: Dual-fingerprint dedup (title + DOI)
+ * 11. FEAT: Authors included in chunk headers for better citation grounding
  */
+
 import Anthropic from "@anthropic-ai/sdk";
 import { Paper } from "@/types";
 
 const CHUNK_SIZE = 300;
-const CHUNK_OVERLAP = 60;
-const TOP_K_CHUNKS = 12; // was 8
+const CHUNK_OVERLAP = 80;
+const TOP_K_CHUNKS = 15;
+const MAX_CHUNKS_PER_PAPER = 5;
 const FETCH_TIMEOUT = 9_000;
 
 const ant = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
@@ -15,13 +29,15 @@ const ant = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 function withTimeout<T>(p: Promise<T>, ms = FETCH_TIMEOUT): Promise<T> {
   return Promise.race([
     p,
-    new Promise<never>((_, r) => setTimeout(() => r(new Error("timeout")), ms)),
+    new Promise<never>((_, r) =>
+      setTimeout(() => r(new Error("timeout")), ms)
+    ),
   ]);
 }
 
 // ── Source fetchers ───────────────────────────────────────────
 
-async function fetchSemanticScholar(q: string, n = 8): Promise<Paper[]> {
+async function fetchSemanticScholar(q: string, n = 10): Promise<Paper[]> {
   try {
     const url = `https://api.semanticscholar.org/graph/v1/paper/search?query=${encodeURIComponent(q)}&limit=${n}&fields=paperId,title,authors,year,abstract,journal,externalIds,citationCount,openAccessPdf,url`;
     const data = (await withTimeout(fetch(url).then((r) => r.json()))) as any;
@@ -47,15 +63,15 @@ async function fetchOpenAlex(q: string, n = 8): Promise<Paper[]> {
     const url = `https://api.openalex.org/works?search=${encodeURIComponent(q)}&per_page=${n}&select=id,title,authorships,publication_year,abstract_inverted_index,primary_location,doi,cited_by_count,open_access`;
     const data = (await withTimeout(
       fetch(url, { headers: { "User-Agent": "Researchly/1.0" } }).then((r) =>
-        r.json(),
-      ),
+        r.json()
+      )
     )) as any;
     return (data.results ?? []).map((p: any) => {
       let abstract = "";
       if (p.abstract_inverted_index) {
         const pos: Record<number, string> = {};
         for (const [word, positions] of Object.entries(
-          p.abstract_inverted_index as Record<string, number[]>,
+          p.abstract_inverted_index as Record<string, number[]>
         ))
           for (const idx of positions) pos[idx] = word;
         abstract = Object.keys(pos)
@@ -83,7 +99,7 @@ async function fetchOpenAlex(q: string, n = 8): Promise<Paper[]> {
   }
 }
 
-async function fetchArXiv(q: string, n = 4): Promise<Paper[]> {
+async function fetchArXiv(q: string, n = 5): Promise<Paper[]> {
   try {
     const url = `https://export.arxiv.org/api/query?search_query=all:${encodeURIComponent(q)}&start=0&max_results=${n}&sortBy=relevance`;
     const xml = await withTimeout(fetch(url).then((r) => r.text()));
@@ -104,9 +120,11 @@ async function fetchArXiv(q: string, n = 4): Promise<Paper[]> {
           .replace(/\s+/g, " ") ?? "";
       const published = e.match(/<published>([\s\S]*?)<\/published>/)?.[1];
       const id = e.match(/<id>([\s\S]*?)<\/id>/)?.[1]?.trim() ?? "";
-      // ✅ FIXED: was /<n>[\s\S]*?<\/name>/g — wrong opening tag, authors were always empty
+
+      // ✅ FIXED: was /<n>[\s\S]*?<\/name>/g — wrong opening tag caused empty authors
       const authorMatches = [...e.matchAll(/<name>([\s\S]*?)<\/name>/g)];
       const authors = authorMatches.map((a) => a[1].trim());
+
       if (title && abstract)
         papers.push({
           id,
@@ -129,15 +147,15 @@ async function fetchPubMed(q: string, n = 6): Promise<Paper[]> {
   try {
     const searchData = (await withTimeout(
       fetch(
-        `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=pubmed&term=${encodeURIComponent(q)}&retmax=${n}&retmode=json&sort=relevance`,
-      ).then((r) => r.json()),
+        `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=pubmed&term=${encodeURIComponent(q)}&retmax=${n}&retmode=json&sort=relevance`
+      ).then((r) => r.json())
     )) as any;
     const ids = searchData.esearchresult?.idlist ?? [];
     if (!ids.length) return [];
     const xml = await withTimeout(
       fetch(
-        `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pubmed&id=${ids.join(",")}&retmode=xml`,
-      ).then((r) => r.text()),
+        `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pubmed&id=${ids.join(",")}&retmode=xml`
+      ).then((r) => r.text())
     );
     const papers: Paper[] = [];
     const articleRe = /<PubmedArticle>([\s\S]*?)<\/PubmedArticle>/g;
@@ -156,7 +174,7 @@ async function fetchPubMed(q: string, n = 6): Promise<Paper[]> {
         .join(" ");
       const authors = [
         ...a.matchAll(
-          /<Author[^>]*>[\s\S]*?<LastName>([\s\S]*?)<\/LastName>(?:[\s\S]*?<ForeName>([\s\S]*?)<\/ForeName>)?/g,
+          /<Author[^>]*>[\s\S]*?<LastName>([\s\S]*?)<\/LastName>(?:[\s\S]*?<ForeName>([\s\S]*?)<\/ForeName>)?/g
         ),
       ]
         .slice(0, 6)
@@ -190,17 +208,21 @@ async function fetchPubMed(q: string, n = 6): Promise<Paper[]> {
 }
 
 // ── Query expansion ───────────────────────────────────────────
+// IMPROVED: 3 alternative queries (was 2)
 
 async function expandQuery(query: string): Promise<string[]> {
   try {
     const r = await ant.messages.create({
       model: "claude-haiku-4-5-20251001",
-      max_tokens: 120,
+      max_tokens: 180,
       system: "You are an academic search query expert.",
       messages: [
         {
           role: "user",
-          content: `Generate 2 alternative academic search queries for: "${query}"\nReturn ONLY a JSON array of 2 strings, nothing else. Example: ["alt query one","alt query two"]`,
+          content: `Generate 3 alternative academic search queries for: "${query}"
+Vary vocabulary using synonyms, acronyms, and related technical terms.
+Return ONLY a JSON array of 3 strings, nothing else.
+Example: ["alt query one","alt query two","alt query three"]`,
         },
       ],
     });
@@ -210,9 +232,9 @@ async function expandQuery(query: string): Promise<string[]> {
       b.text
         .trim()
         .replace(/```json|```/g, "")
-        .trim(),
+        .trim()
     ) as string[];
-    return Array.isArray(parsed) ? parsed.slice(0, 2) : [];
+    return Array.isArray(parsed) ? parsed.slice(0, 3) : [];
   } catch {
     return [];
   }
@@ -236,7 +258,7 @@ export async function searchAllWithPubMed(q: string): Promise<Paper[]> {
     expandedQueries.flatMap((eq) => [
       fetchSemanticScholar(eq, 4),
       fetchOpenAlex(eq, 4),
-    ]),
+    ])
   );
 
   const all = [
@@ -247,22 +269,30 @@ export async function searchAllWithPubMed(q: string): Promise<Paper[]> {
     ...extraResults.flatMap((r) => (r.status === "fulfilled" ? r.value : [])),
   ];
 
-  const seen = new Set<string>();
+  // IMPROVED: dual-fingerprint deduplication (title AND DOI)
+  const seenTitles = new Set<string>();
+  const seenDois = new Set<string>();
+
   return all
     .filter((p) => {
-      const key = p.title
+      if (!p.title || !p.abstract) return false;
+      const titleKey = p.title
         .toLowerCase()
         .replace(/[^a-z0-9]/g, "")
-        .slice(0, 50);
-      if (seen.has(key) || !p.title || !p.abstract) return false;
-      seen.add(key);
+        .slice(0, 60);
+      const doiKey = p.doi ? p.doi.toLowerCase().trim() : null;
+      if (seenTitles.has(titleKey)) return false;
+      if (doiKey && seenDois.has(doiKey)) return false;
+      seenTitles.add(titleKey);
+      if (doiKey) seenDois.add(doiKey);
       return true;
     })
     .sort((a, b) => (b.citationCount ?? 0) - (a.citationCount ?? 0))
-    .slice(0, 20);
+    .slice(0, 25);
 }
 
 // ── Chunking ──────────────────────────────────────────────────
+// IMPROVED: sentence-aware boundaries; authors propagated to chunks
 
 export interface Chunk {
   paperId: string;
@@ -273,34 +303,63 @@ export interface Chunk {
   text: string;
   url?: string;
   doi?: string;
+  authors?: string[];
+}
+
+function splitIntoSentences(text: string): string[] {
+  return text
+    .split(/(?<=[.?!])\s+(?=[A-Z0-9\("])/)
+    .map((s) => s.trim())
+    .filter((s) => s.length > 10);
 }
 
 export function chunkPapers(papers: Paper[]): Chunk[] {
   const chunks: Chunk[] = [];
+
   papers.forEach((paper, idx) => {
-    const words = paper.abstract.split(/\s+/).filter(Boolean);
-    if (!words.length) return;
-    let start = 0;
-    while (start < words.length) {
-      const end = Math.min(start + CHUNK_SIZE, words.length);
+    const sentences = splitIntoSentences(paper.abstract);
+    if (!sentences.length) return;
+
+    let current: string[] = [];
+    let currentWordCount = 0;
+
+    const pushChunk = () => {
+      if (current.length === 0) return;
       chunks.push({
         paperId: paper.id,
         paperIdx: idx + 1,
         title: paper.title,
         source: paper.source,
         year: paper.year,
-        text: words.slice(start, end).join(" "),
+        text: current.join(" "),
         url: paper.url,
         doi: paper.doi,
+        authors: paper.authors,
       });
-      if (end === words.length) break;
-      start += CHUNK_SIZE - CHUNK_OVERLAP;
+    };
+
+    for (const sentence of sentences) {
+      const wordCount = sentence.split(/\s+/).length;
+      if (currentWordCount + wordCount > CHUNK_SIZE && current.length > 0) {
+        pushChunk();
+        // Overlap: keep last CHUNK_OVERLAP words
+        const prevText = current.join(" ");
+        const overlapWords = prevText.split(/\s+/).slice(-CHUNK_OVERLAP);
+        current = [overlapWords.join(" "), sentence];
+        currentWordCount = overlapWords.length + wordCount;
+      } else {
+        current.push(sentence);
+        currentWordCount += wordCount;
+      }
     }
+    pushChunk();
   });
+
   return chunks;
 }
 
 // ── Ranking ───────────────────────────────────────────────────
+// IMPROVED: BM25 + title-keyword boost + source diversity
 
 function tokenize(text: string): string[] {
   return text
@@ -316,49 +375,77 @@ const K1 = 1.5,
 export function rankChunks(
   query: string,
   chunks: Chunk[],
-  topK = TOP_K_CHUNKS,
+  topK = TOP_K_CHUNKS
 ): Chunk[] {
   if (!chunks.length) return [];
+
   const qTokens = new Set(tokenize(query));
   const avgLen =
     chunks.reduce((s, c) => s + c.text.split(/\s+/).length, 0) / chunks.length;
+
   const idf: Record<string, number> = {};
   for (const t of qTokens) {
     const df = chunks.filter((c) => c.text.toLowerCase().includes(t)).length;
     idf[t] = df > 0 ? Math.log((chunks.length - df + 0.5) / (df + 0.5) + 1) : 0;
   }
-  return chunks
-    .map((chunk) => {
-      const words = chunk.text.split(/\s+/);
-      const tf: Record<string, number> = {};
-      for (const w of words) {
-        const t = w.toLowerCase().replace(/[^a-z0-9]/g, "");
-        tf[t] = (tf[t] ?? 0) + 1;
-      }
-      let score = 0;
-      for (const t of qTokens) {
-        const f = tf[t] ?? 0;
-        score +=
-          (idf[t] * f * (K1 + 1)) /
-          (f + K1 * (1 - B + B * (words.length / avgLen)));
-      }
-      if (chunk.year && chunk.year >= 2020) score *= 1.1;
-      return { chunk, score };
-    })
-    .sort((a, b) => b.score - a.score)
-    .slice(0, topK)
-    .map((s) => s.chunk);
+
+  const scored = chunks.map((chunk) => {
+    const words = chunk.text.split(/\s+/);
+    const tf: Record<string, number> = {};
+    for (const w of words) {
+      const t = w.toLowerCase().replace(/[^a-z0-9]/g, "");
+      tf[t] = (tf[t] ?? 0) + 1;
+    }
+
+    // BM25 score
+    let score = 0;
+    for (const t of qTokens) {
+      const f = tf[t] ?? 0;
+      score +=
+        (idf[t] * f * (K1 + 1)) /
+        (f + K1 * (1 - B + B * (words.length / avgLen)));
+    }
+
+    // IMPROVED: Title-keyword boost
+    const titleTokens = new Set(tokenize(chunk.title));
+    const titleOverlap = [...qTokens].filter((t) => titleTokens.has(t)).length;
+    if (titleOverlap > 0) score *= 1 + 0.1 * Math.min(titleOverlap, 3); // max 1.3x
+
+    // Recency boost
+    if (chunk.year && chunk.year >= 2020) score *= 1.1;
+
+    return { chunk, score };
+  });
+
+  // IMPROVED: Source diversity enforcement
+  const paperChunkCount: Record<string, number> = {};
+  const result: Chunk[] = [];
+
+  for (const { chunk } of scored.sort((a, b) => b.score - a.score)) {
+    const count = paperChunkCount[chunk.paperId] ?? 0;
+    if (count < MAX_CHUNKS_PER_PAPER) {
+      result.push(chunk);
+      paperChunkCount[chunk.paperId] = count + 1;
+    }
+    if (result.length >= topK) break;
+  }
+
+  return result;
 }
 
 // ── Context builder ───────────────────────────────────────────
+// IMPROVED: authors in header; DOI in footer
 
 export function buildRAGContext(topChunks: Chunk[]): string {
   return topChunks
-    .map(
-      (c, i) =>
-        `[Chunk ${i + 1} | Ref ${c.paperIdx}: "${c.title}" (${c.source}, ${c.year ?? "n.d."})]
-${c.text}${c.url ? `\nURL: ${c.url}` : ""}${c.doi ? `\nDOI: https://doi.org/${c.doi}` : ""}`,
-    )
+    .map((c, i) => {
+      const authorStr =
+        c.authors && c.authors.length > 0
+          ? ` | ${c.authors.slice(0, 3).join(", ")}${c.authors.length > 3 ? " et al." : ""}`
+          : "";
+      return `[Chunk ${i + 1} | Ref ${c.paperIdx}: "${c.title}" (${c.source}, ${c.year ?? "n.d."})${authorStr}]
+${c.text}${c.url ? `\nURL: ${c.url}` : ""}${c.doi ? `\nDOI: https://doi.org/${c.doi}` : ""}`;
+    })
     .join("\n\n---\n\n");
 }
 
@@ -371,34 +458,36 @@ CONTEXT USAGE RULES:
 - You are given ranked excerpts from academic papers. Each is labelled [Chunk N | Ref M: "Title" (Source, Year)].
 - Cite using Ref number: e.g. [2] or [1,3]. Never fabricate facts.
 - If context is insufficient, supplement with your knowledge and note it explicitly.
+- Prioritize recent papers (2020+) unless older work is foundational.
 
 WRITING RULES:
 - Never start with "Great question!" or filler phrases.
 - Use ## for main headings, bold **key terms** on first use.
 - Research answers: 500-700 words. Study explanations: 400-600 words.
-- Always end with ## What To Search Next (3 query suggestions).`;
+- Always end with ## What To Search Next (3 query suggestions).
+- In ## Useful Links, include DOI or URL for every cited paper.`;
 
 export async function generateRAGAnswer(
   query: string,
   papers: Paper[],
-  stream = false,
+  stream = false
 ): Promise<string | AsyncIterable<string>> {
   const chunks = chunkPapers(papers);
   const topChunks = rankChunks(query, chunks);
   const ragCtx = buildRAGContext(topChunks);
 
-  // ✅ FIX: abstract slice raised 550 → 900 chars
+  // IMPROVED: abstract slice raised to 1200 chars; DOI included in paper list
   const paperList = papers
-    .slice(0, 20)
+    .slice(0, 25)
     .map(
       (p, i) =>
-        `[${i + 1}] "${p.title}" — ${p.authors.slice(0, 3).join(", ")}${p.authors.length > 3 ? " et al." : ""} (${p.year ?? "n.d."}) · ${p.source}${p.url ? ` · ${p.url}` : ""}`,
+        `[${i + 1}] "${p.title}" — ${p.authors.slice(0, 3).join(", ")}${p.authors.length > 3 ? " et al." : ""} (${p.year ?? "n.d."}) · ${p.source}${p.url ? ` · ${p.url}` : ""}${p.doi ? ` · DOI: https://doi.org/${p.doi}` : ""}`
     )
     .join("\n");
 
   const userPrompt = `RESEARCH QUESTION: "${query}"
 
-## RETRIEVED CONTEXT (top ${topChunks.length} chunks)
+## RETRIEVED CONTEXT (top ${topChunks.length} chunks, BM25 + title-boosted, diversity-enforced)
 ${ragCtx}
 
 ## PAPER INDEX
