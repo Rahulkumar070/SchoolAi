@@ -94,6 +94,23 @@ RULE 6 — No overconfident claims. Provide context and scope.
 
 RULE 7 — Focus on key innovations, mechanisms, limitations, applications.
 
+RULE 10 — CITATION QUALITY AND PAPER PRIORITIZATION
+Priority order when selecting which papers to cite:
+  1. FOUNDATIONAL — the original paper that introduced the method.
+  2. MAJOR FOLLOW-UP — papers that significantly improved the method.
+  3. BENCHMARK / EVALUATION — papers that directly test or compare the method.
+
+CITATION FILTERING — only include a paper if it:
+  ✓ Introduces the method
+  ✓ Significantly improves the method
+  ✓ Benchmarks or evaluates the method directly
+
+DO NOT cite:
+  ✗ General surveys if a foundational paper exists.
+  ✗ Papers that only mention the concept tangentially.
+
+CITATION LIMITS: 3–5 most relevant papers per answer. Foundational papers always cited first.
+
 WRITING RULES
 - Never start with filler phrases.
 - Bold **key terms** on first use.
