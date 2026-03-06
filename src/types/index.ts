@@ -9,11 +9,15 @@ export interface Paper {
   url?: string;
   citationCount?: number;
   source: string;
+  // FEAT: reserved for future embedding-based retrieval
+  _embedding?: number[];
 }
+
 export interface ChatMessage {
   role: "user" | "assistant";
   content: string;
 }
+
 export interface SavedPaper {
   paperId: string;
   title: string;
@@ -25,10 +29,13 @@ export interface SavedPaper {
   abstract?: string;
   savedAt: string;
 }
+
+// IMPROVED: Harvard format added
 export type CitationFormat =
   | "apa"
   | "mla"
   | "ieee"
   | "chicago"
+  | "harvard"
   | "vancouver"
   | "bibtex";
