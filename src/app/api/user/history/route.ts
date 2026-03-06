@@ -19,12 +19,22 @@ export async function GET() {
 
     const u = (await UserModel.findOne({ email: session.user.email })
       .select(
-        "plan searchesToday searchDateReset searchesThisMonth searchMonthReset searchHistory.query searchHistory.searchedAt reviewHistory.topic reviewHistory.reviewedAt",
+        "plan searchesToday searchDateReset searchesThisMonth searchMonthReset searchHistory.query searchHistory.answer searchHistory.papers searchHistory.searchedAt reviewHistory.topic reviewHistory.review reviewHistory.papers reviewHistory.reviewedAt",
       )
       .lean()) as {
       plan?: string;
-      searchHistory?: { query: string; searchedAt: Date }[];
-      reviewHistory?: { topic: string; reviewedAt: Date }[];
+      searchHistory?: {
+        query: string;
+        answer?: string;
+        papers?: unknown[];
+        searchedAt: Date;
+      }[];
+      reviewHistory?: {
+        topic: string;
+        review?: string;
+        papers?: unknown[];
+        reviewedAt: Date;
+      }[];
       searchesToday?: number;
       searchDateReset?: Date;
       searchesThisMonth?: number;
@@ -51,10 +61,14 @@ export async function GET() {
     return NextResponse.json({
       history: (u.searchHistory ?? []).map((h) => ({
         query: h.query,
+        answer: h.answer ?? "",
+        papers: h.papers ?? [],
         searchedAt: h.searchedAt,
       })),
       reviewHistory: (u.reviewHistory ?? []).map((r) => ({
         topic: r.topic,
+        review: r.review ?? "",
+        papers: r.papers ?? [],
         reviewedAt: r.reviewedAt,
       })),
       searchesToday: isNewDay ? 0 : (u.searchesToday ?? 0),

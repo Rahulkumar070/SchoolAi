@@ -1,5 +1,11 @@
 "use client";
-import { useState, useEffect, useRef, Suspense, useCallback } from "react";
+import React, {
+  useState,
+  useEffect,
+  useRef,
+  Suspense,
+  useCallback,
+} from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import Shell from "@/components/layout/Shell";
@@ -38,6 +44,85 @@ interface Turn {
   related?: string[];
   status?: string;
   feedback?: "up" | "down" | null;
+}
+
+// ── Claude-style smooth streaming ────────────────────────────
+// Key insight: NEVER conditionally unmount the live div.
+// Both divs always exist in the DOM — we just hide one with CSS.
+// This prevents React from wiping DOM nodes we appended manually.
+function StreamingText({
+  text,
+  streaming,
+}: {
+  text: string;
+  streaming: boolean;
+}) {
+  const liveRef = useRef<HTMLDivElement>(null);
+  const prevLen = useRef(0);
+  const wordBuf = useRef("");
+  const isFirstRef = useRef(true);
+
+  // Append new chars directly to DOM — no React re-render at all
+  useEffect(() => {
+    if (!streaming) return;
+    const el = liveRef.current;
+    if (!el) return;
+
+    const newChars = text.slice(prevLen.current);
+    prevLen.current = text.length;
+    if (!newChars) return;
+
+    isFirstRef.current = false;
+    wordBuf.current += newChars;
+
+    // Split on whitespace boundaries, keep delimiters
+    const parts = wordBuf.current.split(/(\s+)/);
+    // Last element may be partial word — keep in buffer
+    wordBuf.current = parts.pop() ?? "";
+
+    const frag = document.createDocumentFragment();
+    for (const part of parts) {
+      if (!part) continue;
+      const node = document.createElement("span");
+      node.textContent = part;
+      if (part.trim()) node.className = "stream-word";
+      frag.appendChild(node);
+    }
+    el.appendChild(frag);
+  }, [text, streaming]);
+
+  // When streaming ends: reset refs for potential reuse
+  useEffect(() => {
+    if (streaming) return;
+    prevLen.current = 0;
+    wordBuf.current = "";
+    isFirstRef.current = true;
+  }, [streaming]);
+
+  if (!text) return null;
+
+  return (
+    <div>
+      {/* Live div — always mounted, never removed. We append spans here. */}
+      <div
+        ref={liveRef}
+        style={{
+          display: streaming ? "block" : "none",
+          whiteSpace: "pre-wrap",
+          fontSize: 15,
+          lineHeight: 1.8,
+          color: "var(--text-secondary)",
+          fontFamily: "var(--font-ui)",
+        }}
+      />
+      {/* Markdown div — shown only after streaming ends */}
+      {!streaming && (
+        <ReactMarkdown remarkPlugins={[remarkGfm]} components={MD as any}>
+          {text}
+        </ReactMarkdown>
+      )}
+    </div>
+  );
 }
 
 const MD = {
@@ -338,13 +423,13 @@ function RelatedQuestions({
               transition: "border-color .14s, background .14s",
               fontFamily: "var(--font-ui)",
             }}
-            onMouseEnter={(e) => {
+            onMouseEnter={(e: React.MouseEvent<HTMLButtonElement>) => {
               (e.currentTarget as HTMLElement).style.borderColor =
                 "var(--border-mid)";
               (e.currentTarget as HTMLElement).style.background =
                 "var(--surface)";
             }}
-            onMouseLeave={(e) => {
+            onMouseLeave={(e: React.MouseEvent<HTMLButtonElement>) => {
               (e.currentTarget as HTMLElement).style.borderColor =
                 "var(--border)";
               (e.currentTarget as HTMLElement).style.background =
@@ -388,13 +473,27 @@ function SearchApp() {
   const [panelTurn, setPanelTurn] = useState<Turn | null>(null);
   const [panelTab, setPanelTab] = useState<"sources" | "cite">("sources");
   const [conversationId, setConversationId] = useState<string | null>(null);
+  const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
 
   const taRef = useRef<HTMLTextAreaElement>(null);
   const endRef = useRef<HTMLDivElement>(null);
 
+  // ✅ Load saved paper IDs so bookmark icons show correct state on load
+  useEffect(() => {
+    if (!session?.user?.email) return;
+    fetch("/api/papers")
+      .then((r) => r.json())
+      .then((d: { papers?: { paperId: string }[] }) => {
+        setSavedIds(new Set((d.papers ?? []).map((p) => p.paperId)));
+      })
+      .catch(() => {});
+  }, [session?.user?.email]);
+
   const handleFeedback = (index: number, rating: "up" | "down") => {
-    setTurns((prev) =>
-      prev.map((t, i) => (i === index ? { ...t, feedback: rating } : t)),
+    setTurns((prev: Turn[]) =>
+      prev.map((t: Turn, i: number) =>
+        i === index ? { ...t, feedback: rating } : t,
+      ),
     );
   };
 
@@ -454,6 +553,7 @@ function SearchApp() {
   const doSearch = useCallback(
     async (q: string, convId?: string | null) => {
       if (!q.trim() || loading) return;
+
       const query = q.trim();
       const useConvId = convId !== undefined ? convId : conversationId;
 
@@ -461,10 +561,10 @@ function SearchApp() {
       setErrorMsg("");
       setLimitError(false);
       setInput("");
+
       if (taRef.current) taRef.current.style.height = "auto";
 
-      // Add turn with empty status
-      setTurns((prev) => [
+      setTurns((prev: Turn[]) => [
         ...prev,
         {
           query,
@@ -474,7 +574,10 @@ function SearchApp() {
           status: "Searching 200M+ papers…",
         },
       ]);
+
       scrollDown();
+
+      let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
       try {
         const resp = await fetch("/api/search/stream", {
@@ -485,11 +588,15 @@ function SearchApp() {
 
         if (!resp.ok) {
           const err = (await resp.json()) as { error?: string };
+
           if (resp.status === 429) {
             setLimitError(true);
             setErrorMsg(err.error ?? "Limit reached");
-          } else setErrorMsg(err.error ?? "Search failed");
-          setTurns((prev) => prev.slice(0, -1));
+          } else {
+            setErrorMsg(err.error ?? "Search failed");
+          }
+
+          setTurns((prev: Turn[]) => prev.slice(0, -1));
           setLoading(false);
           return;
         }
@@ -498,27 +605,46 @@ function SearchApp() {
         const decoder = new TextDecoder();
         let buffer = "";
 
+        // Timeout protection
+        timeoutId = setTimeout(() => {
+          void reader.cancel();
+
+          setTurns((prev: Turn[]) => {
+            const u = [...prev];
+            const last = u[u.length - 1];
+
+            if (last?.streaming) {
+              u[u.length - 1] = {
+                ...last,
+                streaming: false,
+                status: undefined,
+                answer: last.answer || "Request timed out. Please tap Re-run.",
+              };
+            }
+
+            return u;
+          });
+
+          setLoading(false);
+        }, 20000);
+
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
+
           buffer += decoder.decode(value, { stream: true });
           const lines = buffer.split("\n");
           buffer = lines.pop() ?? "";
 
           for (const line of lines) {
             if (!line.startsWith("data: ")) continue;
+
             try {
-              const evt = JSON.parse(line.slice(6)) as {
-                type: string;
-                text?: string;
-                papers?: Paper[];
-                conversationId?: string;
-                isNewConversation?: boolean;
-                related?: string[];
-              };
+              const evt = JSON.parse(line.slice(6));
 
               if (evt.type === "meta" && evt.conversationId) {
                 setConversationId(evt.conversationId);
+
                 if (evt.isNewConversation) {
                   window.history.replaceState(
                     null,
@@ -527,73 +653,102 @@ function SearchApp() {
                   );
                 }
               } else if (evt.type === "status" && evt.text) {
-                // Update the loading status text on the last turn
-                setTurns((prev) => {
+                setTurns((prev: Turn[]) => {
                   const u = [...prev];
-                  u[u.length - 1] = { ...u[u.length - 1], status: evt.text };
+                  u[u.length - 1] = {
+                    ...u[u.length - 1],
+                    status: evt.text,
+                  };
                   return u;
                 });
               } else if (evt.type === "papers" && evt.papers) {
-                setTurns((prev) => {
+                setTurns((prev: Turn[]) => {
                   const u = [...prev];
-                  u[u.length - 1] = { ...u[u.length - 1], papers: evt.papers! };
+                  u[u.length - 1] = {
+                    ...u[u.length - 1],
+                    papers: evt.papers,
+                  };
                   return u;
                 });
+
                 setPanelTurn(
-                  (t) =>
+                  (t: Turn | null) =>
                     t ?? {
                       query,
                       answer: "",
-                      papers: evt.papers!,
+                      papers: evt.papers,
                       streaming: true,
                     },
                 );
+
                 setPanelTab("sources");
               } else if (evt.type === "text" && evt.text) {
-                setTurns((prev) => {
+                setTurns((prev: Turn[]) => {
                   const u = [...prev];
                   const last = u[u.length - 1];
+
                   u[u.length - 1] = {
                     ...last,
                     answer: last.answer + evt.text,
                     status: undefined,
                   };
+
                   return u;
                 });
+
                 scrollDown();
               } else if (evt.type === "done") {
                 const relatedQuestions = evt.related ?? [];
-                setTurns((prev) => {
+
+                setTurns((prev: Turn[]) => {
                   const u = [...prev];
+
                   u[u.length - 1] = {
                     ...u[u.length - 1],
                     streaming: false,
                     status: undefined,
                     related: relatedQuestions,
                   };
+
                   return u;
                 });
-                setTurns((curr) => {
-                  setPanelTurn({ ...curr[curr.length - 1], streaming: false });
+
+                setTurns((curr: Turn[]) => {
+                  setPanelTurn({
+                    ...curr[curr.length - 1],
+                    streaming: false,
+                  });
+
                   return curr;
                 });
-                if (isFree) setSearchesToday((c) => Math.min(c + 1, 5));
-                if (isStudent)
+
+                if (timeoutId) clearTimeout(timeoutId);
+
+                if (isFree) {
+                  setSearchesToday((c) => Math.min(c + 1, 5));
+                }
+
+                if (isStudent) {
                   setSearchesThisMonth((c) => Math.min(c + 1, 500));
+                }
+
                 window.dispatchEvent(
                   new Event("researchly:conversation-updated"),
                 );
               }
             } catch {
-              /* ignore parse errors */
+              // ignore parse errors
             }
           }
         }
       } catch {
         setErrorMsg("Network error. Please try again.");
         toast.error("Network error");
-        setTurns((prev) => prev.slice(0, -1));
+
+        setTurns((prev: Turn[]) => prev.slice(0, -1));
       } finally {
+        if (timeoutId) clearTimeout(timeoutId);
+
         setLoading(false);
         scrollDown();
       }
@@ -606,12 +761,26 @@ function SearchApp() {
     if (initQ && autoRun) void doSearch(initQ);
   }, []); // eslint-disable-line
 
-  const SUGGESTIONS = [
+  const [suggestions, setSuggestions] = useState<string[]>([
     "How does gut microbiome affect mental health?",
     "Latest breakthroughs in quantum computing",
-    "RLHF for language model alignment",
+    "CRISPR gene editing applications 2024",
     "Long COVID mechanisms and treatments",
-  ];
+    "Transformer architecture in deep learning",
+    "Climate change impact on biodiversity",
+  ]);
+
+  // ✅ Load trending searches from cache usageCount
+  useEffect(() => {
+    fetch("/api/trending")
+      .then((r) => r.json())
+      .then((d: { queries?: string[] }) => {
+        if (d.queries && d.queries.length >= 4) setSuggestions(d.queries);
+      })
+      .catch(() => {}); // fallback to defaults silently
+  }, []);
+
+  const SUGGESTIONS = suggestions;
 
   const RightPanel = panelTurn ? (
     <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
@@ -633,8 +802,8 @@ function SearchApp() {
       </div>
       <div className="panel-body">
         {panelTab === "sources" ? (
-          panelTurn.papers.map((p, i) => (
-            <PaperCard key={p.id} paper={p} index={i + 1} />
+          panelTurn.papers.map((p: Paper, i: number) => (
+            <PaperCard key={p.id} paper={p} index={i + 1} savedIds={savedIds} />
           ))
         ) : (
           <CitationPanel papers={panelTurn.papers} />
@@ -737,7 +906,7 @@ function SearchApp() {
         ) : (
           /* ── Conversation turns ── */
           <div className="messages-wrap">
-            {turns.map((turn, i) => (
+            {turns.map((turn: Turn, i: number) => (
               <div key={i} style={{ marginBottom: 36 }}>
                 {/* User bubble */}
                 <div className="msg-row user">
@@ -757,12 +926,10 @@ function SearchApp() {
 
                     {turn.answer ? (
                       <>
-                        <ReactMarkdown
-                          remarkPlugins={[remarkGfm]}
-                          components={MD as any}
-                        >
-                          {turn.answer}
-                        </ReactMarkdown>
+                        <StreamingText
+                          text={turn.answer}
+                          streaming={!!turn.streaming}
+                        />
                         {turn.streaming && <Cursor />}
 
                         {/* Action bar + related questions */}
@@ -1008,11 +1175,11 @@ function SearchApp() {
           <textarea
             ref={taRef}
             value={input}
-            onChange={(e) => {
+            onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => {
               setInput(e.target.value);
               resize();
             }}
-            onKeyDown={(e) => {
+            onKeyDown={(e: React.KeyboardEvent<HTMLTextAreaElement>) => {
               if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();
                 void doSearch(input);
