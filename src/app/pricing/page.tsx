@@ -4,6 +4,7 @@ import { useSession, signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Script from "next/script";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Check,
   BookOpen,
@@ -16,6 +17,7 @@ import {
   Building2,
   ArrowRight,
   ChevronDown,
+  Loader2,
 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -53,8 +55,7 @@ const PLANS = [
     planLabel: "",
     highlight: false,
     icon: Zap,
-    color: "#6b7280",
-    checkColor: "#5db87a",
+    accentColor: "#555",
     features: [
       "5 AI searches / day",
       "Cited answers from 200M+ papers",
@@ -68,14 +69,13 @@ const PLANS = [
     id: "student",
     name: "Student",
     inr: "₹199",
-    period: "/month",
+    period: "/mo",
     desc: "For students & researchers",
     planId: process.env.NEXT_PUBLIC_RAZORPAY_STUDENT_PLAN_ID ?? "",
     planLabel: "Student Plan",
     highlight: true,
     icon: Sparkles,
-    color: "#e8a045",
-    checkColor: "#e8a045",
+    accentColor: "#c9b99a",
     features: [
       "500 searches / month",
       "Full literature reviews",
@@ -91,14 +91,13 @@ const PLANS = [
     id: "pro",
     name: "Pro",
     inr: "₹499",
-    period: "/month",
+    period: "/mo",
     desc: "For researchers & teams",
     planId: process.env.NEXT_PUBLIC_RAZORPAY_PRO_PLAN_ID ?? "",
     planLabel: "Pro Plan",
     highlight: false,
     icon: Crown,
-    color: "#5c9ae0",
-    checkColor: "#5c9ae0",
+    accentColor: "#7ea8c9",
     features: [
       "Unlimited searches",
       "Unlimited PDF uploads",
@@ -142,9 +141,7 @@ const FAQS = [
 function FaqItem({ q, a }: { q: string; a: string }) {
   const [open, setOpen] = useState(false);
   return (
-    <div
-      style={{ borderBottom: "1px solid var(--border)", overflow: "hidden" }}
-    >
+    <div style={{ borderBottom: "1px solid #222" }}>
       <button
         onClick={() => setOpen((o) => !o)}
         style={{
@@ -158,42 +155,49 @@ function FaqItem({ q, a }: { q: string; a: string }) {
           cursor: "pointer",
           fontFamily: "var(--font-ui)",
           textAlign: "left",
-          gap: 12,
+          gap: 16,
         }}
       >
         <span
           style={{
             fontSize: 14,
-            fontWeight: 600,
-            color: "var(--text-primary)",
+            fontWeight: 500,
+            color: "#e8e3dc",
             lineHeight: 1.4,
           }}
         >
           {q}
         </span>
         <ChevronDown
-          size={16}
+          size={15}
           style={{
-            color: "var(--text-faint)",
+            color: "#555",
             flexShrink: 0,
             transform: open ? "rotate(180deg)" : "none",
             transition: "transform .2s",
           }}
         />
       </button>
-      {open && (
-        <p
-          style={{
-            fontSize: 13.5,
-            color: "var(--text-secondary)",
-            lineHeight: 1.7,
-            paddingBottom: 18,
-            paddingRight: 28,
-          }}
-        >
-          {a}
-        </p>
-      )}
+      <AnimatePresence>
+        {open && (
+          <motion.p
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.22 }}
+            style={{
+              fontSize: 13.5,
+              color: "#888",
+              lineHeight: 1.75,
+              paddingBottom: 18,
+              paddingRight: 28,
+              overflow: "hidden",
+            }}
+          >
+            {a}
+          </motion.p>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -218,7 +222,6 @@ export default function Pricing() {
       );
       return;
     }
-
     setPaying(plan.id);
     try {
       const r = await fetch("/api/razorpay/order", {
@@ -232,14 +235,13 @@ export default function Pricing() {
         setPaying("");
         return;
       }
-
       const opts: RzpOpts = {
         key: d.razorpayKeyId ?? "",
         subscription_id: d.subscriptionId,
         name: "Researchly",
         description: plan.planLabel,
         prefill: { name: d.userName ?? "", email: d.userEmail ?? "" },
-        theme: { color: "#e8a045" },
+        theme: { color: "#c9b99a" },
         handler: async (resp) => {
           try {
             const v = await fetch("/api/razorpay/verify", {
@@ -278,35 +280,36 @@ export default function Pricing() {
         src="https://checkout.razorpay.com/v1/checkout.js"
         strategy="lazyOnload"
       />
+
       <div
         style={{
-          background: "var(--bg)",
+          background: "#141414",
           minHeight: "100vh",
           fontFamily: "var(--font-ui)",
+          color: "#e8e3dc",
         }}
       >
-        {/* ── Nav ─────────────────────────────────────────────── */}
+        {/* ── Nav ── */}
         <nav
           style={{
             position: "sticky",
             top: 0,
             zIndex: 50,
-            background: "rgba(15,15,15,.92)",
-            borderBottom: "1px solid var(--border)",
+            background: "rgba(20,20,20,.9)",
+            borderBottom: "1px solid #1e1e1e",
             backdropFilter: "blur(20px)",
             WebkitBackdropFilter: "blur(20px)",
-            padding: "0 clamp(20px,4vw,48px)",
           }}
         >
           <div
             style={{
-              maxWidth: 1080,
+              maxWidth: 900,
               margin: "0 auto",
-              height: 60,
+              height: 56,
               display: "flex",
               alignItems: "center",
               justifyContent: "space-between",
-              gap: 16,
+              padding: "0 24px",
             }}
           >
             <Link
@@ -314,75 +317,71 @@ export default function Pricing() {
               style={{
                 display: "flex",
                 alignItems: "center",
-                gap: 9,
+                gap: 8,
                 textDecoration: "none",
               }}
             >
               <div
-                className="logo-mark"
-                style={{ width: 28, height: 28, borderRadius: 7 }}
+                style={{
+                  width: 26,
+                  height: 26,
+                  borderRadius: 7,
+                  background: "#c9b99a",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
               >
-                <BookOpen size={13} color="#000" strokeWidth={2.5} />
+                <BookOpen size={12} color="#000" strokeWidth={2.5} />
               </div>
               <span
                 style={{
                   fontWeight: 700,
-                  fontSize: 14.5,
-                  color: "var(--text-primary)",
+                  fontSize: 14,
+                  color: "#e8e3dc",
+                  letterSpacing: "-.01em",
                 }}
               >
                 Researchly
               </span>
             </Link>
-            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <Link
                 href="/search"
                 style={{
                   fontSize: 13,
-                  color: "var(--text-faint)",
-                  padding: "6px 12px",
-                  borderRadius: 8,
+                  color: "#555",
+                  padding: "5px 10px",
+                  borderRadius: 7,
                   textDecoration: "none",
                   transition: "color .14s",
                 }}
-                onMouseEnter={(e) =>
-                  ((e.currentTarget as HTMLElement).style.color =
-                    "var(--text-primary)")
-                }
-                onMouseLeave={(e) =>
-                  ((e.currentTarget as HTMLElement).style.color =
-                    "var(--text-faint)")
-                }
+                onMouseEnter={(e) => (e.currentTarget.style.color = "#e8e3dc")}
+                onMouseLeave={(e) => (e.currentTarget.style.color = "#555")}
               >
                 Search
               </Link>
               {session ? (
                 <Link
-                  href="/dashboard"
+                  href="/search"
                   style={{
                     fontSize: 13,
                     fontWeight: 600,
-                    color: "var(--text-primary)",
-                    padding: "7px 16px",
-                    borderRadius: 9,
-                    border: "1px solid var(--border-mid)",
+                    color: "#e8e3dc",
+                    padding: "6px 14px",
+                    borderRadius: 8,
+                    border: "1px solid #252525",
                     textDecoration: "none",
-                    transition: "border-color .14s, background .14s",
+                    transition: "border-color .14s",
                   }}
-                  onMouseEnter={(e) => {
-                    (e.currentTarget as HTMLElement).style.borderColor =
-                      "var(--border-hi)";
-                    (e.currentTarget as HTMLElement).style.background =
-                      "var(--surface)";
-                  }}
-                  onMouseLeave={(e) => {
-                    (e.currentTarget as HTMLElement).style.borderColor =
-                      "var(--border-mid)";
-                    (e.currentTarget as HTMLElement).style.background =
-                      "transparent";
-                  }}
+                  onMouseEnter={(e) =>
+                    (e.currentTarget.style.borderColor = "#3a3a3a")
+                  }
+                  onMouseLeave={(e) =>
+                    (e.currentTarget.style.borderColor = "#252525")
+                  }
                 >
-                  Dashboard
+                  Open app
                 </Link>
               ) : (
                 <button
@@ -391,9 +390,9 @@ export default function Pricing() {
                     fontSize: 13,
                     fontWeight: 700,
                     color: "#000",
-                    padding: "7px 16px",
-                    borderRadius: 9,
-                    background: "var(--brand)",
+                    padding: "6px 14px",
+                    borderRadius: 8,
+                    background: "#c9b99a",
                     border: "none",
                     cursor: "pointer",
                     fontFamily: "var(--font-ui)",
@@ -407,157 +406,170 @@ export default function Pricing() {
         </nav>
 
         <div
-          style={{
-            maxWidth: 1080,
-            margin: "0 auto",
-            padding: "72px clamp(20px,4vw,48px) 80px",
-          }}
+          style={{ maxWidth: 900, margin: "0 auto", padding: "72px 24px 96px" }}
         >
-          {/* ── Hero ────────────────────────────────────────────── */}
-          <div style={{ textAlign: "center", marginBottom: 60 }}>
+          {/* ── Hero ── */}
+          <motion.div
+            initial={{ opacity: 0, y: 24 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.55, ease: "easeOut" }}
+            style={{ textAlign: "center", marginBottom: 64 }}
+          >
             <div
               style={{
                 display: "inline-flex",
                 alignItems: "center",
                 gap: 6,
-                padding: "5px 14px",
+                padding: "4px 12px",
                 borderRadius: 99,
-                background: "var(--brand-dim)",
-                border: "1px solid var(--brand-border)",
-                fontSize: 11.5,
+                background: "rgba(201,185,154,.08)",
+                border: "1px solid rgba(201,185,154,.18)",
+                fontSize: 11,
                 fontWeight: 700,
-                color: "var(--brand)",
-                letterSpacing: ".06em",
-                marginBottom: 20,
+                color: "#c9b99a",
+                letterSpacing: ".08em",
+                textTransform: "uppercase",
+                marginBottom: 22,
               }}
             >
-              <Sparkles size={11} /> Simple pricing
+              <Sparkles size={10} /> Simple pricing
             </div>
             <h1
               style={{
                 fontFamily: "var(--font-display)",
-                fontSize: "clamp(2rem,5.5vw,3.2rem)",
+                fontSize: "clamp(2.2rem,5vw,3.4rem)",
                 fontWeight: 400,
-                color: "var(--text-primary)",
-                marginBottom: 16,
-                lineHeight: 1.1,
-                letterSpacing: "-.03em",
+                color: "#e8e3dc",
+                marginBottom: 14,
+                lineHeight: 1.08,
+                letterSpacing: "-.04em",
               }}
             >
               Research without limits
             </h1>
             <p
               style={{
-                fontSize: 15.5,
-                color: "var(--text-secondary)",
-                maxWidth: 440,
+                fontSize: 15,
+                color: "#666",
+                maxWidth: 380,
                 margin: "0 auto 28px",
-                lineHeight: 1.72,
+                lineHeight: 1.75,
+                fontWeight: 300,
               }}
             >
-              Pay instantly — UPI, card, net banking.
-              <br />
-              No emails, no waiting. Powered by Razorpay.
+              Pay instantly — UPI, cards, net banking. No emails, no waiting.
             </p>
-            {/* Payment badges */}
+            {/* Payment method pills */}
             <div
               style={{
                 display: "flex",
                 flexWrap: "wrap",
                 justifyContent: "center",
-                gap: 8,
+                gap: 6,
               }}
             >
-              {[
-                [Smartphone, "UPI / GPay / PhonePe"],
-                [CreditCard, "Cards"],
-                [Building2, "Net Banking"],
-                [ShieldCheck, "Razorpay Secured"],
-              ].map(([Ic, label]) => {
+              {(
+                [
+                  [Smartphone, "UPI / GPay"],
+                  [CreditCard, "Cards"],
+                  [Building2, "Net Banking"],
+                  [ShieldCheck, "Razorpay Secured"],
+                ] as const
+              ).map(([Ic, label]) => {
                 const Icon = Ic as any;
                 return (
                   <span
-                    key={label as string}
+                    key={label}
                     style={{
                       display: "inline-flex",
                       alignItems: "center",
-                      gap: 6,
-                      padding: "5px 12px",
+                      gap: 5,
+                      padding: "4px 11px",
                       borderRadius: 99,
-                      background: "var(--bg-raised)",
-                      border: "1px solid var(--border)",
-                      fontSize: 12,
-                      color: "var(--text-faint)",
+                      background: "#1a1a1a",
+                      border: "1px solid #222",
+                      fontSize: 11.5,
+                      color: "#555",
                       fontWeight: 500,
                     }}
                   >
-                    <Icon size={11} style={{ color: "var(--brand)" }} />
-                    {label as string}
+                    <Icon size={10} style={{ color: "#c9b99a" }} />
+                    {label}
                   </span>
                 );
               })}
             </div>
-          </div>
+          </motion.div>
 
-          {/* ── Plan Cards ──────────────────────────────────────── */}
-          <div
+          {/* ── Plan Cards ── */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.1 }}
             style={{
               display: "grid",
-              gridTemplateColumns: "repeat(auto-fit,minmax(280px,1fr))",
-              gap: 16,
+              gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+              gap: 14,
               marginBottom: 72,
               alignItems: "start",
             }}
           >
-            {PLANS.map((plan) => {
+            {PLANS.map((plan, idx) => {
               const Icon = plan.icon;
               const busy = paying === plan.id;
               return (
-                <div
+                <motion.div
                   key={plan.id}
+                  initial={{ opacity: 0, y: 16 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.4, delay: 0.15 + idx * 0.07 }}
                   style={{
-                    background: plan.highlight
-                      ? "var(--bg-raised)"
-                      : "var(--bg-raised)",
-                    border: `1.5px solid ${plan.highlight ? plan.color + "45" : "var(--border)"}`,
-                    borderRadius: 20,
-                    padding: "28px 26px",
+                    background: plan.highlight ? "#1a1a1a" : "#181818",
+                    border: `1px solid ${plan.highlight ? "rgba(201,185,154,.25)" : "#1e1e1e"}`,
+                    borderRadius: 18,
+                    padding: "26px 24px",
                     display: "flex",
                     flexDirection: "column",
                     position: "relative",
                     overflow: "hidden",
                     boxShadow: plan.highlight
-                      ? `0 0 0 1px ${plan.color}22, 0 24px 60px rgba(0,0,0,.3)`
+                      ? "0 0 0 1px rgba(201,185,154,.08), 0 20px 50px rgba(0,0,0,.35)"
                       : "none",
                     transition:
                       "transform .2s, box-shadow .2s, border-color .2s",
                   }}
                   onMouseEnter={(e) => {
                     const el = e.currentTarget as HTMLElement;
-                    el.style.transform = "translateY(-4px)";
+                    el.style.transform = "translateY(-3px)";
                     el.style.boxShadow = plan.highlight
-                      ? `0 0 0 1px ${plan.color}40, 0 28px 70px rgba(0,0,0,.4)`
-                      : "0 16px 48px rgba(0,0,0,.35)";
+                      ? "0 0 0 1px rgba(201,185,154,.3), 0 28px 60px rgba(0,0,0,.45)"
+                      : "0 16px 40px rgba(0,0,0,.4)";
+                    el.style.borderColor = plan.highlight
+                      ? "rgba(201,185,154,.35)"
+                      : "#2a2a2a";
                   }}
                   onMouseLeave={(e) => {
                     const el = e.currentTarget as HTMLElement;
                     el.style.transform = "";
                     el.style.boxShadow = plan.highlight
-                      ? `0 0 0 1px ${plan.color}22, 0 24px 60px rgba(0,0,0,.3)`
+                      ? "0 0 0 1px rgba(201,185,154,.08), 0 20px 50px rgba(0,0,0,.35)"
                       : "none";
+                    el.style.borderColor = plan.highlight
+                      ? "rgba(201,185,154,.25)"
+                      : "#1e1e1e";
                   }}
                 >
-                  {/* Glow blob */}
+                  {/* Subtle glow blob */}
                   <div
                     style={{
                       position: "absolute",
-                      top: -30,
-                      right: -30,
-                      width: 120,
-                      height: 120,
+                      top: -40,
+                      right: -40,
+                      width: 130,
+                      height: 130,
                       borderRadius: "50%",
-                      background: `${plan.color}10`,
-                      filter: "blur(30px)",
+                      background: `${plan.accentColor}0a`,
+                      filter: "blur(40px)",
                       pointerEvents: "none",
                     }}
                   />
@@ -567,46 +579,46 @@ export default function Pricing() {
                     <div
                       style={{
                         position: "absolute",
-                        top: 18,
-                        right: 20,
-                        padding: "3px 10px",
+                        top: 16,
+                        right: 18,
+                        padding: "2px 9px",
                         borderRadius: 99,
-                        background: `${plan.color}18`,
-                        border: `1px solid ${plan.color}35`,
-                        fontSize: 10,
+                        background: "rgba(201,185,154,.1)",
+                        border: "1px solid rgba(201,185,154,.22)",
+                        fontSize: 9.5,
                         fontWeight: 800,
-                        color: plan.color,
-                        letterSpacing: ".06em",
+                        color: "#c9b99a",
+                        letterSpacing: ".1em",
                       }}
                     >
-                      MOST POPULAR
+                      POPULAR
                     </div>
                   )}
 
                   {/* Icon */}
                   <div
                     style={{
-                      width: 44,
-                      height: 44,
-                      borderRadius: 13,
-                      background: `${plan.color}14`,
-                      border: `1px solid ${plan.color}28`,
+                      width: 38,
+                      height: 38,
+                      borderRadius: 11,
+                      background: `${plan.accentColor}12`,
+                      border: `1px solid ${plan.accentColor}20`,
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
-                      marginBottom: 16,
+                      marginBottom: 14,
                     }}
                   >
-                    <Icon size={20} style={{ color: plan.color }} />
+                    <Icon size={17} style={{ color: plan.accentColor }} />
                   </div>
 
                   {/* Name + desc */}
                   <p
                     style={{
-                      fontSize: 17,
+                      fontSize: 16,
                       fontWeight: 700,
-                      color: "var(--text-primary)",
-                      marginBottom: 4,
+                      color: "#e8e3dc",
+                      marginBottom: 3,
                       letterSpacing: "-.02em",
                     }}
                   >
@@ -614,9 +626,10 @@ export default function Pricing() {
                   </p>
                   <p
                     style={{
-                      fontSize: 12.5,
-                      color: "var(--text-faint)",
-                      marginBottom: 22,
+                      fontSize: 12,
+                      color: "#444",
+                      marginBottom: 20,
+                      fontWeight: 400,
                     }}
                   >
                     {plan.desc}
@@ -627,18 +640,16 @@ export default function Pricing() {
                     style={{
                       display: "flex",
                       alignItems: "flex-end",
-                      gap: 4,
-                      marginBottom: 24,
+                      gap: 3,
+                      marginBottom: 22,
                     }}
                   >
                     <span
                       style={{
                         fontFamily: "var(--font-display)",
-                        fontSize: 46,
+                        fontSize: 44,
                         fontWeight: 700,
-                        color: plan.highlight
-                          ? plan.color
-                          : "var(--text-primary)",
+                        color: plan.highlight ? "#c9b99a" : "#e8e3dc",
                         lineHeight: 1,
                         letterSpacing: "-2px",
                       }}
@@ -648,8 +659,8 @@ export default function Pricing() {
                     {plan.period && (
                       <span
                         style={{
-                          fontSize: 13,
-                          color: "var(--text-faint)",
+                          fontSize: 12,
+                          color: "#444",
                           paddingBottom: 6,
                         }}
                       >
@@ -658,73 +669,59 @@ export default function Pricing() {
                     )}
                   </div>
 
-                  {/* CTA */}
+                  {/* CTA button */}
                   <button
                     onClick={() => void subscribe(plan)}
                     disabled={busy}
                     style={{
                       width: "100%",
-                      padding: "13px 16px",
-                      borderRadius: 12,
-                      border: plan.highlight
-                        ? "none"
-                        : "1px solid var(--border-mid)",
-                      background: plan.highlight
-                        ? plan.color
-                        : "var(--surface)",
-                      color: plan.highlight ? "#000" : "var(--text-primary)",
+                      padding: "12px 16px",
+                      borderRadius: 11,
+                      border: plan.highlight ? "none" : "1px solid #252525",
+                      background: plan.highlight ? "#c9b99a" : "#1e1e1e",
+                      color: plan.highlight ? "#000" : "#e8e3dc",
                       fontFamily: "var(--font-ui)",
-                      fontSize: 13.5,
+                      fontSize: 13,
                       fontWeight: 700,
                       cursor: busy ? "not-allowed" : "pointer",
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
-                      gap: 8,
+                      gap: 7,
                       opacity: busy ? 0.7 : 1,
-                      transition: "all .15s",
-                      marginBottom: 24,
+                      transition: "all .14s",
+                      marginBottom: 22,
                     }}
                     onMouseEnter={(e) => {
-                      if (!busy) {
-                        const el = e.currentTarget as HTMLElement;
-                        if (plan.highlight)
-                          el.style.filter = "brightness(1.08)";
-                        else {
-                          el.style.borderColor = "var(--border-hi)";
-                          el.style.background = "var(--surface-2)";
-                        }
+                      if (busy) return;
+                      const el = e.currentTarget as HTMLElement;
+                      if (plan.highlight) el.style.filter = "brightness(1.07)";
+                      else {
+                        el.style.borderColor = "#333";
+                        el.style.background = "#232323";
                       }
                     }}
                     onMouseLeave={(e) => {
                       const el = e.currentTarget as HTMLElement;
                       el.style.filter = "";
                       if (!plan.highlight) {
-                        el.style.borderColor = "var(--border-mid)";
-                        el.style.background = "var(--surface)";
+                        el.style.borderColor = "#252525";
+                        el.style.background = "#1e1e1e";
                       }
                     }}
                   >
                     {busy ? (
                       <>
-                        <span
-                          className="spinner"
-                          style={{
-                            width: 13,
-                            height: 13,
-                            borderTopColor: plan.highlight
-                              ? "#000"
-                              : "var(--brand)",
-                          }}
+                        <Loader2
+                          size={13}
+                          style={{ animation: "spin 0.7s linear infinite" }}
                         />{" "}
                         Opening checkout…
                       </>
                     ) : (
                       <>
-                        {plan.cta}{" "}
-                        {!busy && plan.id !== "free" && (
-                          <ArrowRight size={13} />
-                        )}
+                        {plan.cta}
+                        {plan.id !== "free" && <ArrowRight size={12} />}
                       </>
                     )}
                   </button>
@@ -733,8 +730,8 @@ export default function Pricing() {
                   <div
                     style={{
                       height: 1,
-                      background: "var(--border)",
-                      marginBottom: 20,
+                      background: "#1e1e1e",
+                      marginBottom: 18,
                     }}
                   />
 
@@ -744,7 +741,7 @@ export default function Pricing() {
                       listStyle: "none",
                       display: "flex",
                       flexDirection: "column",
-                      gap: 11,
+                      gap: 10,
                       flex: 1,
                     }}
                   >
@@ -754,19 +751,19 @@ export default function Pricing() {
                         style={{
                           display: "flex",
                           alignItems: "flex-start",
-                          gap: 10,
-                          fontSize: 13.5,
-                          color: "var(--text-secondary)",
+                          gap: 9,
+                          fontSize: 13,
+                          color: "#888",
                           lineHeight: 1.45,
                         }}
                       >
                         <div
                           style={{
-                            width: 18,
-                            height: 18,
+                            width: 16,
+                            height: 16,
                             borderRadius: 5,
-                            background: `${plan.checkColor}14`,
-                            border: `1px solid ${plan.checkColor}28`,
+                            background: `${plan.accentColor}12`,
+                            border: `1px solid ${plan.accentColor}22`,
                             display: "flex",
                             alignItems: "center",
                             justifyContent: "center",
@@ -774,49 +771,51 @@ export default function Pricing() {
                             marginTop: 1,
                           }}
                         >
-                          <Check size={10} style={{ color: plan.checkColor }} />
+                          <Check size={9} style={{ color: plan.accentColor }} />
                         </div>
                         {f}
                       </li>
                     ))}
                   </ul>
-                </div>
+                </motion.div>
               );
             })}
-          </div>
+          </motion.div>
 
-          {/* ── Trust strip ─────────────────────────────────────── */}
-          <div
+          {/* ── Trust strip ── */}
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.45, delay: 0.4 }}
             style={{
-              padding: "28px 32px",
-              borderRadius: 16,
-              background: "var(--bg-raised)",
-              border: "1px solid var(--border)",
+              padding: "24px 28px",
+              borderRadius: 14,
+              background: "#181818",
+              border: "1px solid #1e1e1e",
               display: "flex",
               flexWrap: "wrap",
               alignItems: "center",
               justifyContent: "center",
-              gap: 32,
+              gap: 28,
               marginBottom: 72,
-              textAlign: "center",
             }}
           >
             {[
               {
                 icon: ShieldCheck,
-                color: "var(--green)",
+                color: "#5db87a",
                 label: "PCI-DSS Certified",
                 sub: "Bank-level security",
               },
               {
                 icon: CreditCard,
-                color: "var(--brand)",
+                color: "#c9b99a",
                 label: "All Payment Methods",
                 sub: "UPI, Cards, Net Banking",
               },
               {
                 icon: Zap,
-                color: "#5c9ae0",
+                color: "#7ea8c9",
                 label: "Instant Activation",
                 sub: "Access within seconds",
               },
@@ -829,52 +828,55 @@ export default function Pricing() {
             ].map(({ icon: Icon, color, label, sub }) => (
               <div
                 key={label}
-                style={{ display: "flex", alignItems: "center", gap: 12 }}
+                style={{ display: "flex", alignItems: "center", gap: 10 }}
               >
                 <div
                   style={{
-                    width: 40,
-                    height: 40,
-                    borderRadius: 11,
-                    background: `${color}14`,
-                    border: `1px solid ${color}28`,
+                    width: 36,
+                    height: 36,
+                    borderRadius: 10,
+                    background: `${color}10`,
+                    border: `1px solid ${color}20`,
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
                     flexShrink: 0,
                   }}
                 >
-                  <Icon size={18} style={{ color }} />
+                  <Icon size={16} style={{ color }} />
                 </div>
-                <div style={{ textAlign: "left" }}>
+                <div>
                   <p
                     style={{
-                      fontSize: 13,
-                      fontWeight: 700,
-                      color: "var(--text-primary)",
-                      marginBottom: 2,
+                      fontSize: 12.5,
+                      fontWeight: 600,
+                      color: "#e8e3dc",
+                      marginBottom: 1,
                     }}
                   >
                     {label}
                   </p>
-                  <p style={{ fontSize: 11.5, color: "var(--text-faint)" }}>
-                    {sub}
-                  </p>
+                  <p style={{ fontSize: 11, color: "#444" }}>{sub}</p>
                 </div>
               </div>
             ))}
-          </div>
+          </motion.div>
 
-          {/* ── FAQ ─────────────────────────────────────────────── */}
-          <div style={{ maxWidth: 680, margin: "0 auto" }}>
+          {/* ── FAQ ── */}
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.45, delay: 0.5 }}
+            style={{ maxWidth: 640, margin: "0 auto 72px" }}
+          >
             <div style={{ textAlign: "center", marginBottom: 36 }}>
               <p
                 style={{
-                  fontSize: 11,
+                  fontSize: 10.5,
                   fontWeight: 700,
-                  letterSpacing: "1.5px",
+                  letterSpacing: "1.6px",
                   textTransform: "uppercase",
-                  color: "var(--text-faint)",
+                  color: "#444",
                   marginBottom: 12,
                 }}
               >
@@ -885,54 +887,58 @@ export default function Pricing() {
                   fontFamily: "var(--font-display)",
                   fontSize: "clamp(1.4rem,3vw,1.8rem)",
                   fontWeight: 400,
-                  color: "var(--text-primary)",
-                  letterSpacing: "-.025em",
+                  color: "#e8e3dc",
+                  letterSpacing: "-.03em",
                 }}
               >
                 Questions? Answered.
               </h2>
             </div>
-            <div style={{ borderTop: "1px solid var(--border)" }}>
+            <div style={{ borderTop: "1px solid #1e1e1e" }}>
               {FAQS.map((faq) => (
                 <FaqItem key={faq.q} {...faq} />
               ))}
             </div>
-          </div>
+          </motion.div>
 
-          {/* ── Bottom CTA ──────────────────────────────────────── */}
-          <div
+          {/* ── Bottom CTA ── */}
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.45, delay: 0.6 }}
             style={{
               textAlign: "center",
-              marginTop: 72,
               padding: "52px 24px",
-              borderRadius: 20,
-              background: "var(--bg-raised)",
-              border: "1px solid var(--border)",
+              borderRadius: 18,
+              background: "#181818",
+              border: "1px solid #1e1e1e",
               position: "relative",
               overflow: "hidden",
             }}
           >
+            {/* Glow */}
             <div
               style={{
                 position: "absolute",
-                top: -40,
+                top: -60,
                 left: "50%",
                 transform: "translateX(-50%)",
-                width: 300,
-                height: 200,
+                width: 320,
+                height: 220,
                 borderRadius: "50%",
                 background:
-                  "radial-gradient(circle, rgba(232,160,69,.1) 0%, transparent 70%)",
+                  "radial-gradient(circle, rgba(201,185,154,.07) 0%, transparent 70%)",
                 pointerEvents: "none",
               }}
             />
+
             <p
               style={{
-                fontSize: 11,
+                fontSize: 10.5,
                 fontWeight: 700,
-                letterSpacing: "1.5px",
+                letterSpacing: "1.6px",
                 textTransform: "uppercase",
-                color: "var(--text-faint)",
+                color: "#444",
                 marginBottom: 14,
               }}
             >
@@ -943,19 +949,20 @@ export default function Pricing() {
                 fontFamily: "var(--font-display)",
                 fontSize: "clamp(1.5rem,3.5vw,2.2rem)",
                 fontWeight: 400,
-                color: "var(--text-primary)",
-                marginBottom: 14,
-                letterSpacing: "-.025em",
+                color: "#e8e3dc",
+                marginBottom: 12,
+                letterSpacing: "-.03em",
               }}
             >
               Ready to research smarter?
             </h3>
             <p
               style={{
-                fontSize: 14.5,
-                color: "var(--text-faint)",
+                fontSize: 14,
+                color: "#555",
                 marginBottom: 28,
-                lineHeight: 1.65,
+                lineHeight: 1.7,
+                fontWeight: 300,
               }}
             >
               Join 10,000+ students and researchers. Start free, upgrade
@@ -974,75 +981,60 @@ export default function Pricing() {
                 style={{
                   display: "inline-flex",
                   alignItems: "center",
-                  gap: 8,
-                  padding: "12px 24px",
-                  borderRadius: 12,
-                  background: "var(--brand)",
+                  gap: 7,
+                  padding: "11px 22px",
+                  borderRadius: 11,
+                  background: "#c9b99a",
                   color: "#000",
-                  fontSize: 14,
+                  fontSize: 13.5,
                   fontWeight: 700,
                   textDecoration: "none",
-                  boxShadow: "0 4px 20px rgba(232,160,69,.25)",
-                  transition: "transform .15s, box-shadow .15s",
+                  transition: "filter .14s",
                 }}
-                onMouseEnter={(e) => {
-                  (e.currentTarget as HTMLElement).style.transform =
-                    "translateY(-1px)";
-                  (e.currentTarget as HTMLElement).style.boxShadow =
-                    "0 8px 28px rgba(232,160,69,.35)";
-                }}
-                onMouseLeave={(e) => {
-                  (e.currentTarget as HTMLElement).style.transform = "";
-                  (e.currentTarget as HTMLElement).style.boxShadow =
-                    "0 4px 20px rgba(232,160,69,.25)";
-                }}
+                onMouseEnter={(e) =>
+                  (e.currentTarget.style.filter = "brightness(1.07)")
+                }
+                onMouseLeave={(e) => (e.currentTarget.style.filter = "")}
               >
-                Start for free <ArrowRight size={14} />
+                Start for free <ArrowRight size={13} />
               </Link>
               <Link
-                href="/"
+                href="/search"
                 style={{
                   display: "inline-flex",
                   alignItems: "center",
-                  gap: 8,
-                  padding: "12px 22px",
-                  borderRadius: 12,
-                  border: "1px solid var(--border-mid)",
-                  color: "var(--text-secondary)",
-                  fontSize: 14,
-                  fontWeight: 600,
+                  gap: 7,
+                  padding: "11px 20px",
+                  borderRadius: 11,
+                  border: "1px solid #252525",
+                  color: "#888",
+                  fontSize: 13.5,
+                  fontWeight: 500,
                   textDecoration: "none",
                   transition: "border-color .14s, color .14s",
                 }}
                 onMouseEnter={(e) => {
-                  (e.currentTarget as HTMLElement).style.borderColor =
-                    "var(--border-hi)";
-                  (e.currentTarget as HTMLElement).style.color =
-                    "var(--text-primary)";
+                  e.currentTarget.style.borderColor = "#333";
+                  e.currentTarget.style.color = "#e8e3dc";
                 }}
                 onMouseLeave={(e) => {
-                  (e.currentTarget as HTMLElement).style.borderColor =
-                    "var(--border-mid)";
-                  (e.currentTarget as HTMLElement).style.color =
-                    "var(--text-secondary)";
+                  e.currentTarget.style.borderColor = "#252525";
+                  e.currentTarget.style.color = "#888";
                 }}
               >
-                Learn more
+                Try for free
               </Link>
             </div>
-          </div>
+          </motion.div>
         </div>
 
-        {/* ── Footer ──────────────────────────────────────────────── */}
+        {/* ── Footer ── */}
         <footer
-          style={{
-            borderTop: "1px solid var(--border)",
-            padding: "20px clamp(20px,4vw,48px)",
-          }}
+          style={{ borderTop: "1px solid #1a1a1a", padding: "20px 24px" }}
         >
           <div
             style={{
-              maxWidth: 1080,
+              maxWidth: 900,
               margin: "0 auto",
               display: "flex",
               alignItems: "center",
@@ -1052,18 +1044,16 @@ export default function Pricing() {
             }}
           >
             <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-              <span style={{ fontSize: 12, color: "var(--text-faint)" }}>
+              <span style={{ fontSize: 12, color: "#3a3a3a" }}>
                 © 2026 Researchly · Built by{" "}
-                <strong style={{ color: "var(--text-secondary)" }}>
-                  Rahulkumar Pal
-                </strong>{" "}
-                · Made in India 🇮🇳
+                <strong style={{ color: "#555" }}>Rahulkumar Pal</strong> · Made
+                in India 🇮🇳
               </span>
               <a
                 href="mailto:hello.researchly@gmail.com"
                 style={{
                   fontSize: 11.5,
-                  color: "var(--brand)",
+                  color: "#c9b99a",
                   textDecoration: "none",
                 }}
               >
@@ -1073,14 +1063,14 @@ export default function Pricing() {
             <span
               style={{
                 fontSize: 12,
-                color: "var(--text-faint)",
+                color: "#3a3a3a",
                 display: "flex",
                 alignItems: "center",
                 gap: 6,
               }}
             >
-              <ShieldCheck size={12} style={{ color: "var(--green)" }} />{" "}
-              Payments secured by Razorpay
+              <ShieldCheck size={11} style={{ color: "#5db87a" }} /> Payments
+              secured by Razorpay
             </span>
           </div>
         </footer>

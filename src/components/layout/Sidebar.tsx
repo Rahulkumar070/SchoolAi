@@ -1,78 +1,54 @@
 "use client";
+import { motion } from "framer-motion";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useSession, signIn, signOut } from "next-auth/react";
-import {
-  Search,
-  BookOpen,
-  FileText,
-  LayoutDashboard,
-  LogOut,
-  LogIn,
-  X,
-  Tag,
-  Crown,
-  Sparkles,
-  Zap,
-  Plus,
-  Pencil,
-} from "lucide-react";
 import Image from "next/image";
+import {
+  Plus, Search, BookOpen, FileText, Library, CreditCard,
+  AlignLeft, LogOut, LogIn, ChevronUp, Crown, Sparkles,
+} from "lucide-react";
 import { useEffect, useState, useCallback } from "react";
 
 const NAV = [
-  { href: "/search", label: "Research Search", icon: Search },
-  { href: "/review", label: "Literature Review", icon: BookOpen },
-  { href: "/upload", label: "PDF Chat", icon: FileText },
-  { href: "/dashboard", label: "My Library", icon: LayoutDashboard },
-  { href: "/pricing", label: "Plans & Billing", icon: Tag },
+  { href: "/search",    label: "Research Search",    icon: Search },
+  { href: "/review",    label: "Literature Review",   icon: BookOpen },
+  { href: "/upload",    label: "PDF Chat",            icon: FileText },
+  { href: "/dashboard", label: "My Library",          icon: Library },
+  { href: "/pricing",   label: "Plans & Billing",     icon: CreditCard },
 ];
 
-// ── Public types ─────────────────────────────────────────────
-export interface Conversation {
-  _id: string;
-  title: string;
-  updatedAt: string;
-}
+export interface Conversation { _id: string; title: string; updatedAt: string; }
 
-// Legacy type kept for any component still importing it
-export interface SidebarHistoryItem {
-  query: string;
-  searchedAt: string;
-  answer?: string;
-  papers?: unknown[];
-}
-
-// ── Date grouping ─────────────────────────────────────────────
 function groupConversations(items: Conversation[]) {
   const now = new Date();
-  const today = new Date(
-    now.getFullYear(),
-    now.getMonth(),
-    now.getDate(),
-  ).getTime();
-  const yest = today - 86_400_000;
-  const week = today - 6 * 86_400_000;
-
-  const groups: { label: string; items: Conversation[] }[] = [
-    { label: "Today", items: [] },
-    { label: "Yesterday", items: [] },
-    { label: "Previous 7 Days", items: [] },
-    { label: "Older", items: [] },
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const yest  = today - 86_400_000;
+  const week  = today - 6 * 86_400_000;
+  const groups = [
+    { label: "Today",           items: [] as Conversation[] },
+    { label: "Yesterday",       items: [] as Conversation[] },
+    { label: "Previous 7 Days", items: [] as Conversation[] },
+    { label: "Older",           items: [] as Conversation[] },
   ];
-
   for (const c of items) {
     const t = new Date(c.updatedAt).getTime();
-    if (t >= today) groups[0].items.push(c);
-    else if (t >= yest) groups[1].items.push(c);
-    else if (t >= week) groups[2].items.push(c);
-    else groups[3].items.push(c);
+    if      (t >= today) groups[0].items.push(c);
+    else if (t >= yest)  groups[1].items.push(c);
+    else if (t >= week)  groups[2].items.push(c);
+    else                 groups[3].items.push(c);
   }
-
-  return groups.filter((g) => g.items.length > 0);
+  return groups.filter(g => g.items.length > 0);
 }
 
-// ── Component ─────────────────────────────────────────────────
+const itemVariants = {
+  hidden:  { opacity: 0, x: -10 },
+  visible: (i: number) => ({
+    opacity: 1, x: 0,
+    transition: { delay: i * 0.04, duration: 0.28, ease: "easeOut" },
+  }),
+};
+
 export default function Sidebar({
   onClose,
   onNewSearch,
@@ -82,394 +58,282 @@ export default function Sidebar({
   onNewSearch?: () => void;
   activeConversationId?: string;
 }) {
-  const path = usePathname();
+  const path   = usePathname();
   const router = useRouter();
   const { data: session } = useSession();
-
+  const [collapsed, setCollapsed] = useState(false);
   const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [searchesToday, setSearchesToday] = useState(0);
+  const [searchesToday,    setSearchesToday]    = useState(0);
   const [searchesThisMonth, setSearchesThisMonth] = useState(0);
 
-  const plan = session?.user?.plan ?? "free";
-  const isFree = plan === "free";
+  const plan      = session?.user?.plan ?? "free";
+  const isFree    = plan === "free";
   const isStudent = plan === "student";
-  const isPro = plan === "pro";
+  const isPro     = plan === "pro";
   const planLabel = isPro ? "Pro" : isStudent ? "Student" : "Free";
-  const PlanIcon = isPro ? Crown : isStudent ? Sparkles : Zap;
-  const planColor = isPro
-    ? "#5c9ae0"
-    : isStudent
-      ? "var(--brand)"
-      : "var(--text-muted)";
 
-  // ── Fetch sidebar data — ONE request instead of two ──────────
   const fetchSidebar = useCallback(() => {
     if (!session?.user?.email) return;
-    // ✅ Single /api/sidebar replaces /api/conversations + /api/user/history
     fetch("/api/sidebar")
-      .then((r) => r.json())
-      .then(
-        (d: {
-          conversations?: Conversation[];
-          searchesToday?: number;
-          searchesThisMonth?: number;
-        }) => {
-          setConversations(d.conversations ?? []);
-          setSearchesToday(d.searchesToday ?? 0);
-          setSearchesThisMonth(d.searchesThisMonth ?? 0);
-        },
-      )
+      .then(r => r.json())
+      .then((d: { conversations?: Conversation[]; searchesToday?: number; searchesThisMonth?: number }) => {
+        setConversations(d.conversations ?? []);
+        setSearchesToday(d.searchesToday ?? 0);
+        setSearchesThisMonth(d.searchesThisMonth ?? 0);
+      })
       .catch(() => {});
   }, [session?.user?.email]);
 
-  useEffect(() => {
-    fetchSidebar();
-  }, [fetchSidebar]);
+  useEffect(() => { fetchSidebar(); }, [fetchSidebar]);
 
-  // Auto-refresh sidebar when a new search/message is sent
   useEffect(() => {
-    const handler = () => fetchSidebar();
-    window.addEventListener("researchly:conversation-updated", handler);
-    window.addEventListener("researchly:history-updated", handler);
+    const h = () => fetchSidebar();
+    window.addEventListener("researchly:conversation-updated", h);
+    window.addEventListener("researchly:history-updated", h);
     return () => {
-      window.removeEventListener("researchly:conversation-updated", handler);
-      window.removeEventListener("researchly:history-updated", handler);
+      window.removeEventListener("researchly:conversation-updated", h);
+      window.removeEventListener("researchly:history-updated", h);
     };
   }, [fetchSidebar]);
 
   const counter = isFree
-    ? { used: searchesToday, max: 5, warn: 4, period: "today" }
+    ? { used: searchesToday,     max: 5,   warn: 4,   period: "today" }
     : isStudent
-      ? { used: searchesThisMonth, max: 500, warn: 450, period: "this month" }
-      : null;
-
-  const handleConversationClick = (conv: Conversation) => {
-    router.push(`/chat/${conv._id}`);
-    onClose?.();
-  };
+    ? { used: searchesThisMonth, max: 500, warn: 450, period: "this month" }
+    : null;
 
   const grouped = groupConversations(conversations);
 
   return (
-    <div className="sidebar-inner">
-      {/* ── Header ── */}
-      <div className="sidebar-logo">
-        <Link href="/" onClick={onClose} className="sidebar-brand">
-          <div className="logo-mark">
-            <BookOpen size={13} color="#000" strokeWidth={2.5} />
-          </div>
-          <span className="sidebar-brand-text">Researchly</span>
-        </Link>
-        <div style={{ display: "flex", gap: 4 }}>
-          <button
-            onClick={onNewSearch}
-            title="New search"
-            style={{
-              width: 28,
-              height: 28,
-              borderRadius: 7,
-              background: "transparent",
-              border: "1px solid var(--border)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              cursor: "pointer",
-              color: "var(--text-faint)",
-              transition: "all .14s",
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = "var(--surface)";
-              e.currentTarget.style.color = "var(--text-primary)";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = "transparent";
-              e.currentTarget.style.color = "var(--text-faint)";
-            }}
-          >
-            <Pencil size={12} />
-          </button>
-          {onClose && (
-            <button className="icon-btn sidebar-close-btn" onClick={onClose}>
-              <X size={16} />
-            </button>
-          )}
-        </div>
+    <motion.aside
+      initial={{ width: 260 }}
+      animate={{ width: collapsed ? 60 : 260 }}
+      transition={{ duration: 0.35, ease: [0.4, 0, 0.2, 1] }}
+      className="sidebar-inner"
+      style={{ height: "100vh", overflowX: "hidden" }}
+    >
+      {/* Header */}
+      <div className="sidebar-header">
+        <motion.span
+          animate={{ opacity: collapsed ? 0 : 1, width: collapsed ? 0 : "auto" }}
+          transition={{ duration: 0.2 }}
+          className="sidebar-brand"
+          style={{ overflow: "hidden", whiteSpace: "nowrap" }}
+        >
+          Researchly
+        </motion.span>
+        <button
+          onClick={() => { setCollapsed(c => !c); onClose?.(); }}
+          className="icon-btn"
+          style={{ flexShrink: 0 }}
+          title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+        >
+          <AlignLeft size={15} />
+        </button>
       </div>
 
-      {/* ── Body ── */}
-      <div className="sidebar-body">
-        <button className="new-chat-btn" onClick={onNewSearch}>
-          <Plus size={14} style={{ color: "var(--brand)" }} /> New Research
-        </button>
+      {/* Nav */}
+      <nav className="sidebar-nav">
+        {/* New chat */}
+        <motion.button
+          custom={0}
+          initial="hidden"
+          animate="visible"
+          variants={itemVariants}
+          onClick={() => { onNewSearch?.(); onClose?.(); }}
+          className="sidebar-nav-btn"
+          style={{ color: "#8a8a8a" }}
+          whileHover={{ backgroundColor: "#1f1f1f" }}
+        >
+          <span className="sidebar-new-circle" style={{ flexShrink: 0 }}>
+            <Plus size={10} />
+          </span>
+          <motion.span
+            animate={{ opacity: collapsed ? 0 : 1, width: collapsed ? 0 : "auto" }}
+            transition={{ duration: 0.18 }}
+            style={{ overflow: "hidden", whiteSpace: "nowrap", fontSize: 13.5, fontWeight: 300 }}
+          >
+            New Research
+          </motion.span>
+        </motion.button>
 
-        {/* Usage counter — unchanged */}
-        {session && counter && (
-          <div className="sidebar-counter">
-            <div className="sidebar-counter-top">
-              <span className="sidebar-counter-label">
-                {isFree ? "Daily" : "Monthly"} Searches
-              </span>
-              <span
-                className="sidebar-counter-num"
-                data-warn={counter.used >= counter.warn ? "true" : undefined}
-                data-limit={counter.used >= counter.max ? "true" : undefined}
+        {NAV.map(({ href, label, icon: Icon }, i) => {
+          const isActive = path === href;
+          return (
+            <motion.div
+              key={href}
+              custom={i + 1}
+              initial="hidden"
+              animate="visible"
+              variants={itemVariants}
+            >
+              <Link
+                href={href}
+                onClick={onClose}
+                className={`sidebar-nav-btn${isActive ? " active" : ""}`}
               >
-                {counter.used} / {counter.max}
-              </span>
-            </div>
-            <div className="sidebar-counter-track">
-              <div
-                className="sidebar-counter-fill"
-                style={{
-                  width: `${Math.min((counter.used / counter.max) * 100, 100)}%`,
-                }}
-                data-warn={counter.used >= counter.warn ? "true" : undefined}
-                data-limit={counter.used >= counter.max ? "true" : undefined}
-              />
-            </div>
-            <p className="sidebar-counter-hint">
-              {counter.used >= counter.max ? (
-                <>
-                  <span style={{ color: "var(--red)" }}>Limit reached</span> ·{" "}
-                  <Link
-                    href="/pricing"
-                    onClick={onClose}
-                    style={{ color: "var(--brand)" }}
-                  >
-                    Upgrade →
-                  </Link>
-                </>
-              ) : (
-                <>
-                  {counter.max - counter.used} left {counter.period} ·{" "}
-                  <Link
-                    href="/pricing"
-                    onClick={onClose}
-                    style={{ color: "var(--text-faint)" }}
-                  >
-                    Upgrade
-                  </Link>
-                </>
-              )}
-            </p>
-          </div>
-        )}
+                <Icon size={15} style={{ flexShrink: 0 }} />
+                <motion.span
+                  animate={{ opacity: collapsed ? 0 : 1, width: collapsed ? 0 : "auto" }}
+                  transition={{ duration: 0.18 }}
+                  style={{ overflow: "hidden", whiteSpace: "nowrap" }}
+                >
+                  {label}
+                </motion.span>
+              </Link>
+            </motion.div>
+          );
+        })}
+      </nav>
 
-        {session && isPro && (
-          <div className="sidebar-plan-badge">
-            <Crown size={11} style={{ color: "#5c9ae0", flexShrink: 0 }} />
-            <span style={{ color: "#5c9ae0" }}>
-              Pro — Unlimited searches ✨
+      {/* Usage counter */}
+      {!collapsed && session && counter && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.2 }}
+          className="usage-counter"
+        >
+          <div className="usage-counter-top">
+            <span className="usage-counter-label">
+              {isFree ? "Daily" : "Monthly"} Searches
+            </span>
+            <span
+              className={`usage-counter-num${counter.used >= counter.max ? " limit" : counter.used >= counter.warn ? " warn" : ""}`}
+            >
+              {counter.used} / {counter.max}
             </span>
           </div>
-        )}
-
-        {/* Nav — unchanged */}
-        <p className="sidebar-section-label">Tools</p>
-        {NAV.map(({ href, label, icon: Icon }) => (
-          <Link
-            key={href}
-            href={href}
-            className={`nav-link${path === href ? " active" : ""}`}
-            onClick={onClose}
-          >
-            <Icon size={14} className="nav-icon" /> {label}
-          </Link>
-        ))}
-
-        {/* ── Conversations grouped by date ── */}
-        {session && conversations.length > 0 && (
-          <div style={{ marginTop: 16 }}>
-            <p className="sidebar-section-label">History</p>
-            {grouped.map((group) => (
-              <div key={group.label} style={{ marginBottom: 14 }}>
-                <p
-                  style={{
-                    fontSize: 10,
-                    fontWeight: 700,
-                    color: "var(--text-faint)",
-                    letterSpacing: "0.08em",
-                    textTransform: "uppercase",
-                    padding: "0 10px",
-                    marginBottom: 4,
-                  }}
-                >
-                  {group.label}
-                </p>
-                {group.items.map((conv) => {
-                  const isActive =
-                    activeConversationId === conv._id ||
-                    path === `/chat/${conv._id}`;
-                  return (
-                    <button
-                      key={conv._id}
-                      onClick={() => handleConversationClick(conv)}
-                      title={conv.title}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 8,
-                        width: "100%",
-                        padding: "6px 10px",
-                        borderRadius: 8,
-                        border: "none",
-                        cursor: "pointer",
-                        textAlign: "left",
-                        transition: "background .12s, color .12s",
-                        background: isActive
-                          ? "var(--surface-2)"
-                          : "transparent",
-                        color: isActive
-                          ? "var(--text-primary)"
-                          : "var(--text-secondary)",
-                        fontFamily: "var(--font-ui)",
-                      }}
-                      onMouseEnter={(e) => {
-                        if (!isActive)
-                          e.currentTarget.style.background = "var(--surface)";
-                      }}
-                      onMouseLeave={(e) => {
-                        if (!isActive)
-                          e.currentTarget.style.background = "transparent";
-                      }}
-                    >
-                      <Search
-                        size={11}
-                        style={{
-                          flexShrink: 0,
-                          opacity: isActive ? 0.8 : 0.35,
-                        }}
-                      />
-                      <span
-                        style={{
-                          fontSize: 12.5,
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                          whiteSpace: "nowrap",
-                          flex: 1,
-                          fontWeight: isActive ? 600 : 400,
-                        }}
-                      >
-                        {conv.title}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            ))}
+          <div className="usage-bar">
+            <div
+              className={`usage-bar-fill${counter.used >= counter.max ? " limit" : counter.used >= counter.warn ? " warn" : ""}`}
+              style={{ width: `${Math.min((counter.used / counter.max) * 100, 100)}%` }}
+            />
           </div>
-        )}
+          <p className="usage-hint">
+            {counter.used >= counter.max ? (
+              <><span style={{ color: "#e06060" }}>Limit reached</span> · <Link href="/pricing" onClick={onClose} style={{ color: "#c9b99a" }}>Upgrade →</Link></>
+            ) : (
+              <>{counter.max - counter.used} left {counter.period} · <Link href="/pricing" onClick={onClose} style={{ color: "#555" }}>Upgrade</Link></>
+            )}
+          </p>
+        </motion.div>
+      )}
 
-        {!session && (
-          <div
-            style={{
-              margin: "14px 8px 0",
-              padding: "12px 13px",
-              background: "var(--brand-dim)",
-              border: "1px solid var(--brand-border)",
-              borderRadius: 10,
-            }}
-          >
-            <p
-              style={{
-                fontSize: 12,
-                color: "var(--text-secondary)",
-                lineHeight: 1.55,
-                marginBottom: 10,
-              }}
-            >
-              Sign in free to save your research history and access it from any
-              device.
-            </p>
-            <button
-              onClick={() => void signIn()}
-              style={{
-                width: "100%",
-                padding: "7px",
-                borderRadius: 8,
-                background: "var(--brand)",
-                border: "none",
-                color: "#000",
-                fontSize: 12.5,
-                fontWeight: 700,
-                cursor: "pointer",
-                fontFamily: "var(--font-ui)",
-              }}
-            >
-              Sign In Free
-            </button>
-          </div>
-        )}
-      </div>
+      {/* Sign-in promo for guests */}
+      {!collapsed && !session && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.25 }}
+          className="sidebar-signin-promo"
+        >
+          <p>Sign in free to save your research history and access it from any device.</p>
+          <button onClick={() => void signIn()} className="signin-promo-btn">
+            Sign In Free
+          </button>
+        </motion.div>
+      )}
 
-      {/* ── Footer — unchanged ── */}
+      {/* Conversation history */}
+      {!collapsed && session && grouped.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.25, duration: 0.3 }}
+          style={{ flex: 1, overflowY: "auto", padding: "0 8px" }}
+        >
+          <p className="sidebar-section-label">Recents</p>
+          {grouped.map(group => (
+            <div key={group.label} style={{ marginBottom: 12 }}>
+              <p style={{
+                fontSize: 10, fontWeight: 700, color: "#444",
+                letterSpacing: "0.08em", textTransform: "uppercase",
+                padding: "0 4px", marginBottom: 2,
+              }}>
+                {group.label}
+              </p>
+              {group.items.map(conv => {
+                const isActive = activeConversationId === conv._id || path === `/chat/${conv._id}`;
+                return (
+                  <button
+                    key={conv._id}
+                    onClick={() => { router.push(`/chat/${conv._id}`); onClose?.(); }}
+                    title={conv.title}
+                    className={`sidebar-history-btn${isActive ? " active" : ""}`}
+                  >
+                    {conv.title}
+                  </button>
+                );
+              })}
+            </div>
+          ))}
+        </motion.div>
+      )}
+
+      {/* Footer */}
       <div className="sidebar-footer">
         {session ? (
           <>
-            <div className="user-row">
+            <div className="sidebar-avatar" style={{ flexShrink: 0 }}>
               {session.user?.image ? (
-                <Image
-                  src={session.user.image}
-                  alt="avatar"
-                  width={30}
-                  height={30}
-                  style={{ borderRadius: "50%", flexShrink: 0 }}
-                />
+                <Image src={session.user.image} alt="avatar" width={32} height={32} style={{ borderRadius: "50%" }} />
               ) : (
-                <div className="avatar">
-                  {(session.user?.name?.[0] ?? "U").toUpperCase()}
-                </div>
+                <span>{(session.user?.name?.[0] ?? "U").toUpperCase()}</span>
               )}
-              <div style={{ minWidth: 0, flex: 1 }}>
-                <p
-                  className="truncate-1"
-                  style={{
-                    fontSize: 12.5,
-                    fontWeight: 600,
-                    color: "var(--text-primary)",
-                  }}
-                >
+            </div>
+            {!collapsed && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.1 }}
+                style={{ flex: 1, minWidth: 0 }}
+              >
+                <p style={{ fontSize: 13, fontWeight: 500, color: "#e8e3dc", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                   {session.user?.name ?? "Researcher"}
                 </p>
-                <p
-                  className="truncate-1"
-                  style={{ fontSize: 10.5, color: "var(--text-faint)" }}
-                >
-                  {session.user?.email}
+                <p style={{ fontSize: 11, color: "#555", fontWeight: 300 }}>
+                  {planLabel} plan
                 </p>
+              </motion.div>
+            )}
+            {!collapsed && (
+              <div style={{ display: "flex", gap: 2 }}>
+                {isPro && <Crown size={13} color="#c9b99a" />}
+                {isStudent && <Sparkles size={13} color="#c9b99a" />}
+                <button
+                  onClick={() => void signOut()}
+                  className="icon-btn"
+                  title="Sign out"
+                >
+                  <LogOut size={13} />
+                </button>
               </div>
-              <span
-                style={{
-                  fontSize: 9,
-                  fontWeight: 700,
-                  color: planColor,
-                  background: `${planColor}1a`,
-                  padding: "2px 7px",
-                  borderRadius: 99,
-                  flexShrink: 0,
-                  border: `1px solid ${planColor}30`,
-                }}
-              >
-                {planLabel}
-              </span>
-            </div>
-            <button
-              className="nav-link signout-btn"
-              onClick={() => void signOut()}
-            >
-              <LogOut size={13} className="nav-icon" /> Sign out
-            </button>
+            )}
           </>
         ) : (
-          <button className="nav-link signin-btn" onClick={() => void signIn()}>
-            <LogIn size={13} className="nav-icon" /> Sign in to save history
-          </button>
+          <>
+            <div className="sidebar-avatar" style={{ flexShrink: 0 }}>
+              <LogIn size={14} color="#6b6b6b" />
+            </div>
+            {!collapsed && (
+              <motion.button
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                onClick={() => void signIn()}
+                style={{
+                  background: "none", border: "none", cursor: "pointer",
+                  fontSize: 13, color: "#6b6b6b", fontWeight: 300,
+                  fontFamily: "'DM Sans', system-ui, sans-serif",
+                  textAlign: "left",
+                }}
+              >
+                Sign in to save history
+              </motion.button>
+            )}
+          </>
         )}
       </div>
-
-      <span style={{ display: "none" }}>
-        <PlanIcon size={0} />
-      </span>
-    </div>
+    </motion.aside>
   );
 }

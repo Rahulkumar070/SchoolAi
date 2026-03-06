@@ -48,9 +48,7 @@ interface AnswerRendererProps {
 // ─────────────────────────────────────────────
 
 export function PaperCitationCard({ paper }: { paper: Paper }) {
-  const link = paper.doi
-    ? `https://doi.org/${paper.doi}`
-    : paper.url ?? null;
+  const link = paper.doi ? `https://doi.org/${paper.doi}` : (paper.url ?? null);
   const source = paper.journal ?? paper.source ?? "Research Paper";
 
   return (
@@ -573,14 +571,29 @@ function SectionCard({
 // ─────────────────────────────────────────────
 
 function InlinePaperCard({ raw }: { raw: string }) {
-  // Parse fields from blockquote lines
-  const lines = raw.split("\n").map((l) => l.replace(/^>\s*/, "").trim());
+  // Parse fields from blockquote lines — handles both "> " prefixed and plain text
+  const lines = raw
+    .split("\n")
+    .map((l) => l.replace(/^>\s*/, "").trim())
+    .filter(Boolean);
+  const fullText = lines.join(" ");
+
   const get = (key: string) => {
+    // Try line-by-line first (structured format)
     const line = lines.find((l) =>
-      l.toLowerCase().startsWith(`**${key.toLowerCase()}**`)
+      l.toLowerCase().startsWith(`**${key.toLowerCase()}**`),
     );
-    if (!line) return "";
-    return line.replace(/^\*\*[^*]+\*\*[:\s]*/i, "").trim();
+    if (line) return line.replace(/^\*\*[^*]+\*\*[:\s]*/i, "").trim();
+
+    // Fallback: extract from full text using regex (for children-extracted text)
+    const escapedKey = key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const match = fullText.match(
+      new RegExp(
+        `\\*\\*${escapedKey}\\*\\*[:\\s]*([^*]+?)(?:\\s*\\*\\*|$)`,
+        "i",
+      ),
+    );
+    return match ? match[1].trim() : "";
   };
 
   const title = get("paper").replace(/\*/g, "");
@@ -825,14 +838,34 @@ function buildMdComponents(onSection: (title: string) => void) {
 
     blockquote: ({ children, node }: any) => {
       // Check if this is a paper citation card (starts with 📄)
-      const rawText = node?.children
+      // Use node AST if available, fallback to extracting text from children
+      let rawText = node?.children
         ?.map((c: any) => {
           if (c.type === "paragraph") {
-            return c.children?.map((cc: any) => cc.value ?? "").join("");
+            return c.children
+              ?.map(
+                (cc: any) =>
+                  cc.value ??
+                  cc.children?.map((ccc: any) => ccc.value ?? "").join("") ??
+                  "",
+              )
+              .join("");
           }
           return "";
         })
         .join("\n");
+
+      // Fallback: extract text from React children if node parsing failed
+      if (!rawText || !rawText.includes("📄")) {
+        const extractText = (child: any): string => {
+          if (!child) return "";
+          if (typeof child === "string") return child;
+          if (Array.isArray(child)) return child.map(extractText).join("");
+          if (child.props?.children) return extractText(child.props.children);
+          return "";
+        };
+        rawText = extractText(children);
+      }
 
       if (rawText && rawText.includes("📄")) {
         return <InlinePaperCard raw={rawText} />;
@@ -887,9 +920,7 @@ function buildMdComponents(onSection: (title: string) => void) {
         children?.props?.className === ""
       ) {
         return (
-          <DiagramBlock>
-            {children?.props?.children ?? children}
-          </DiagramBlock>
+          <DiagramBlock>{children?.props?.children ?? children}</DiagramBlock>
         );
       }
       return <>{children}</>;
@@ -908,9 +939,7 @@ function buildMdComponents(onSection: (title: string) => void) {
       </thead>
     ),
 
-    tbody: ({ children }: any) => (
-      <tbody>{children}</tbody>
-    ),
+    tbody: ({ children }: any) => <tbody>{children}</tbody>,
 
     tr: ({ children }: any) => (
       <tr
@@ -1003,7 +1032,7 @@ function buildMdComponents(onSection: (title: string) => void) {
 // ─────────────────────────────────────────────
 
 function splitIntoSections(
-  content: string
+  content: string,
 ): Array<{ title: string | null; body: string }> {
   const lines = content.split("\n");
   const sections: Array<{ title: string | null; body: string }> = [];
@@ -1062,7 +1091,10 @@ function SectionContent({ body }: { body: string }) {
   const mdComponents = buildMdComponents(() => {});
   return (
     <div style={{ paddingTop: 14 }}>
-      <ReactMarkdown remarkPlugins={[remarkGfm]} components={mdComponents as any}>
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        components={mdComponents as any}
+      >
         {body}
       </ReactMarkdown>
     </div>

@@ -145,7 +145,7 @@ const mdComponents = {
       style={{
         fontFamily: "var(--font-mono)",
         fontSize: 12,
-        background: "var(--surface-2)",
+        background: "#1e1e1e",
         color: "var(--brand)",
         padding: "2px 5px",
         borderRadius: 4,
@@ -188,35 +188,34 @@ function StatCard({
   return (
     <div
       style={{
-        padding: "20px",
-        borderRadius: 16,
-        background: "var(--bg-raised)",
-        border: "1px solid var(--border)",
+        padding: "18px 18px 16px",
+        borderRadius: 14,
+        background: "#181818",
+        border: "1px solid #1e1e1e",
         position: "relative",
         overflow: "hidden",
         transition: "border-color .18s, transform .18s",
         cursor: "default",
       }}
       onMouseEnter={(e) => {
-        (e.currentTarget as HTMLElement).style.borderColor =
-          "var(--border-mid)";
+        (e.currentTarget as HTMLElement).style.borderColor = "#2a2a2a";
         (e.currentTarget as HTMLElement).style.transform = "translateY(-2px)";
       }}
       onMouseLeave={(e) => {
-        (e.currentTarget as HTMLElement).style.borderColor = "var(--border)";
+        (e.currentTarget as HTMLElement).style.borderColor = "#1e1e1e";
         (e.currentTarget as HTMLElement).style.transform = "";
       }}
     >
       <div
         style={{
           position: "absolute",
-          top: -20,
-          right: -20,
-          width: 80,
-          height: 80,
+          top: -16,
+          right: -16,
+          width: 70,
+          height: 70,
           borderRadius: "50%",
-          background: `${color}14`,
-          filter: "blur(18px)",
+          background: `${color}0e`,
+          filter: "blur(16px)",
           pointerEvents: "none",
         }}
       />
@@ -230,27 +229,27 @@ function StatCard({
       >
         <div
           style={{
-            width: 36,
-            height: 36,
-            borderRadius: 10,
-            background: `${color}14`,
-            border: `1px solid ${color}28`,
+            width: 32,
+            height: 32,
+            borderRadius: 9,
+            background: `${color}12`,
+            border: `1px solid ${color}20`,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
           }}
         >
-          <Icon size={16} style={{ color }} />
+          <Icon size={14} style={{ color }} />
         </div>
         {sub && (
           <span
             style={{
-              fontSize: 10,
+              fontSize: 9.5,
               fontWeight: 700,
-              color: "var(--green)",
-              background: "rgba(93,184,122,.12)",
-              border: "1px solid rgba(93,184,122,.2)",
-              padding: "2px 8px",
+              color: "#5db87a",
+              background: "rgba(93,184,122,.1)",
+              border: "1px solid rgba(93,184,122,.18)",
+              padding: "2px 7px",
               borderRadius: 99,
             }}
           >
@@ -260,20 +259,17 @@ function StatCard({
       </div>
       <p
         style={{
-          fontSize: 28,
+          fontSize: 26,
           fontWeight: 700,
-          color: "var(--text-primary)",
+          color: "#e8e3dc",
           lineHeight: 1,
           marginBottom: 5,
           letterSpacing: "-1.5px",
-          fontFamily: "var(--font-ui)",
         }}
       >
         {value}
       </p>
-      <p style={{ fontSize: 12, color: "var(--text-faint)", fontWeight: 500 }}>
-        {label}
-      </p>
+      <p style={{ fontSize: 11.5, color: "#444", fontWeight: 500 }}>{label}</p>
     </div>
   );
 }
@@ -298,10 +294,10 @@ function ActionCard({
     <Link
       href={href}
       style={{
-        padding: "20px",
-        borderRadius: 16,
-        background: "var(--bg-raised)",
-        border: "1px solid var(--border)",
+        padding: "20px 20px 18px",
+        borderRadius: 14,
+        background: "#181818",
+        border: "1px solid #1e1e1e",
         textDecoration: "none",
         display: "flex",
         flexDirection: "column",
@@ -312,13 +308,13 @@ function ActionCard({
       }}
       onMouseEnter={(e) => {
         const el = e.currentTarget as HTMLElement;
-        el.style.borderColor = `${color}40`;
+        el.style.borderColor = `${color}30`;
         el.style.transform = "translateY(-3px)";
-        el.style.boxShadow = `0 16px 48px rgba(0,0,0,.3)`;
+        el.style.boxShadow = `0 16px 40px rgba(0,0,0,.4)`;
       }}
       onMouseLeave={(e) => {
         const el = e.currentTarget as HTMLElement;
-        el.style.borderColor = "var(--border)";
+        el.style.borderColor = "#1e1e1e";
         el.style.transform = "";
         el.style.boxShadow = "";
       }}
@@ -338,18 +334,18 @@ function ActionCard({
       />
       <div
         style={{
-          width: 40,
-          height: 40,
-          borderRadius: 12,
-          background: `${color}14`,
-          border: `1px solid ${color}28`,
+          width: 36,
+          height: 36,
+          borderRadius: 10,
+          background: `${color}10`,
+          border: `1px solid ${color}20`,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
           marginBottom: 14,
         }}
       >
-        <Icon size={18} style={{ color }} />
+        <Icon size={16} style={{ color }} />
       </div>
       <p
         style={{
@@ -365,7 +361,7 @@ function ActionCard({
       <p
         style={{
           fontSize: 12.5,
-          color: "var(--text-faint)",
+          color: "#444",
           lineHeight: 1.55,
           marginBottom: 16,
           flex: 1,
@@ -399,8 +395,8 @@ function ListRow({ iconEl, iconColor, title, meta, badge, onClick }: any) {
         alignItems: "center",
         gap: 12,
         padding: "14px 16px",
-        background: "var(--bg-raised)",
-        border: "1px solid var(--border)",
+        background: "#181818",
+        border: "1px solid #1e1e1e",
         borderRadius: 12,
         cursor: "pointer",
         textAlign: "left",
@@ -408,13 +404,12 @@ function ListRow({ iconEl, iconColor, title, meta, badge, onClick }: any) {
         transition: "border-color .14s, background .14s",
       }}
       onMouseEnter={(e) => {
-        (e.currentTarget as HTMLElement).style.borderColor =
-          "var(--border-mid)";
-        (e.currentTarget as HTMLElement).style.background = "var(--surface)";
+        (e.currentTarget as HTMLElement).style.borderColor = "#2a2a2a";
+        (e.currentTarget as HTMLElement).style.background = "#1e1e1e";
       }}
       onMouseLeave={(e) => {
-        (e.currentTarget as HTMLElement).style.borderColor = "var(--border)";
-        (e.currentTarget as HTMLElement).style.background = "var(--bg-raised)";
+        (e.currentTarget as HTMLElement).style.borderColor = "#1e1e1e";
+        (e.currentTarget as HTMLElement).style.background = "#181818";
       }}
     >
       <div
@@ -454,7 +449,7 @@ function ListRow({ iconEl, iconColor, title, meta, badge, onClick }: any) {
                 fontSize: 10,
                 fontWeight: 600,
                 color: "var(--text-faint)",
-                background: "var(--surface-2)",
+                background: "#1e1e1e",
                 padding: "1px 7px",
                 borderRadius: 99,
               }}
@@ -499,8 +494,8 @@ function Empty({
       style={{
         padding: "52px 24px",
         textAlign: "center",
-        background: "var(--bg-raised)",
-        border: "1px dashed var(--border-mid)",
+        background: "#181818",
+        border: "1px dashed #2a2a2a",
         borderRadius: 16,
       }}
     >
@@ -509,8 +504,8 @@ function Empty({
           width: 52,
           height: 52,
           borderRadius: 14,
-          background: "var(--surface)",
-          border: "1px solid var(--border-mid)",
+          background: "#1e1e1e",
+          border: "1px solid #2a2a2a",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
@@ -589,8 +584,8 @@ function DetailView({
             alignItems: "center",
             gap: 6,
             padding: "7px 14px",
-            background: "var(--bg-raised)",
-            border: "1px solid var(--border)",
+            background: "#181818",
+            border: "1px solid #1e1e1e",
             borderRadius: 9,
             cursor: "pointer",
             fontSize: 12.5,
@@ -662,19 +657,8 @@ function DetailView({
 
         {content ? (
           <>
-            <div
-              style={{
-                background: "var(--bg-raised)",
-                border: "1px solid var(--border)",
-                borderRadius: 14,
-                padding: "22px 24px",
-                marginBottom: 20,
-              }}
-            >
-              <AnswerRenderer
-                content={content}
-                papers={papers ?? []}
-              />
+            <div style={{ marginBottom: 20 }}>
+              <AnswerRenderer content={content} papers={papers ?? []} />
             </div>
             {papers?.length > 0 && (
               <div style={{ marginBottom: 24 }}>
@@ -698,8 +682,8 @@ function DetailView({
                       key={i}
                       style={{
                         padding: "12px 14px",
-                        background: "var(--bg-raised)",
-                        border: "1px solid var(--border)",
+                        background: "#181818",
+                        border: "1px solid #1e1e1e",
                         borderRadius: 10,
                         display: "flex",
                         gap: 10,
@@ -770,8 +754,8 @@ function DetailView({
                 style={{
                   padding: "10px 18px",
                   borderRadius: 10,
-                  border: "1px solid var(--border-mid)",
-                  color: "var(--text-secondary)",
+                  border: "1px solid #252525",
+                  color: "#888",
                   background: "transparent",
                   fontSize: 13,
                   fontWeight: 600,
@@ -789,7 +773,7 @@ function DetailView({
                 }}
                 onMouseLeave={(e) => {
                   (e.currentTarget as HTMLElement).style.borderColor =
-                    "var(--border-mid)";
+                    "#2a2a2a";
                   (e.currentTarget as HTMLElement).style.color =
                     "var(--text-secondary)";
                 }}
@@ -853,8 +837,8 @@ function DetailView({
             style={{
               textAlign: "center",
               padding: "48px 20px",
-              background: "var(--bg-raised)",
-              border: "1px solid var(--border)",
+              background: "#181818",
+              border: "1px solid #1e1e1e",
               borderRadius: 14,
             }}
           >
@@ -1053,15 +1037,15 @@ function DashContent() {
     },
     student: {
       icon: Sparkles,
-      color: "#e8a045",
+      color: "#c9b99a",
       label: "Student",
-      gradient: "linear-gradient(135deg,#e8a045,#f5c878)",
+      gradient: "linear-gradient(135deg,#c9b99a,#e0d4b8)",
     },
     pro: {
       icon: Crown,
-      color: "#5c9ae0",
+      color: "#7ea8c9",
       label: "Pro",
-      gradient: "linear-gradient(135deg,#5c9ae0,#91c8f8)",
+      gradient: "linear-gradient(135deg,#7ea8c9,#a8c9e0)",
     },
   }[plan] ?? {
     icon: Zap,
@@ -1132,7 +1116,7 @@ function DashContent() {
       <div style={{ flex: 1, overflowY: "auto" }}>
         <div
           style={{
-            maxWidth: 920,
+            maxWidth: 900,
             margin: "0 auto",
             padding: isMobile ? "20px 16px 72px" : "28px 28px 60px",
           }}
@@ -1163,11 +1147,12 @@ function DashContent() {
               )}
               <h1
                 style={{
-                  fontSize: isMobile ? 20 : 24,
-                  fontWeight: 700,
-                  color: "var(--text-primary)",
-                  letterSpacing: "-.035em",
-                  lineHeight: 1.2,
+                  fontFamily: "var(--font-display)",
+                  fontSize: isMobile ? 22 : 28,
+                  fontWeight: 400,
+                  color: "#e8e3dc",
+                  letterSpacing: "-.04em",
+                  lineHeight: 1.1,
                 }}
               >
                 {getGreeting()}, {firstName} 👋
@@ -1220,8 +1205,8 @@ function DashContent() {
               style={{
                 padding: "18px 20px",
                 borderRadius: 16,
-                background: "var(--bg-raised)",
-                border: "1px solid var(--border)",
+                background: "#181818",
+                border: "1px solid #1e1e1e",
                 display: "flex",
                 alignItems: "center",
                 gap: 14,
@@ -1283,7 +1268,7 @@ function DashContent() {
                     height: 18,
                     borderRadius: "50%",
                     background: planMeta.gradient,
-                    border: "2.5px solid var(--bg-raised)",
+                    border: "2.5px solid #141414",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
@@ -1348,7 +1333,7 @@ function DashContent() {
                       color: "var(--text-faint)",
                       padding: "4px 10px",
                       borderRadius: 7,
-                      border: "1px solid var(--border)",
+                      border: "1px solid #1e1e1e",
                       textDecoration: "none",
                       textAlign: "center",
                       transition: "color .14s, border-color .14s",
@@ -1357,13 +1342,13 @@ function DashContent() {
                       (e.currentTarget as HTMLElement).style.color =
                         "var(--text-primary)";
                       (e.currentTarget as HTMLElement).style.borderColor =
-                        "var(--border-mid)";
+                        "#2a2a2a";
                     }}
                     onMouseLeave={(e) => {
                       (e.currentTarget as HTMLElement).style.color =
                         "var(--text-faint)";
                       (e.currentTarget as HTMLElement).style.borderColor =
-                        "var(--border)";
+                        "#1e1e1e";
                     }}
                   >
                     Change
@@ -1393,17 +1378,17 @@ function DashContent() {
               style={{
                 padding: "18px 20px",
                 borderRadius: 16,
-                border: "1px solid var(--border)",
+                border: "1px solid #1e1e1e",
                 background: atLimit
                   ? "rgba(224,92,92,.04)"
                   : isPaid
                     ? "rgba(93,184,122,.04)"
-                    : "var(--brand-dim)",
+                    : "rgba(201,185,154,.04)",
                 borderColor: atLimit
-                  ? "rgba(224,92,92,.2)"
+                  ? "rgba(224,92,92,.18)"
                   : isPaid
-                    ? "rgba(93,184,122,.2)"
-                    : "var(--brand-border)",
+                    ? "rgba(93,184,122,.18)"
+                    : "rgba(201,185,154,.18)",
               }}
             >
               <div
@@ -1487,7 +1472,7 @@ function DashContent() {
                     style={{
                       padding: "7px 14px",
                       borderRadius: 8,
-                      background: atLimit ? "var(--red)" : "var(--brand)",
+                      background: atLimit ? "#e05c5c" : "#c9b99a",
                       color: "#000",
                       fontSize: 12,
                       fontWeight: 700,
@@ -1504,7 +1489,7 @@ function DashContent() {
                   <div
                     style={{
                       height: 5,
-                      background: "var(--surface-2)",
+                      background: "#1e1e1e",
                       borderRadius: 99,
                       overflow: "hidden",
                       marginBottom: 8,
@@ -1539,7 +1524,7 @@ function DashContent() {
                     fontSize: 12,
                     color: "var(--text-faint)",
                     background: "transparent",
-                    border: "1px solid var(--border)",
+                    border: "1px solid #1e1e1e",
                     borderRadius: 7,
                     padding: "6px 12px",
                     cursor: "pointer",
@@ -1664,10 +1649,10 @@ function DashContent() {
               style={{
                 display: "flex",
                 gap: 2,
-                background: "var(--bg-raised)",
+                background: "#181818",
                 padding: 4,
                 borderRadius: 12,
-                border: "1px solid var(--border)",
+                border: "1px solid #1e1e1e",
               }}
             >
               {[
@@ -1709,12 +1694,8 @@ function DashContent() {
                     alignItems: "center",
                     gap: 6,
                     whiteSpace: "nowrap",
-                    background:
-                      activeTab === id ? "var(--surface)" : "transparent",
-                    color:
-                      activeTab === id
-                        ? "var(--text-primary)"
-                        : "var(--text-faint)",
+                    background: activeTab === id ? "#252525" : "transparent",
+                    color: activeTab === id ? "#e8e3dc" : "#444",
                     boxShadow:
                       activeTab === id ? "0 1px 4px rgba(0,0,0,.3)" : "none",
                     transition: "background .15s, color .15s",
@@ -1727,8 +1708,7 @@ function DashContent() {
                       borderRadius: 99,
                       fontSize: 10,
                       fontWeight: 700,
-                      background:
-                        activeTab === id ? "var(--brand)" : "var(--surface-2)",
+                      background: activeTab === id ? "var(--brand)" : "#1e1e1e",
                       color: activeTab === id ? "#000" : "var(--text-faint)",
                     }}
                   >
@@ -1746,25 +1726,23 @@ function DashContent() {
                 gap: 6,
                 padding: "8px 14px",
                 borderRadius: 9,
-                border: "1px solid var(--border)",
+                border: "1px solid #1e1e1e",
                 color: "var(--text-faint)",
                 fontSize: 12.5,
                 textDecoration: "none",
-                background: "var(--bg-raised)",
+                background: "#181818",
                 fontWeight: 600,
                 transition: "border-color .14s, color .14s",
               }}
               onMouseEnter={(e) => {
                 (e.currentTarget as HTMLElement).style.color =
                   "var(--text-primary)";
-                (e.currentTarget as HTMLElement).style.borderColor =
-                  "var(--border-mid)";
+                (e.currentTarget as HTMLElement).style.borderColor = "#2a2a2a";
               }}
               onMouseLeave={(e) => {
                 (e.currentTarget as HTMLElement).style.color =
                   "var(--text-faint)";
-                (e.currentTarget as HTMLElement).style.borderColor =
-                  "var(--border)";
+                (e.currentTarget as HTMLElement).style.borderColor = "#1e1e1e";
               }}
             >
               <Plus size={12} />{" "}
@@ -1785,36 +1763,91 @@ function DashContent() {
                 cta="Start Searching"
               />
             ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-
+              <div
+                style={{ display: "flex", flexDirection: "column", gap: 24 }}
+              >
                 {/* Recent Searches section */}
                 {history.length > 0 && (
                   <div>
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-                      <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: "1.5px", textTransform: "uppercase", color: "var(--text-faint)" }}>
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        marginBottom: 12,
+                      }}
+                    >
+                      <p
+                        style={{
+                          fontSize: 11,
+                          fontWeight: 700,
+                          letterSpacing: "1.5px",
+                          textTransform: "uppercase",
+                          color: "var(--text-faint)",
+                        }}
+                      >
                         Recent Searches
                       </p>
                       <button
-                        onClick={() => { setActiveTab("history"); setSelectedItem(null); }}
-                        style={{ fontSize: 11.5, color: "var(--brand)", background: "transparent", border: "none", cursor: "pointer", fontFamily: "var(--font-ui)", fontWeight: 600 }}
+                        onClick={() => {
+                          setActiveTab("history");
+                          setSelectedItem(null);
+                        }}
+                        style={{
+                          fontSize: 11.5,
+                          color: "var(--brand)",
+                          background: "transparent",
+                          border: "none",
+                          cursor: "pointer",
+                          fontFamily: "var(--font-ui)",
+                          fontWeight: 600,
+                        }}
                       >
                         View all →
                       </button>
                     </div>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
+                    <div
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 7,
+                      }}
+                    >
                       {history.slice(0, 5).map((h, i) => (
                         <ListRow
                           key={i}
-                          onClick={() => { setActiveTab("history"); setSelectedItem(h); }}
-                          iconEl={<Search size={13} style={{ color: "var(--brand)" }} />}
+                          onClick={() => {
+                            setActiveTab("history");
+                            setSelectedItem(h);
+                          }}
+                          iconEl={
+                            <Search
+                              size={13}
+                              style={{ color: "var(--brand)" }}
+                            />
+                          }
                           iconColor="var(--brand)"
                           title={h.query}
                           meta={
-                            <span style={{ fontSize: 10.5, color: "var(--text-faint)", display: "flex", alignItems: "center", gap: 3 }}>
+                            <span
+                              style={{
+                                fontSize: 10.5,
+                                color: "var(--text-faint)",
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 3,
+                              }}
+                            >
                               <Clock size={9} /> {timeAgo(h.searchedAt)}
                             </span>
                           }
-                          badge={h.papers && h.papers.length > 0 ? `${h.papers.length} sources` : h.answer ? "\u2713 saved" : undefined}
+                          badge={
+                            h.papers && h.papers.length > 0
+                              ? `${h.papers.length} sources`
+                              : h.answer
+                                ? "\u2713 saved"
+                                : undefined
+                          }
                         />
                       ))}
                     </div>
@@ -1824,142 +1857,165 @@ function DashContent() {
                 {/* Saved Papers section */}
                 {papers.length > 0 && (
                   <div>
-                    <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: "1.5px", textTransform: "uppercase", color: "var(--text-faint)", marginBottom: 12 }}>
+                    <p
+                      style={{
+                        fontSize: 11,
+                        fontWeight: 700,
+                        letterSpacing: "1.5px",
+                        textTransform: "uppercase",
+                        color: "var(--text-faint)",
+                        marginBottom: 12,
+                      }}
+                    >
                       Saved Papers
                     </p>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                      {papers.map((p) => (
-                  <div
-                    key={p.paperId}
-                    style={{
-                      padding: "14px 16px",
-                      background: "var(--bg-raised)",
-                      border: "1px solid var(--border)",
-                      borderRadius: 12,
-                      display: "flex",
-                      gap: 12,
-                      transition: "border-color .14s, background .14s",
-                    }}
-                    onMouseEnter={(e) => {
-                      (e.currentTarget as HTMLElement).style.borderColor =
-                        "var(--border-mid)";
-                      (e.currentTarget as HTMLElement).style.background =
-                        "var(--surface)";
-                    }}
-                    onMouseLeave={(e) => {
-                      (e.currentTarget as HTMLElement).style.borderColor =
-                        "var(--border)";
-                      (e.currentTarget as HTMLElement).style.background =
-                        "var(--bg-raised)";
-                    }}
-                  >
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <p
-                        className="truncate-1"
-                        style={{
-                          fontSize: 13.5,
-                          fontWeight: 600,
-                          color: "var(--text-primary)",
-                          marginBottom: 4,
-                        }}
-                      >
-                        {p.title}
-                      </p>
-                      <p style={{ fontSize: 11.5, color: "var(--text-faint)" }}>
-                        {(p.authors ?? []).slice(0, 3).join(", ")}
-                        {(p.authors?.length ?? 0) > 3 ? " et al." : ""}
-                        {p.year ? ` · ${p.year}` : ""}
-                        {p.journal ? ` · ${p.journal}` : ""}
-                      </p>
-                      {p.abstract && !isMobile && (
-                        <p
-                          className="truncate-2"
-                          style={{
-                            fontSize: 12,
-                            color: "var(--text-faint)",
-                            marginTop: 5,
-                            lineHeight: 1.55,
-                          }}
-                        >
-                          {p.abstract}
-                        </p>
-                      )}
-                    </div>
                     <div
                       style={{
                         display: "flex",
-                        gap: 6,
-                        flexShrink: 0,
-                        alignItems: "flex-start",
+                        flexDirection: "column",
+                        gap: 8,
                       }}
                     >
-                      {p.url && (
-                        <a
-                          href={p.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
+                      {papers.map((p) => (
+                        <div
+                          key={p.paperId}
                           style={{
-                            width: 30,
-                            height: 30,
-                            borderRadius: 8,
-                            background: "var(--surface)",
-                            border: "1px solid var(--border)",
+                            padding: "14px 16px",
+                            background: "#181818",
+                            border: "1px solid #1e1e1e",
+                            borderRadius: 12,
                             display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            color: "var(--text-faint)",
-                            textDecoration: "none",
-                            transition: "border-color .14s, color .14s",
+                            gap: 12,
+                            transition: "border-color .14s, background .14s",
                           }}
                           onMouseEnter={(e) => {
                             (e.currentTarget as HTMLElement).style.borderColor =
-                              "var(--border-mid)";
-                            (e.currentTarget as HTMLElement).style.color =
-                              "var(--text-primary)";
+                              "#2a2a2a";
+                            (e.currentTarget as HTMLElement).style.background =
+                              "#1e1e1e";
                           }}
                           onMouseLeave={(e) => {
                             (e.currentTarget as HTMLElement).style.borderColor =
-                              "var(--border)";
-                            (e.currentTarget as HTMLElement).style.color =
-                              "var(--text-faint)";
+                              "#1e1e1e";
+                            (e.currentTarget as HTMLElement).style.background =
+                              "#181818";
                           }}
                         >
-                          <ExternalLink size={12} />
-                        </a>
-                      )}
-                      <button
-                        onClick={() => void removePaper(p.paperId)}
-                        style={{
-                          width: 30,
-                          height: 30,
-                          borderRadius: 8,
-                          background: "rgba(224,92,92,.07)",
-                          border: "1px solid rgba(224,92,92,.15)",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          cursor: "pointer",
-                          color: "var(--red)",
-                          transition: "background .14s",
-                        }}
-                        onMouseEnter={(e) =>
-                          ((e.currentTarget as HTMLElement).style.background =
-                            "rgba(224,92,92,.14)")
-                        }
-                        onMouseLeave={(e) =>
-                          ((e.currentTarget as HTMLElement).style.background =
-                            "rgba(224,92,92,.07)")
-                        }
-                      >
-                        <Trash2 size={12} />
-                      </button>
-                    </div>
-                  </div>
-                ))}
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <p
+                              className="truncate-1"
+                              style={{
+                                fontSize: 13.5,
+                                fontWeight: 600,
+                                color: "var(--text-primary)",
+                                marginBottom: 4,
+                              }}
+                            >
+                              {p.title}
+                            </p>
+                            <p
+                              style={{
+                                fontSize: 11.5,
+                                color: "var(--text-faint)",
+                              }}
+                            >
+                              {(p.authors ?? []).slice(0, 3).join(", ")}
+                              {(p.authors?.length ?? 0) > 3 ? " et al." : ""}
+                              {p.year ? ` · ${p.year}` : ""}
+                              {p.journal ? ` · ${p.journal}` : ""}
+                            </p>
+                            {p.abstract && !isMobile && (
+                              <p
+                                className="truncate-2"
+                                style={{
+                                  fontSize: 12,
+                                  color: "var(--text-faint)",
+                                  marginTop: 5,
+                                  lineHeight: 1.55,
+                                }}
+                              >
+                                {p.abstract}
+                              </p>
+                            )}
+                          </div>
+                          <div
+                            style={{
+                              display: "flex",
+                              gap: 6,
+                              flexShrink: 0,
+                              alignItems: "flex-start",
+                            }}
+                          >
+                            {p.url && (
+                              <a
+                                href={p.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                style={{
+                                  width: 30,
+                                  height: 30,
+                                  borderRadius: 8,
+                                  background: "#1e1e1e",
+                                  border: "1px solid #252525",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  color: "var(--text-faint)",
+                                  textDecoration: "none",
+                                  transition: "border-color .14s, color .14s",
+                                }}
+                                onMouseEnter={(e) => {
+                                  (
+                                    e.currentTarget as HTMLElement
+                                  ).style.borderColor = "#2a2a2a";
+                                  (e.currentTarget as HTMLElement).style.color =
+                                    "var(--text-primary)";
+                                }}
+                                onMouseLeave={(e) => {
+                                  (
+                                    e.currentTarget as HTMLElement
+                                  ).style.borderColor = "#1e1e1e";
+                                  (e.currentTarget as HTMLElement).style.color =
+                                    "var(--text-faint)";
+                                }}
+                              >
+                                <ExternalLink size={12} />
+                              </a>
+                            )}
+                            <button
+                              onClick={() => void removePaper(p.paperId)}
+                              style={{
+                                width: 30,
+                                height: 30,
+                                borderRadius: 8,
+                                background: "rgba(224,92,92,.07)",
+                                border: "1px solid rgba(224,92,92,.15)",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                cursor: "pointer",
+                                color: "var(--red)",
+                                transition: "background .14s",
+                              }}
+                              onMouseEnter={(e) =>
+                                ((
+                                  e.currentTarget as HTMLElement
+                                ).style.background = "rgba(224,92,92,.14)")
+                              }
+                              onMouseLeave={(e) =>
+                                ((
+                                  e.currentTarget as HTMLElement
+                                ).style.background = "rgba(224,92,92,.07)")
+                              }
+                            >
+                              <Trash2 size={12} />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   </div>
                 )}
-
               </div>
             ))}
 
@@ -1973,15 +2029,15 @@ function DashContent() {
                     alignItems: "center",
                     gap: 10,
                     padding: "12px 16px",
-                    background: "rgba(232,160,69,.06)",
-                    border: "1px solid var(--brand-border)",
+                    background: "rgba(201,185,154,.06)",
+                    border: "1px solid rgba(201,185,154,.18)",
                     borderRadius: 10,
                     marginBottom: 14,
                   }}
                 >
                   <History
                     size={13}
-                    style={{ color: "var(--brand)", flexShrink: 0 }}
+                    style={{ color: "#c9b99a", flexShrink: 0 }}
                   />
                   <p
                     style={{
@@ -2111,10 +2167,10 @@ function DashContent() {
               maxWidth: 380,
               width: "100%",
               padding: 28,
-              background: "var(--bg-overlay)",
-              border: "1px solid var(--border-mid)",
-              borderRadius: 20,
-              boxShadow: "0 32px 80px rgba(0,0,0,.7)",
+              background: "#1a1a1a",
+              border: "1px solid #252525",
+              borderRadius: 18,
+              boxShadow: "0 32px 80px rgba(0,0,0,.8)",
             }}
             onClick={(e) => e.stopPropagation()}
           >
@@ -2165,7 +2221,7 @@ function DashContent() {
                 style={{
                   padding: "10px 18px",
                   borderRadius: 10,
-                  border: "1px solid var(--border-mid)",
+                  border: "1px solid #2a2a2a",
                   color: "var(--text-secondary)",
                   background: "transparent",
                   fontSize: 13,
