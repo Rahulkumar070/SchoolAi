@@ -35,13 +35,6 @@ export default function Shell({
     };
   }, [sidebarOpen, drawerOpen]);
 
-  // Auto-open drawer when a new rightPanel arrives on mobile
-  useEffect(() => {
-    if (rightPanel && window.innerWidth <= 768) {
-      setDrawerOpen(true);
-    }
-  }, [rightPanel]);
-
   const handleNewSearch = () => {
     setSidebarOpen(false);
     setDrawerOpen(false);
