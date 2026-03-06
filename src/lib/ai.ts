@@ -243,12 +243,10 @@ YOUR RULES:
 7. Start with "Based on this document..." or "The paper states..." or "According to [section]..."
 8. At the end of each answer, suggest 2 follow-up questions`,
     messages: [
-      ...history
-        .slice(-8)
-        .map((m) => ({
-          role: m.role as "user" | "assistant",
-          content: m.content,
-        })),
+      ...history.slice(-8).map((m) => ({
+        role: m.role as "user" | "assistant",
+        content: m.content,
+      })),
       { role: "user", content: question },
     ],
   });

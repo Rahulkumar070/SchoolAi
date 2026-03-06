@@ -13,7 +13,6 @@ import {
   Check,
   Lock,
   FileText,
-  Loader2,
 } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { Sparkles } from "lucide-react";
@@ -28,87 +27,10 @@ interface Result {
   topic: string;
 }
 
-function Cursor() {
-  return (
-    <span
-      style={{
-        display: "inline-block",
-        width: 2,
-        height: "0.9em",
-        background: "var(--brand)",
-        marginLeft: 2,
-        verticalAlign: "text-bottom",
-        animation: "cursorBlink .85s step-end infinite",
-      }}
-    />
-  );
-}
-
-const MD = {
-  h2: ({ children }: any) => (
-    <h2
-      style={{
-        fontFamily: "var(--font-display)",
-        fontSize: "1.05rem",
-        color: "var(--text-primary)",
-        margin: "1.4em 0 .5em",
-        fontWeight: 600,
-      }}
-    >
-      {children}
-    </h2>
-  ),
-  h3: ({ children }: any) => (
-    <h3
-      style={{
-        fontSize: ".93rem",
-        color: "var(--text-primary)",
-        fontWeight: 600,
-        margin: "1em 0 .3em",
-      }}
-    >
-      {children}
-    </h3>
-  ),
-  p: ({ children }: any) => (
-    <p
-      style={{
-        marginBottom: ".85em",
-        lineHeight: 1.82,
-        fontSize: 14.5,
-        color: "var(--text-secondary)",
-      }}
-    >
-      {children}
-    </p>
-  ),
-  strong: ({ children }: any) => (
-    <strong style={{ color: "var(--text-primary)", fontWeight: 600 }}>
-      {children}
-    </strong>
-  ),
-  ul: ({ children }: any) => (
-    <ul style={{ paddingLeft: "1.3em", marginBottom: ".7em" }}>{children}</ul>
-  ),
-  li: ({ children }: any) => (
-    <li
-      style={{
-        marginBottom: ".3em",
-        fontSize: 14.5,
-        color: "var(--text-secondary)",
-      }}
-    >
-      {children}
-    </li>
-  ),
-};
-
 export default function ReviewPage() {
   const [input, setInput] = useState("");
   const [result, setResult] = useState<Result | null>(null);
-  const [streaming, setStreaming] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [status, setStatus] = useState("");
   const [tab, setTab] = useState<"review" | "sources" | "cite">("review");
   const [copied, setCopied] = useState(false);
   const taRef = useRef<HTMLTextAreaElement>(null);
@@ -121,79 +43,29 @@ export default function ReviewPage() {
     el.style.height = Math.min(el.scrollHeight, 140) + "px";
   };
 
-  const generate = async () => {
-    if (!input.trim() || loading) return;
-    const topic = input.trim();
+  const generate = async (topicOverride?: string) => {
+    const topic = (topicOverride ?? input).trim();
+    if (!topic || loading) return;
+    if (topicOverride) setInput(topicOverride);
     setLoading(true);
-    setStreaming(true);
-    setStatus("Searching academic papers…");
-    setResult({ review: "", papers: [], topic });
-    setTab("review");
-
+    setResult(null);
     try {
-      const resp = await fetch("/api/review", {
+      const r = await fetch("/api/review", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ topic }),
       });
-
-      if (!resp.ok) {
-        const d = (await resp.json()) as { error?: string };
+      const d = (await r.json()) as Result & { error?: string };
+      if (!r.ok) {
         toast.error(d.error ?? "Failed");
-        setResult(null);
         return;
       }
-
-      const reader = resp.body!.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop() ?? "";
-
-        for (const line of lines) {
-          if (!line.startsWith("data: ")) continue;
-          try {
-            const evt = JSON.parse(line.slice(6)) as {
-              type: string;
-              text?: string;
-              papers?: Paper[];
-              topic?: string;
-            };
-            if (evt.type === "papers" && evt.papers) {
-              setResult((prev) =>
-                prev ? { ...prev, papers: evt.papers! } : null,
-              );
-            } else if (evt.type === "status" && evt.text) {
-              setStatus(evt.text);
-            } else if (evt.type === "text" && evt.text) {
-              setStatus("");
-              setResult((prev) =>
-                prev ? { ...prev, review: prev.review + evt.text } : null,
-              );
-            } else if (evt.type === "done") {
-              setStreaming(false);
-              setStatus("");
-            } else if (evt.type === "error" && evt.text) {
-              toast.error(evt.text);
-              setResult(null);
-            }
-          } catch {
-            /* ignore */
-          }
-        }
-      }
+      setResult(d);
+      setTab("review");
     } catch {
       toast.error("Network error");
-      setResult(null);
     } finally {
       setLoading(false);
-      setStreaming(false);
-      setStatus("");
     }
   };
 
@@ -209,8 +81,6 @@ export default function ReviewPage() {
     downloadResearchPDF(result.topic, result.review, result.papers);
     toast.success("Downloading PDF...");
   };
-
-  const plan = session?.user?.plan ?? "free";
 
   return (
     <Shell>
@@ -233,129 +103,215 @@ export default function ReviewPage() {
                 style={{
                   width: 36,
                   height: 36,
-                  borderRadius: 10,
-                  background: "var(--brand-dim)",
-                  border: "1px solid var(--brand-border)",
+                  borderRadius: 9,
+                  background: "rgba(93,184,122,.1)",
+                  border: "1px solid rgba(93,184,122,.18)",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
                 }}
               >
-                <BookOpen size={16} style={{ color: "var(--brand)" }} />
+                <BookOpen size={16} style={{ color: "#5db87a" }} />
               </div>
               <div>
                 <h1
                   style={{
-                    fontSize: 17,
-                    fontWeight: 700,
+                    fontFamily: "var(--font-display)",
+                    fontSize: 18,
+                    fontWeight: 600,
                     color: "var(--text-primary)",
-                    lineHeight: 1,
                   }}
                 >
-                  Literature Review
+                  Literature Review Generator
                 </h1>
                 <p
                   style={{
-                    fontSize: 12,
+                    fontSize: 11.5,
                     color: "var(--text-faint)",
-                    marginTop: 3,
+                    marginTop: 2,
                   }}
                 >
-                  AI-generated academic literature review from 200M+ papers
+                  Structured academic reviews from 200M+ papers · Requires sign
+                  in
                 </p>
               </div>
             </div>
 
-            {/* Plan gate */}
-            {(!session || plan === "free") && (
+            {/* Auth gate */}
+            {!session && (
               <div
                 style={{
-                  padding: "18px 20px",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 12,
+                  padding: "13px 16px",
                   background: "var(--brand-dim)",
                   border: "1px solid var(--brand-border)",
-                  borderRadius: 12,
-                  marginBottom: 24,
+                  borderRadius: 10,
+                  marginBottom: 22,
+                }}
+              >
+                <Lock
+                  size={14}
+                  style={{ color: "var(--brand)", flexShrink: 0 }}
+                />
+                <div style={{ flex: 1 }}>
+                  <p
+                    style={{
+                      fontSize: 13,
+                      fontWeight: 600,
+                      color: "var(--text-primary)",
+                    }}
+                  >
+                    Sign in required
+                  </p>
+                  <p style={{ fontSize: 11.5, color: "var(--text-secondary)" }}>
+                    Account needed to generate reviews
+                  </p>
+                </div>
+                <Link
+                  href="/auth/signin"
+                  className="btn btn-brand"
+                  style={{
+                    padding: "7px 14px",
+                    textDecoration: "none",
+                    flexShrink: 0,
+                    fontSize: 12.5,
+                  }}
+                >
+                  Sign In
+                </Link>
+              </div>
+            )}
+
+            {/* Plan gate — free users can't use this */}
+            {session && session.user?.plan === "free" && (
+              <div
+                style={{
+                  background: "var(--surface)",
+                  border: "1px solid var(--brand-border)",
+                  borderRadius: 14,
+                  padding: "28px 24px",
+                  textAlign: "center",
+                  marginBottom: 22,
                 }}
               >
                 <div
                   style={{
+                    width: 48,
+                    height: 48,
+                    borderRadius: 12,
+                    background: "var(--brand-dim)",
                     display: "flex",
                     alignItems: "center",
-                    gap: 8,
-                    marginBottom: 8,
+                    justifyContent: "center",
+                    margin: "0 auto 14px",
                   }}
                 >
-                  <Lock size={13} style={{ color: "var(--brand)" }} />
-                  <p
-                    style={{
-                      fontSize: 14,
-                      fontWeight: 700,
-                      color: "var(--text-primary)",
-                    }}
-                  >
-                    Paid Feature
-                  </p>
+                  <Sparkles size={22} style={{ color: "var(--brand)" }} />
                 </div>
                 <p
                   style={{
-                    fontSize: 13,
-                    color: "var(--text-secondary)",
-                    marginBottom: 14,
-                    lineHeight: 1.6,
+                    fontSize: 16,
+                    fontWeight: 700,
+                    color: "var(--text-primary)",
+                    marginBottom: 6,
                   }}
                 >
-                  Literature Review is available on Student (₹199/mo) and Pro
-                  (₹499/mo) plans.
+                  Paid Feature
+                </p>
+                <p
+                  style={{
+                    fontSize: 13.5,
+                    color: "var(--text-secondary)",
+                    marginBottom: 20,
+                    lineHeight: 1.65,
+                  }}
+                >
+                  Literature Review is available on <strong>Student</strong> and{" "}
+                  <strong>Pro</strong> plans.
+                  <br />
+                  Get 500 searches/month + full literature reviews for just
+                  ₹199/mo.
                 </p>
                 <Link
                   href="/pricing"
                   className="btn btn-brand"
                   style={{
                     textDecoration: "none",
-                    padding: "9px 18px",
-                    fontSize: 13,
+                    padding: "10px 28px",
+                    fontSize: 14,
+                    fontWeight: 700,
                   }}
                 >
-                  <Sparkles size={12} /> Upgrade to unlock →
+                  Upgrade to Student ₹199/mo →
                 </Link>
               </div>
             )}
 
-            {/* Status pill while loading */}
-            {status && (
-              <div
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 8,
-                  padding: "7px 14px",
-                  borderRadius: 99,
-                  background: "var(--bg-raised)",
-                  border: "1px solid var(--border)",
-                  marginBottom: 16,
-                }}
-              >
-                <Loader2
-                  size={12}
+            {/* Loading */}
+            {loading && (
+              <div style={{ display: "flex", gap: 12, marginBottom: 24 }}>
+                <div
                   style={{
-                    color: "var(--brand)",
-                    animation: "spin 1s linear infinite",
-                  }}
-                />
-                <span
-                  style={{
-                    fontSize: 12.5,
-                    color: "var(--text-faint)",
-                    fontWeight: 500,
+                    width: 28,
+                    height: 28,
+                    borderRadius: 7,
+                    background: "rgba(93,184,122,.1)",
+                    border: "1px solid rgba(93,184,122,.18)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    flexShrink: 0,
                   }}
                 >
-                  {status}
-                </span>
+                  <BookOpen size={12} style={{ color: "#5db87a" }} />
+                </div>
+                <div>
+                  <p
+                    style={{
+                      fontSize: 12.5,
+                      color: "var(--text-secondary)",
+                      marginBottom: 10,
+                    }}
+                  >
+                    Generating review for{" "}
+                    <em style={{ color: "var(--brand)" }}>{input}</em>…
+                  </p>
+                  {[
+                    "Searching 200M+ papers…",
+                    "Synthesising findings…",
+                    "Writing structured review…",
+                  ].map((s, i) => (
+                    <div
+                      key={s}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 7,
+                        marginBottom: 6,
+                      }}
+                    >
+                      <div
+                        className="shimmer-line"
+                        style={{
+                          width: 13,
+                          height: 13,
+                          borderRadius: "50%",
+                          animationDelay: `${i * 0.3}s`,
+                        }}
+                      />
+                      <p style={{ fontSize: 12, color: "var(--text-muted)" }}>
+                        {s}
+                      </p>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
 
             {/* Result */}
-            {result && (result.review || result.papers.length > 0) && (
+            {result && (
               <div className="anim-in">
                 <div
                   style={{
@@ -376,10 +332,7 @@ export default function ReviewPage() {
                       className={`tab${tab === "sources" ? " on" : ""}`}
                       onClick={() => setTab("sources")}
                     >
-                      Sources{" "}
-                      {result.papers.length > 0
-                        ? `(${result.papers.length})`
-                        : ""}
+                      Sources ({result.papers.length})
                     </button>
                     <button
                       className={`tab${tab === "cite" ? " on" : ""}`}
@@ -388,53 +341,93 @@ export default function ReviewPage() {
                       Cite
                     </button>
                   </div>
-                  {!streaming && result.review && (
-                    <div style={{ display: "flex", gap: 5 }}>
-                      <button onClick={copy} className="icon-btn" title="Copy">
-                        {copied ? <Check size={13} /> : <Copy size={13} />}
-                      </button>
-                      <button
-                        onClick={dl}
-                        className="icon-btn"
-                        title="Download"
-                      >
-                        <Download size={13} />
-                      </button>
-                    </div>
-                  )}
+                  <div style={{ display: "flex", gap: 5 }}>
+                    <button onClick={copy} className="icon-btn" title="Copy">
+                      {copied ? <Check size={13} /> : <Copy size={13} />}
+                    </button>
+                    <button onClick={dl} className="icon-btn" title="Download">
+                      <Download size={13} />
+                    </button>
+                  </div>
                 </div>
 
                 {tab === "review" && (
                   <div className="card" style={{ padding: 26 }}>
-                    {result.review ? (
-                      <>
-                        <ReactMarkdown
-                          remarkPlugins={[remarkGfm]}
-                          components={MD as any}
-                        >
-                          {result.review}
-                        </ReactMarkdown>
-                        {streaming && <Cursor />}
-                      </>
-                    ) : (
-                      <div
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 8,
-                          padding: "20px 0",
-                          color: "var(--text-faint)",
-                        }}
-                      >
-                        <Loader2
-                          size={14}
-                          style={{ animation: "spin 1s linear infinite" }}
-                        />
-                        <span style={{ fontSize: 13.5 }}>
-                          Writing your literature review…
-                        </span>
-                      </div>
-                    )}
+                    <ReactMarkdown
+                      remarkPlugins={[remarkGfm]}
+                      components={{
+                        h2: ({ children }) => (
+                          <h2
+                            style={{
+                              fontFamily: "var(--font-display)",
+                              fontSize: "1.05rem",
+                              color: "var(--text-primary)",
+                              margin: "1.4em 0 .5em",
+                              fontWeight: 600,
+                            }}
+                          >
+                            {children}
+                          </h2>
+                        ),
+                        h3: ({ children }) => (
+                          <h3
+                            style={{
+                              fontSize: ".93rem",
+                              color: "var(--text-primary)",
+                              fontWeight: 600,
+                              margin: "1em 0 .3em",
+                            }}
+                          >
+                            {children}
+                          </h3>
+                        ),
+                        p: ({ children }) => (
+                          <p
+                            style={{
+                              marginBottom: ".85em",
+                              lineHeight: 1.82,
+                              fontSize: 14.5,
+                              color: "var(--text-secondary)",
+                            }}
+                          >
+                            {children}
+                          </p>
+                        ),
+                        strong: ({ children }) => (
+                          <strong
+                            style={{
+                              color: "var(--text-primary)",
+                              fontWeight: 600,
+                            }}
+                          >
+                            {children}
+                          </strong>
+                        ),
+                        ul: ({ children }) => (
+                          <ul
+                            style={{
+                              paddingLeft: "1.3em",
+                              marginBottom: ".7em",
+                            }}
+                          >
+                            {children}
+                          </ul>
+                        ),
+                        li: ({ children }) => (
+                          <li
+                            style={{
+                              marginBottom: ".3em",
+                              fontSize: 14.5,
+                              color: "var(--text-secondary)",
+                            }}
+                          >
+                            {children}
+                          </li>
+                        ),
+                      }}
+                    >
+                      {result.review}
+                    </ReactMarkdown>
                   </div>
                 )}
                 {tab === "sources" &&
@@ -445,23 +438,73 @@ export default function ReviewPage() {
               </div>
             )}
 
-            {/* Empty state */}
+            {/* Empty state with topic suggestions */}
             {!result && !loading && (
-              <div
-                style={{ textAlign: "center", paddingTop: 40, opacity: 0.5 }}
-              >
-                <FileText
-                  size={36}
+              <div style={{ maxWidth: 580, margin: "0 auto", paddingTop: 16 }}>
+                <div
                   style={{
-                    color: "var(--text-faint)",
-                    margin: "0 auto 12px",
-                    display: "block",
+                    textAlign: "center",
+                    marginBottom: 28,
+                    opacity: 0.65,
                   }}
-                />
-                <p style={{ fontSize: 13.5, color: "var(--text-muted)" }}>
-                  Enter a research topic and I&apos;ll write a full literature
-                  review
-                </p>
+                >
+                  <FileText
+                    size={30}
+                    style={{
+                      color: "var(--text-faint)",
+                      margin: "0 auto 10px",
+                      display: "block",
+                    }}
+                  />
+                  <p style={{ fontSize: 13.5, color: "var(--text-muted)" }}>
+                    Enter a topic above — or pick one to get started
+                  </p>
+                </div>
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "1fr 1fr",
+                    gap: 9,
+                  }}
+                >
+                  {[
+                    "mRNA vaccine mechanisms and efficacy",
+                    "Deep learning in medical imaging",
+                    "Climate change and ocean acidification",
+                    "CRISPR gene therapy clinical trials",
+                    "Gut microbiome and mental health",
+                    "Large language model alignment",
+                  ].map((t) => (
+                    <button
+                      key={t}
+                      onClick={() => void generate(t)}
+                      style={{
+                        padding: "11px 13px",
+                        borderRadius: 10,
+                        textAlign: "left",
+                        background: "var(--bg-raised)",
+                        border: "1px solid var(--border)",
+                        color: "var(--text-secondary)",
+                        fontSize: 12.5,
+                        lineHeight: 1.45,
+                        cursor: "pointer",
+                        fontFamily: "var(--font-ui)",
+                        transition: "border-color .13s, color .13s",
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.borderColor =
+                          "var(--brand-border)";
+                        e.currentTarget.style.color = "var(--text-primary)";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.borderColor = "var(--border)";
+                        e.currentTarget.style.color = "var(--text-secondary)";
+                      }}
+                    >
+                      {t}
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
           </div>
@@ -486,12 +529,12 @@ export default function ReviewPage() {
               placeholder="e.g. Social media effects on adolescent mental health…"
               className="input-textarea"
               rows={1}
-              disabled={loading || !session || plan === "free"}
+              disabled={loading || !session || session?.user?.plan === "free"}
             />
             <button
               onClick={() => void generate()}
-              disabled={loading || !input.trim() || !session || plan === "free"}
-              className={`send-btn${input.trim() && !loading && session && plan !== "free" ? " ready" : " idle"}`}
+              disabled={loading || !input.trim() || !session}
+              className={`send-btn${input.trim() && !loading && session && session?.user?.plan !== "free" ? " ready" : " idle"}`}
             >
               {loading ? (
                 <span className="spinner" />
@@ -507,8 +550,8 @@ export default function ReviewPage() {
             </button>
           </div>
           <p className="input-hint">
-            Generates ~1400 word structured review · Streams in real-time ·
-            Searches 4 academic databases
+            Generates ~1300 word structured review · Searches 3 academic
+            databases
           </p>
         </div>
       </div>

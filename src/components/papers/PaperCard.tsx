@@ -15,16 +15,19 @@ const SRC: Record<string, string> = {
   "Semantic Scholar": "#5c9ae0",
   OpenAlex: "#5db87a",
   arXiv: "#e05c5c",
+  PubMed: "#e07b3a", // ✅ orange — matches PubMed brand
 };
 
 export default function PaperCard({
   paper,
   index,
+  savedIds,
 }: {
   paper: Paper;
   index?: number;
+  savedIds?: Set<string>; // ✅ pre-filled saved state from parent
 }) {
-  const [saved, setSaved] = useState(false);
+  const [saved, setSaved] = useState(() => savedIds?.has(paper.id) ?? false);
   const [saving, setSaving] = useState(false);
   const [exp, setExp] = useState(false);
   const { data: session } = useSession();
