@@ -29,6 +29,7 @@ import {
 import Link from "next/link";
 import ReactMarkdown from "react-markdown";
 import { downloadResearchPDF } from "@/lib/downloadPDF";
+import AnswerRenderer from "@/components/answer/AnswerRenderer";
 import remarkGfm from "remark-gfm";
 import Image from "next/image";
 import toast from "react-hot-toast";
@@ -670,12 +671,10 @@ function DetailView({
                 marginBottom: 20,
               }}
             >
-              <ReactMarkdown
-                remarkPlugins={[remarkGfm]}
-                components={mdComponents}
-              >
-                {content}
-              </ReactMarkdown>
+              <AnswerRenderer
+                content={content}
+                papers={papers ?? []}
+              />
             </div>
             {papers?.length > 0 && (
               <div style={{ marginBottom: 24 }}>

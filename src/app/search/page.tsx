@@ -29,6 +29,7 @@ import { Paper } from "@/types";
 import toast from "react-hot-toast";
 import Link from "next/link";
 import { downloadResearchPDF } from "@/lib/downloadPDF";
+import AnswerRenderer from "@/components/answer/AnswerRenderer";
 
 interface Turn {
   query: string;
@@ -757,13 +758,11 @@ function SearchApp() {
 
                     {turn.answer ? (
                       <>
-                        <ReactMarkdown
-                          remarkPlugins={[remarkGfm]}
-                          components={MD as any}
-                        >
-                          {turn.answer}
-                        </ReactMarkdown>
-                        {turn.streaming && <Cursor />}
+                        <AnswerRenderer
+                          content={turn.answer}
+                          papers={turn.papers}
+                          streaming={turn.streaming}
+                        />
 
                         {/* Action bar + related questions */}
                         {!turn.streaming && (
