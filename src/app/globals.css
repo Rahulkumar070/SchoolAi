@@ -150,15 +150,16 @@ select {
   z-index: 80;
   background: #181818;
   border-top: 1px solid #242424;
-  border-radius: 16px 16px 0 0;
-  max-height: 75vh;
-  transform: translateY(100%);
-  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: 20px 20px 0 0;
+  max-height: 80vh;
+  transform: translateY(105%);
   display: flex;
   flex-direction: column;
+  box-shadow: 0 -12px 48px rgba(0, 0, 0, 0.5);
+  will-change: transform;
 }
 .mobile-drawer.open {
-  transform: translateY(0);
+  transform: translateY(0); /* FM overrides this */
 }
 .mobile-drawer-header {
   display: flex;
@@ -169,12 +170,12 @@ select {
   flex-shrink: 0;
 }
 .drawer-handle {
-  width: 36px;
+  width: 44px;
   height: 4px;
-  background: #3a3a3a;
+  background: #2e2e2e;
   border-radius: 99px;
   position: absolute;
-  top: 8px;
+  top: 10px;
   left: 50%;
   transform: translateX(-50%);
 }
@@ -192,10 +193,11 @@ select {
   position: fixed;
   inset: 0;
   z-index: 79;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
   opacity: 0;
   pointer-events: none;
-  transition: opacity 0.3s;
 }
 .drawer-backdrop.open {
   opacity: 1;
