@@ -16,25 +16,14 @@ export async function GET() {
       });
 
     await connectDB();
-
     const u = (await UserModel.findOne({ email: session.user.email })
       .select(
         "plan searchesToday searchDateReset searchesThisMonth searchMonthReset searchHistory.query searchHistory.answer searchHistory.papers searchHistory.searchedAt reviewHistory.topic reviewHistory.review reviewHistory.papers reviewHistory.reviewedAt",
       )
       .lean()) as {
       plan?: string;
-      searchHistory?: {
-        query: string;
-        answer?: string;
-        papers?: unknown[];
-        searchedAt: Date;
-      }[];
-      reviewHistory?: {
-        topic: string;
-        review?: string;
-        papers?: unknown[];
-        reviewedAt: Date;
-      }[];
+      searchHistory?: { query: string; answer?: string; papers?: unknown[]; searchedAt: Date }[];
+      reviewHistory?: { topic: string; review?: string; papers?: unknown[]; reviewedAt: Date }[];
       searchesToday?: number;
       searchDateReset?: Date;
       searchesThisMonth?: number;

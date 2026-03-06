@@ -37,7 +37,7 @@ type UserDoc = {
   searchDateReset?: Date;
   searchesThisMonth?: number;
   searchMonthReset?: Date;
-  searchHistory?: { query: string }[];
+  searchHistory?: { query: string; answer?: string; papers?: unknown[]; searchedAt?: Date }[];
 };
 
 function buildPrompt(query: string, papers: PaperRow[]) {
@@ -53,26 +53,52 @@ function buildPrompt(query: string, papers: PaperRow[]) {
           `[${i + 1}] "${p.title}" — ${p.authors.slice(0, 3).join(", ")}${p.authors.length > 3 ? " et al." : ""} (${p.year ?? "n.d."}) · ${p.source}${p.url ? " · " + p.url : ""}`,
       )
       .join("\n");
-    return `RESEARCH QUESTION: "${query}"\n\n## RETRIEVED CONTEXT (RAG — top ${topChunks.length} chunks ranked by relevance)\n${ragCtx}\n\n## FULL PAPER INDEX (for citations)\n${paperList}\n\nClassify and respond:\n- Research: cite every claim [Ref n], end with ## Key Takeaways, ## Useful Links, ## What To Search Next\n- Study help: clear structure, real examples, ## Quick Revision Points, ## What To Search Next\n- Exam practice: original questions with answers and explanations\nMake every sentence count — no filler, maximum insight.`;
+    return `RESEARCH QUESTION: "${query}"\n\n## RETRIEVED CONTEXT (RAG — top ${topChunks.length} chunks ranked by relevance)\n${ragCtx}\n\n## FULL PAPER INDEX (for citations)\n${paperList}\n\nClassify and respond:\n- Research: after every claim insert a citation card (> 📄 Paper / Authors / Year / Source / Link). End with ## Key Takeaways, ## What To Search Next. NEVER use [n] numbers.\n- Study help: clear structure, real examples, ## Quick Revision Points, ## What To Search Next\n- Exam practice: original questions with answers and explanations\nMake every sentence count — no filler, maximum insight.`;
   }
   return `QUESTION: "${query}"\n\nNo academic papers found.\n\nClassify as Study Help / Exam Practice / General Academic / Non-Academic.\nIf non-academic: politely redirect. For study: thorough explanation + ## What To Search Next. For exam (JEE/NEET/UPSC/GATE): generate original questions with detailed answers. NEVER say you cannot help.`;
 }
 
-const SYSTEM = `You are Researchly, an elite academic research assistant for Indian students and researchers.
+const SYSTEM = `You are Researchly, an expert academic research assistant for Indian students and researchers.
 You ONLY help with academic, research, and study topics.
 
-CONTEXT USAGE RULES:
-- You are given ranked, relevant excerpts from academic papers retrieved via RAG (Retrieval-Augmented Generation).
-- Each excerpt is labelled [Chunk N | Ref M: "Title" (Source, Year)].
-- Cite facts using the Ref number: e.g. [2] or [1,3].
-- If a chunk is not relevant to the question, ignore it.
-- Never fabricate facts not present in the context.
+RULE 1 — MANDATORY RESPONSE STRUCTURE
+Every research answer MUST use these 7 sections in order:
+1. ## Overview
+2. ## Key Concepts
+3. ## System Architecture  (include ASCII diagram — Rule 4)
+4. ## Technical Details or Comparison  (include table when comparing — Rule 5)
+5. ## Key Research Papers
+6. ## Limitations
+7. ## Key Takeaways  +  ## What To Search Next
 
-WRITING RULES:
-- Never start with "Great question!" or "Certainly!" or filler phrases.
-- Use ## for main headings, bold **key terms** on first use.
-- Research answers: 400-600 words. Study explanations: 300-500 words.
-- Always end with ## What To Search Next (3 related query suggestions).`;
+RULE 2 — CITATION FORMAT (MANDATORY)
+NEVER use [1], [2], [n] or any numeric citation style.
+After every factual claim, insert this card inline:
+
+> 📄 **Paper:** <full title>
+> **Authors:** <up to 3 names, then "et al.">
+> **Year:** <year>
+> **Source:** <arXiv / Semantic Scholar / PubMed / OpenAlex / Journal>
+> **Link:** <DOI or URL, or "Not available">
+> **Key Contribution:** <1–2 sentences>
+
+RULE 3 — HANDLING MISSING CONTEXT
+Supplement with well-established knowledge — label: "(From general knowledge)". Never fabricate citations.
+
+RULE 4 — ASCII DIAGRAMS (MANDATORY for any AI system or pipeline discussion)
+
+RULE 5 — COMPARISON TABLES when comparing 2+ models:
+| Model | Time Complexity | Memory | Strengths | Limitations |
+
+RULE 6 — No overconfident claims. Provide context and scope.
+
+RULE 7 — Focus on key innovations, mechanisms, limitations, applications.
+
+WRITING RULES
+- Never start with filler phrases.
+- Bold **key terms** on first use.
+- Research: 600–900 words. Study: 400–600 words.
+- End with ## What To Search Next (3 suggestions).`
 
 export async function POST(req: NextRequest) {
   try {
@@ -296,16 +322,16 @@ export async function POST(req: NextRequest) {
             counterUpdate.searchMonthReset = now;
           }
 
-          // 5. Save to searchHistory with answer + papers so Library/History can display them
+          // 5. Save to searchHistory — always push new entry, cap at 50
+          // ✅ Single atomic update instead of findFirst + conditional update
+          // Save full answer + papers to searchHistory so Library/History can display them
           await UserModel.findByIdAndUpdate(u._id, {
             $set: counterUpdate,
             $push: {
               searchHistory: {
-                $each: [
-                  { query: q, answer: fullAnswer, papers, searchedAt: now },
-                ],
+                $each: [{ query: q, answer: fullAnswer, papers, searchedAt: now }],
                 $position: 0,
-                $slice: 50,
+                $slice: 100,
               },
             },
           });

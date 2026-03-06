@@ -1786,259 +1786,181 @@ function DashContent() {
                 cta="Start Searching"
               />
             ) : (
-              <div
-                style={{ display: "flex", flexDirection: "column", gap: 24 }}
-              >
-                {/* ── Recent Searches section ── */}
+              <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+
+                {/* Recent Searches section */}
                 {history.length > 0 && (
                   <div>
-                    <div
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                        marginBottom: 12,
-                      }}
-                    >
-                      <p
-                        style={{
-                          fontSize: 11,
-                          fontWeight: 700,
-                          letterSpacing: "1.5px",
-                          textTransform: "uppercase",
-                          color: "var(--text-faint)",
-                        }}
-                      >
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+                      <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: "1.5px", textTransform: "uppercase", color: "var(--text-faint)" }}>
                         Recent Searches
                       </p>
                       <button
-                        onClick={() => {
-                          setActiveTab("history");
-                          setSelectedItem(null);
-                        }}
-                        style={{
-                          fontSize: 11.5,
-                          color: "var(--brand)",
-                          background: "transparent",
-                          border: "none",
-                          cursor: "pointer",
-                          fontFamily: "var(--font-ui)",
-                          fontWeight: 600,
-                        }}
+                        onClick={() => { setActiveTab("history"); setSelectedItem(null); }}
+                        style={{ fontSize: 11.5, color: "var(--brand)", background: "transparent", border: "none", cursor: "pointer", fontFamily: "var(--font-ui)", fontWeight: 600 }}
                       >
                         View all →
                       </button>
                     </div>
-                    <div
-                      style={{
-                        display: "flex",
-                        flexDirection: "column",
-                        gap: 7,
-                      }}
-                    >
+                    <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
                       {history.slice(0, 5).map((h, i) => (
                         <ListRow
                           key={i}
-                          onClick={() => {
-                            setActiveTab("history");
-                            setSelectedItem(h);
-                          }}
-                          iconEl={
-                            <Search
-                              size={13}
-                              style={{ color: "var(--brand)" }}
-                            />
-                          }
+                          onClick={() => { setActiveTab("history"); setSelectedItem(h); }}
+                          iconEl={<Search size={13} style={{ color: "var(--brand)" }} />}
                           iconColor="var(--brand)"
                           title={h.query}
                           meta={
-                            <span
-                              style={{
-                                fontSize: 10.5,
-                                color: "var(--text-faint)",
-                                display: "flex",
-                                alignItems: "center",
-                                gap: 3,
-                              }}
-                            >
+                            <span style={{ fontSize: 10.5, color: "var(--text-faint)", display: "flex", alignItems: "center", gap: 3 }}>
                               <Clock size={9} /> {timeAgo(h.searchedAt)}
                             </span>
                           }
-                          badge={
-                            h.papers && h.papers.length > 0
-                              ? `${h.papers.length} sources`
-                              : h.answer
-                                ? "✓ saved"
-                                : undefined
-                          }
+                          badge={h.papers && h.papers.length > 0 ? `${h.papers.length} sources` : h.answer ? "\u2713 saved" : undefined}
                         />
                       ))}
                     </div>
                   </div>
                 )}
 
-                {/* ── Saved Papers section ── */}
+                {/* Saved Papers section */}
                 {papers.length > 0 && (
                   <div>
-                    <p
-                      style={{
-                        fontSize: 11,
-                        fontWeight: 700,
-                        letterSpacing: "1.5px",
-                        textTransform: "uppercase",
-                        color: "var(--text-faint)",
-                        marginBottom: 12,
-                      }}
-                    >
+                    <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: "1.5px", textTransform: "uppercase", color: "var(--text-faint)", marginBottom: 12 }}>
                       Saved Papers
                     </p>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                      {papers.map((p) => (
+                  <div
+                    key={p.paperId}
+                    style={{
+                      padding: "14px 16px",
+                      background: "var(--bg-raised)",
+                      border: "1px solid var(--border)",
+                      borderRadius: 12,
+                      display: "flex",
+                      gap: 12,
+                      transition: "border-color .14s, background .14s",
+                    }}
+                    onMouseEnter={(e) => {
+                      (e.currentTarget as HTMLElement).style.borderColor =
+                        "var(--border-mid)";
+                      (e.currentTarget as HTMLElement).style.background =
+                        "var(--surface)";
+                    }}
+                    onMouseLeave={(e) => {
+                      (e.currentTarget as HTMLElement).style.borderColor =
+                        "var(--border)";
+                      (e.currentTarget as HTMLElement).style.background =
+                        "var(--bg-raised)";
+                    }}
+                  >
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p
+                        className="truncate-1"
+                        style={{
+                          fontSize: 13.5,
+                          fontWeight: 600,
+                          color: "var(--text-primary)",
+                          marginBottom: 4,
+                        }}
+                      >
+                        {p.title}
+                      </p>
+                      <p style={{ fontSize: 11.5, color: "var(--text-faint)" }}>
+                        {(p.authors ?? []).slice(0, 3).join(", ")}
+                        {(p.authors?.length ?? 0) > 3 ? " et al." : ""}
+                        {p.year ? ` · ${p.year}` : ""}
+                        {p.journal ? ` · ${p.journal}` : ""}
+                      </p>
+                      {p.abstract && !isMobile && (
+                        <p
+                          className="truncate-2"
+                          style={{
+                            fontSize: 12,
+                            color: "var(--text-faint)",
+                            marginTop: 5,
+                            lineHeight: 1.55,
+                          }}
+                        >
+                          {p.abstract}
+                        </p>
+                      )}
+                    </div>
                     <div
                       style={{
                         display: "flex",
-                        flexDirection: "column",
-                        gap: 8,
+                        gap: 6,
+                        flexShrink: 0,
+                        alignItems: "flex-start",
                       }}
                     >
-                      {papers.map((p) => (
-                        <div
-                          key={p.paperId}
+                      {p.url && (
+                        <a
+                          href={p.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
                           style={{
-                            padding: "14px 16px",
-                            background: "var(--bg-raised)",
+                            width: 30,
+                            height: 30,
+                            borderRadius: 8,
+                            background: "var(--surface)",
                             border: "1px solid var(--border)",
-                            borderRadius: 12,
                             display: "flex",
-                            gap: 12,
-                            transition: "border-color .14s, background .14s",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            color: "var(--text-faint)",
+                            textDecoration: "none",
+                            transition: "border-color .14s, color .14s",
                           }}
                           onMouseEnter={(e) => {
                             (e.currentTarget as HTMLElement).style.borderColor =
                               "var(--border-mid)";
-                            (e.currentTarget as HTMLElement).style.background =
-                              "var(--surface)";
+                            (e.currentTarget as HTMLElement).style.color =
+                              "var(--text-primary)";
                           }}
                           onMouseLeave={(e) => {
                             (e.currentTarget as HTMLElement).style.borderColor =
                               "var(--border)";
-                            (e.currentTarget as HTMLElement).style.background =
-                              "var(--bg-raised)";
+                            (e.currentTarget as HTMLElement).style.color =
+                              "var(--text-faint)";
                           }}
                         >
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <p
-                              className="truncate-1"
-                              style={{
-                                fontSize: 13.5,
-                                fontWeight: 600,
-                                color: "var(--text-primary)",
-                                marginBottom: 4,
-                              }}
-                            >
-                              {p.title}
-                            </p>
-                            <p
-                              style={{
-                                fontSize: 11.5,
-                                color: "var(--text-faint)",
-                              }}
-                            >
-                              {(p.authors ?? []).slice(0, 3).join(", ")}
-                              {(p.authors?.length ?? 0) > 3 ? " et al." : ""}
-                              {p.year ? ` · ${p.year}` : ""}
-                              {p.journal ? ` · ${p.journal}` : ""}
-                            </p>
-                            {p.abstract && !isMobile && (
-                              <p
-                                className="truncate-2"
-                                style={{
-                                  fontSize: 12,
-                                  color: "var(--text-faint)",
-                                  marginTop: 5,
-                                  lineHeight: 1.55,
-                                }}
-                              >
-                                {p.abstract}
-                              </p>
-                            )}
-                          </div>
-                          <div
-                            style={{
-                              display: "flex",
-                              gap: 6,
-                              flexShrink: 0,
-                              alignItems: "flex-start",
-                            }}
-                          >
-                            {p.url && (
-                              <a
-                                href={p.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                style={{
-                                  width: 30,
-                                  height: 30,
-                                  borderRadius: 8,
-                                  background: "var(--surface)",
-                                  border: "1px solid var(--border)",
-                                  display: "flex",
-                                  alignItems: "center",
-                                  justifyContent: "center",
-                                  color: "var(--text-faint)",
-                                  textDecoration: "none",
-                                  transition: "border-color .14s, color .14s",
-                                }}
-                                onMouseEnter={(e) => {
-                                  (
-                                    e.currentTarget as HTMLElement
-                                  ).style.borderColor = "var(--border-mid)";
-                                  (e.currentTarget as HTMLElement).style.color =
-                                    "var(--text-primary)";
-                                }}
-                                onMouseLeave={(e) => {
-                                  (
-                                    e.currentTarget as HTMLElement
-                                  ).style.borderColor = "var(--border)";
-                                  (e.currentTarget as HTMLElement).style.color =
-                                    "var(--text-faint)";
-                                }}
-                              >
-                                <ExternalLink size={12} />
-                              </a>
-                            )}
-                            <button
-                              onClick={() => void removePaper(p.paperId)}
-                              style={{
-                                width: 30,
-                                height: 30,
-                                borderRadius: 8,
-                                background: "rgba(224,92,92,.07)",
-                                border: "1px solid rgba(224,92,92,.15)",
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                cursor: "pointer",
-                                color: "var(--red)",
-                                transition: "background .14s",
-                              }}
-                              onMouseEnter={(e) =>
-                                ((
-                                  e.currentTarget as HTMLElement
-                                ).style.background = "rgba(224,92,92,.14)")
-                              }
-                              onMouseLeave={(e) =>
-                                ((
-                                  e.currentTarget as HTMLElement
-                                ).style.background = "rgba(224,92,92,.07)")
-                              }
-                            >
-                              <Trash2 size={12} />
-                            </button>
-                          </div>
-                        </div>
-                      ))}
+                          <ExternalLink size={12} />
+                        </a>
+                      )}
+                      <button
+                        onClick={() => void removePaper(p.paperId)}
+                        style={{
+                          width: 30,
+                          height: 30,
+                          borderRadius: 8,
+                          background: "rgba(224,92,92,.07)",
+                          border: "1px solid rgba(224,92,92,.15)",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          cursor: "pointer",
+                          color: "var(--red)",
+                          transition: "background .14s",
+                        }}
+                        onMouseEnter={(e) =>
+                          ((e.currentTarget as HTMLElement).style.background =
+                            "rgba(224,92,92,.14)")
+                        }
+                        onMouseLeave={(e) =>
+                          ((e.currentTarget as HTMLElement).style.background =
+                            "rgba(224,92,92,.07)")
+                        }
+                      >
+                        <Trash2 size={12} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
                     </div>
                   </div>
                 )}
+
               </div>
             ))}
 

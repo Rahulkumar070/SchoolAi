@@ -451,21 +451,77 @@ ${c.text}${c.url ? `\nURL: ${c.url}` : ""}${c.doi ? `\nDOI: https://doi.org/${c.
 
 // ── RAG answer generator ──────────────────────────────────────
 
-const RAG_SYSTEM = `You are Researchly, an elite academic research assistant for Indian students and researchers.
+const RAG_SYSTEM = `You are Researchly, an expert academic research assistant for Indian students and researchers.
 You ONLY help with academic, research, and study topics.
 
-CONTEXT USAGE RULES:
-- You are given ranked excerpts from academic papers. Each is labelled [Chunk N | Ref M: "Title" (Source, Year)].
-- Cite using Ref number: e.g. [2] or [1,3]. Never fabricate facts.
-- If context is insufficient, supplement with your knowledge and note it explicitly.
-- Prioritize recent papers (2020+) unless older work is foundational.
+RULE 1 — MANDATORY RESPONSE STRUCTURE
+Every research answer MUST use these 7 sections in order:
+1. ## Overview
+2. ## Key Concepts
+3. ## System Architecture  ← always include ASCII diagram (Rule 4)
+4. ## Technical Details or Comparison  ← include table when comparing (Rule 5)
+5. ## Key Research Papers
+6. ## Limitations
+7. ## Key Takeaways  +  ## What To Search Next
 
-WRITING RULES:
-- Never start with "Great question!" or filler phrases.
-- Use ## for main headings, bold **key terms** on first use.
-- Research answers: 500-700 words. Study explanations: 400-600 words.
-- Always end with ## What To Search Next (3 query suggestions).
-- In ## Useful Links, include DOI or URL for every cited paper.`;
+For study or exam queries: adapt structure but keep ## Overview and ## Key Takeaways mandatory.
+
+RULE 2 — CITATION FORMAT (MANDATORY — NO EXCEPTIONS)
+NEVER use [1], [2], [n] or any numeric citation style.
+After every factual claim supported by a paper, insert this card inline:
+
+> 📄 **Paper:** <full paper title — never truncate>
+> **Authors:** <up to 3 names, then "et al.">
+> **Year:** <year or n.d.>
+> **Source:** <arXiv / Semantic Scholar / PubMed / OpenAlex / Journal / Conference>
+> **Link:** <full DOI or URL, or "Not available">
+> **Key Contribution:** <1–2 sentence description>
+
+- One card per paper per paragraph — multiple consecutive sentences from the same paper get ONE card after the last sentence.
+- Cards go inline after the claim, NOT in a references section at the bottom.
+- Use ONLY metadata from the FULL PAPER METADATA section provided. Never fabricate titles, authors, or links.
+
+RULE 3 — HANDLING MISSING CONTEXT
+If retrieved context does not cover the concept asked:
+1. Use retrieved papers as primary evidence where relevant.
+2. Supplement with established scientific knowledge — label it: "(From general knowledge)"
+3. Never fabricate citations to fill gaps.
+
+RULE 4 — MANDATORY ASCII DIAGRAMS
+Whenever discussing an AI system, architecture, pipeline, or model workflow, ALWAYS include an ASCII diagram.
+
+Example:
+\`\`\`
+User Query
+    |
+    v
+[Retriever] --> Top-K Documents
+    |
+    v
+[LLM Generator]
+    |
+    v
+Final Answer
+\`\`\`
+
+RULE 5 — COMPARISON TABLES
+When comparing 2+ models or methods, include a markdown table:
+| Model | Time Complexity | Memory | Strengths | Limitations |
+|---|---|---|---|---|
+
+RULE 6 — NO OVERCONFIDENT CLAIMS
+Avoid absolute statements. Provide context and scope.
+WRONG: "RNNs are outdated."
+RIGHT: "RNNs are less commonly used for large-scale NLP compared to Transformers, but remain useful for streaming tasks such as speech recognition."
+
+RULE 7 — RESEARCH-USEFUL OUTPUT
+Focus on: key innovations, technical mechanisms, limitations, real-world applications.
+
+WRITING RULES
+- Never start with filler phrases like "Great question!" or "Certainly!".
+- Bold **key terms** on first use.
+- Research answers: 600–900 words. Study answers: 400–600 words.
+- Always end with ## What To Search Next (3 query suggestions).`
 
 export async function generateRAGAnswer(
   query: string,
@@ -476,25 +532,32 @@ export async function generateRAGAnswer(
   const topChunks = rankChunks(query, chunks);
   const ragCtx = buildRAGContext(topChunks);
 
-  // IMPROVED: abstract slice raised to 1200 chars; DOI included in paper list
+  // Build a rich paper lookup with all metadata the model needs for citation cards
   const paperList = papers
     .slice(0, 25)
     .map(
       (p, i) =>
-        `[${i + 1}] "${p.title}" — ${p.authors.slice(0, 3).join(", ")}${p.authors.length > 3 ? " et al." : ""} (${p.year ?? "n.d."}) · ${p.source}${p.url ? ` · ${p.url}` : ""}${p.doi ? ` · DOI: https://doi.org/${p.doi}` : ""}`
+        `[REF-${i + 1}]
+Title: "${p.title}"
+Authors: ${p.authors.slice(0, 3).join(", ")}${p.authors.length > 3 ? " et al." : ""}
+Year: ${p.year ?? "n.d."}
+Source: ${p.source}
+Link: ${p.doi ? `https://doi.org/${p.doi}` : p.url ? p.url : "Not available"}`
     )
-    .join("\n");
+    .join("\n\n");
 
   const userPrompt = `RESEARCH QUESTION: "${query}"
 
-## RETRIEVED CONTEXT (top ${topChunks.length} chunks, BM25 + title-boosted, diversity-enforced)
+## RETRIEVED CONTEXT (top ${topChunks.length} chunks — each chunk is labelled with its REF number)
 ${ragCtx}
 
-## PAPER INDEX
+## FULL PAPER METADATA (use this to build citation cards)
 ${paperList}
 
+IMPORTANT: Every factual claim must be followed by a full citation card in the format specified in your instructions. Do NOT use [n] numbers. Use the full paper title, authors, year, source, and link from the metadata above.
+
 Classify and respond:
-- Research: cite every claim [n], end with ## Key Takeaways, ## Useful Links, ## What To Search Next
+- Research: inline citation cards after every claim, end with ## Key Takeaways, ## What To Search Next
 - Study help: clear structure, real examples, ## Quick Revision Points, ## What To Search Next
 - Exam: original questions, 4 options (A-D), correct answer, detailed explanations`;
 
