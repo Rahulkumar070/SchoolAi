@@ -1376,3 +1376,35 @@ img {
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
+
+/* ── AnswerRenderer styles ─────────────────────────────── */
+.answer-table-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border-radius: 12px;
+  border: 1px solid var(--border-mid);
+}
+
+.answer-table-wrap table {
+  border-collapse: collapse;
+  min-width: 480px;
+  width: 100%;
+}
+
+.answer-diagram-wrap {
+  overflow-x: auto;
+  overflow-y: auto;
+  max-height: 480px;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Blink animation for streaming cursor */
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+/* Section card hover */
+.section-card:hover {
+  border-color: var(--border-hi) !important;
+}
