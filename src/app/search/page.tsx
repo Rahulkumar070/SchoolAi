@@ -22,6 +22,8 @@ import {
   RotateCcw,
   Search,
   Loader2,
+  ThumbsUp,
+  ThumbsDown,
 } from "lucide-react";
 import { Paper } from "@/types";
 import toast from "react-hot-toast";
@@ -35,6 +37,7 @@ interface Turn {
   streaming?: boolean;
   related?: string[];
   status?: string;
+  feedback?: "up" | "down" | null;
 }
 
 const MD = {
@@ -141,6 +144,82 @@ const MD = {
     </blockquote>
   ),
 };
+
+function FeedbackBtn({
+  query,
+  conversationId,
+  turnIndex,
+  currentFeedback,
+  onFeedback,
+}: {
+  query: string;
+  conversationId: string | null;
+  turnIndex: number;
+  currentFeedback?: "up" | "down" | null;
+  onFeedback: (index: number, rating: "up" | "down") => void;
+}) {
+  const [submitting, setSubmitting] = useState(false);
+  const voted = !!currentFeedback;
+
+  const submit = async (rating: "up" | "down") => {
+    if (submitting || voted) return;
+    setSubmitting(true);
+    onFeedback(turnIndex, rating); // optimistic update immediately
+    try {
+      await fetch("/api/feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query, rating, conversationId }),
+      });
+    } catch {
+      // silent — feedback failure should never block the user
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+      <button
+        onClick={() => void submit("up")}
+        disabled={voted || submitting}
+        title="Good answer"
+        className="sources-chip"
+        style={{
+          color:
+            currentFeedback === "up" ? "var(--green)" : "var(--text-faint)",
+          borderColor:
+            currentFeedback === "up" ? "rgba(93,184,122,.4)" : undefined,
+          opacity: voted && currentFeedback !== "up" ? 0.3 : 1,
+          cursor: voted ? "default" : "pointer",
+        }}
+      >
+        <ThumbsUp size={11} />
+      </button>
+      <button
+        onClick={() => void submit("down")}
+        disabled={voted || submitting}
+        title="Bad answer"
+        className="sources-chip"
+        style={{
+          color:
+            currentFeedback === "down" ? "var(--red)" : "var(--text-faint)",
+          borderColor:
+            currentFeedback === "down" ? "rgba(224,92,92,.4)" : undefined,
+          opacity: voted && currentFeedback !== "down" ? 0.3 : 1,
+          cursor: voted ? "default" : "pointer",
+        }}
+      >
+        <ThumbsDown size={11} />
+      </button>
+      {currentFeedback && (
+        <span style={{ fontSize: 10.5, color: "var(--text-faint)" }}>
+          {currentFeedback === "up" ? "Thanks!" : "Got it"}
+        </span>
+      )}
+    </div>
+  );
+}
 
 function CopyBtn({ text }: { text: string }) {
   const [copied, setCopied] = useState(false);
@@ -312,6 +391,12 @@ function SearchApp() {
 
   const taRef = useRef<HTMLTextAreaElement>(null);
   const endRef = useRef<HTMLDivElement>(null);
+
+  const handleFeedback = (index: number, rating: "up" | "down") => {
+    setTurns((prev) =>
+      prev.map((t, i) => (i === index ? { ...t, feedback: rating } : t)),
+    );
+  };
 
   const plan = session?.user?.plan ?? "free";
   const isFree = plan === "free";
@@ -562,6 +647,9 @@ function SearchApp() {
     <Shell
       rightPanel={RightPanel}
       activeConversationId={conversationId ?? undefined}
+      rightPanelTitle={
+        panelTurn ? `Sources (${panelTurn.papers.length})` : "Sources"
+      }
     >
       {/* Counter bar */}
       {session && !isPro && (
@@ -730,6 +818,16 @@ function SearchApp() {
                                   <RotateCcw size={11} /> Re-run
                                 </button>
                               )}
+                              {/* Feedback buttons */}
+                              <div style={{ marginLeft: "auto" }}>
+                                <FeedbackBtn
+                                  query={turn.query}
+                                  conversationId={conversationId}
+                                  turnIndex={i}
+                                  currentFeedback={turn.feedback}
+                                  onFeedback={handleFeedback}
+                                />
+                              </div>
                               {session && (
                                 <span
                                   style={{
