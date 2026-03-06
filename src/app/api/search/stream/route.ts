@@ -71,10 +71,8 @@ CONTEXT USAGE RULES:
 WRITING RULES:
 - Never start with "Great question!" or "Certainly!" or filler phrases.
 - Use ## for main headings, bold **key terms** on first use.
-- Research answers: be thorough and complete — never cut off mid-point. Cover all relevant aspects.
-- Study explanations: clear and complete — include all steps, examples, and sub-points.
-- Always end with ## What To Search Next (3 related query suggestions).
-- CRITICAL: Never truncate your answer. Always complete every point fully before ending.`;
+- Research answers: 400-600 words. Study explanations: 300-500 words.
+- Always end with ## What To Search Next (3 related query suggestions).`;
 
 export async function POST(req: NextRequest) {
   try {
@@ -96,9 +94,18 @@ export async function POST(req: NextRequest) {
 
     if (session?.user?.email) {
       const now = new Date();
-      u = (await UserModel.findOne({
-        email: session.user.email,
-      })) as UserDoc | null;
+      u = (await UserModel.findOne(
+        { email: session.user.email },
+        // ✅ Only fetch fields needed for rate limiting — NOT searchHistory/savedPapers
+        {
+          _id: 1,
+          plan: 1,
+          searchesToday: 1,
+          searchDateReset: 1,
+          searchesThisMonth: 1,
+          searchMonthReset: 1,
+        },
+      )) as UserDoc | null;
       if (!u) {
         u = (await UserModel.create({
           email: session.user.email,
@@ -200,31 +207,6 @@ export async function POST(req: NextRequest) {
       fromCache = false;
     }
 
-    // ── Load last 3 turns for conversation memory ────────────
-    let conversationHistory: { role: "user" | "assistant"; content: string }[] =
-      [];
-    if (conversationId && u) {
-      try {
-        type MessageLean = {
-          role: string;
-          content: string;
-        };
-
-        const recentMsgs = await MessageModel.find({ conversationId })
-          .select("role content")
-          .sort({ createdAt: -1 })
-          .limit(6)
-          .lean<MessageLean[]>();
-        // Reverse to chronological order, exclude any papers/system content
-        conversationHistory = recentMsgs.reverse().map((m) => ({
-          role: m.role as "user" | "assistant",
-          content: m.content.slice(0, 1500),
-        }));
-      } catch {
-        /* memory fetch failure should never break search */
-      }
-    }
-
     // ── SSE stream ────────────────────────────────────────────
     const encoder = new TextEncoder();
     let fullAnswer = "";
@@ -239,29 +221,26 @@ export async function POST(req: NextRequest) {
         // Tell the client which conversation this belongs to immediately
         send({ type: "meta", conversationId, isNewConversation });
 
-        // ✅ Status messages so user sees progress
-        if (!fromCache)
-          send({ type: "status", text: "Searching 200M+ papers…" });
         // Send papers so sources panel opens instantly
         send({ type: "papers", papers });
-        if (!fromCache && papers.length > 0)
-          send({ type: "status", text: `Analysing ${papers.length} sources…` });
-        if (!fromCache) send({ type: "status", text: "Writing answer…" });
 
         // ── Stream the answer ─────────────────────────────────
         if (fromCache && cached) {
-          // ✅ No artificial delay — stream cache instantly
-          fullAnswer = cached.answer;
-          send({ type: "text", text: cached.answer });
+          const words = cached.answer.split(" ");
+          for (let i = 0; i < words.length; i += 4) {
+            const chunk =
+              words.slice(i, i + 4).join(" ") +
+              (i + 4 < words.length ? " " : "");
+            fullAnswer += chunk;
+            send({ type: "text", text: chunk });
+            await new Promise((r) => setTimeout(r, 10));
+          }
         } else {
           const streamResp = await ant.messages.stream({
-            model: "claude-sonnet-4-6",
-            max_tokens: 6000,
+            model: "claude-haiku-4-5-20251001",
+            max_tokens: 3000,
             system: SYSTEM,
-            messages: [
-              ...conversationHistory,
-              { role: "user", content: buildPrompt(q, papers) },
-            ],
+            messages: [{ role: "user", content: buildPrompt(q, papers) }],
           });
           for await (const event of streamResp) {
             if (
@@ -276,31 +255,7 @@ export async function POST(req: NextRequest) {
           void saveToCache(q, fullAnswer, papers);
         }
 
-        // ✅ Generate related questions with Haiku (fast + cheap)
-        let related: string[] = [];
-        try {
-          const rr = await ant.messages.create({
-            model: "claude-haiku-4-5-20251001",
-            max_tokens: 150,
-            messages: [
-              {
-                role: "user",
-                content: `Give 3 short follow-up research questions for: "${q}". Return ONLY a JSON array of 3 strings, no markdown.`,
-              },
-            ],
-          });
-          const rb = rr.content[0];
-          if (rb.type === "text")
-            related = JSON.parse(
-              rb.text
-                .trim()
-                .replace(/```json|```/g, "")
-                .trim(),
-            ) as string[];
-        } catch {
-          /* ignore */
-        }
-        send({ type: "done", fromCache, conversationId, related });
+        send({ type: "done", fromCache, conversationId });
         controller.close();
 
         // ── Persist after stream closes ───────────────────────
@@ -341,12 +296,14 @@ export async function POST(req: NextRequest) {
             counterUpdate.searchMonthReset = now;
           }
 
-          // 5. Save to searchHistory — single atomic op
+          // 5. Save to searchHistory with answer + papers so Library/History can display them
           await UserModel.findByIdAndUpdate(u._id, {
             $set: counterUpdate,
             $push: {
               searchHistory: {
-                $each: [{ query: q, searchedAt: now }],
+                $each: [
+                  { query: q, answer: fullAnswer, papers, searchedAt: now },
+                ],
                 $position: 0,
                 $slice: 50,
               },
