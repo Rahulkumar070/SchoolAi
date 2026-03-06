@@ -9,7 +9,6 @@ import { ConversationModel } from "@/models/Conversation";
 import { MessageModel } from "@/models/Message";
 import { getCachedResult, saveToCache } from "@/lib/cache";
 import { checkGuestLimit } from "@/lib/guestLimit";
-import { generateRelatedQuestions } from "@/lib/ai";
 import Anthropic from "@anthropic-ai/sdk";
 import mongoose from "mongoose";
 
@@ -43,6 +42,7 @@ type UserDoc = {
 
 function buildPrompt(query: string, papers: PaperRow[]) {
   if (papers.length > 0) {
+    // RAG: chunk + rank + build context
     const chunks = chunkPapers(papers as any);
     const topChunks = rankChunks(query, chunks);
     const ragCtx = buildRAGContext(topChunks);
@@ -53,26 +53,9 @@ function buildPrompt(query: string, papers: PaperRow[]) {
           `[${i + 1}] "${p.title}" — ${p.authors.slice(0, 3).join(", ")}${p.authors.length > 3 ? " et al." : ""} (${p.year ?? "n.d."}) · ${p.source}${p.url ? " · " + p.url : ""}`,
       )
       .join("\n");
-    return `RESEARCH QUESTION: "${query}"
-
-## RETRIEVED CONTEXT (RAG — top ${topChunks.length} chunks ranked by relevance)
-${ragCtx}
-
-## FULL PAPER INDEX (for citations)
-${paperList}
-
-Classify and respond:
-- Research: cite every claim [Ref n], end with ## Key Takeaways, ## Useful Links, ## What To Search Next
-- Study help: clear structure, real examples, ## Quick Revision Points, ## What To Search Next
-- Exam practice: original questions with answers and explanations
-Make every sentence count — no filler, maximum insight.`;
+    return `RESEARCH QUESTION: "${query}"\n\n## RETRIEVED CONTEXT (RAG — top ${topChunks.length} chunks ranked by relevance)\n${ragCtx}\n\n## FULL PAPER INDEX (for citations)\n${paperList}\n\nClassify and respond:\n- Research: cite every claim [Ref n], end with ## Key Takeaways, ## Useful Links, ## What To Search Next\n- Study help: clear structure, real examples, ## Quick Revision Points, ## What To Search Next\n- Exam practice: original questions with answers and explanations\nMake every sentence count — no filler, maximum insight.`;
   }
-  return `QUESTION: "${query}"
-
-No academic papers found.
-
-Classify as Study Help / Exam Practice / General Academic / Non-Academic.
-If non-academic: politely redirect. For study: thorough explanation + ## What To Search Next. For exam (JEE/NEET/UPSC/GATE): generate original questions with detailed answers. NEVER say you cannot help.`;
+  return `QUESTION: "${query}"\n\nNo academic papers found.\n\nClassify as Study Help / Exam Practice / General Academic / Non-Academic.\nIf non-academic: politely redirect. For study: thorough explanation + ## What To Search Next. For exam (JEE/NEET/UPSC/GATE): generate original questions with detailed answers. NEVER say you cannot help.`;
 }
 
 const SYSTEM = `You are Researchly, an elite academic research assistant for Indian students and researchers.
@@ -88,8 +71,7 @@ CONTEXT USAGE RULES:
 WRITING RULES:
 - Never start with "Great question!" or "Certainly!" or filler phrases.
 - Use ## for main headings, bold **key terms** on first use.
-- Research answers: 500-700 words — be thorough and specific.
-- Study explanations: 400-600 words.
+- Research answers: 400-600 words. Study explanations: 300-500 words.
 - Always end with ## What To Search Next (3 related query suggestions).`;
 
 export async function POST(req: NextRequest) {
@@ -112,9 +94,18 @@ export async function POST(req: NextRequest) {
 
     if (session?.user?.email) {
       const now = new Date();
-      u = (await UserModel.findOne({
-        email: session.user.email,
-      })) as UserDoc | null;
+      u = (await UserModel.findOne(
+        { email: session.user.email },
+        // ✅ Only fetch fields needed for rate limiting — NOT searchHistory/savedPapers
+        {
+          _id: 1,
+          plan: 1,
+          searchesToday: 1,
+          searchDateReset: 1,
+          searchesThisMonth: 1,
+          searchMonthReset: 1,
+        },
+      )) as UserDoc | null;
       if (!u) {
         u = (await UserModel.create({
           email: session.user.email,
@@ -158,6 +149,7 @@ export async function POST(req: NextRequest) {
           );
       }
     } else {
+      // Guest path
       const g = await checkGuestLimit(req);
       if (!g.allowed) {
         const res = NextResponse.json(
@@ -177,19 +169,24 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // ── Resolve or create conversation ────────────────────────
+    // ── Resolve or create conversation (logged-in users only) ─
     let conversationId: string | null = null;
     let isNewConversation = false;
 
     if (u && session?.user?.email) {
       if (existingConvId && mongoose.isValidObjectId(existingConvId)) {
+        // Verify ownership then reuse
         const existing = await ConversationModel.findOne({
           _id: existingConvId,
           userId: u._id,
         });
-        if (existing) conversationId = existingConvId;
+        if (existing) {
+          conversationId = existingConvId;
+        }
       }
+
       if (!conversationId) {
+        // Create a new conversation — title = first 60 chars of query
         const title = q.length > 60 ? q.slice(0, 57) + "…" : q;
         const conv = await ConversationModel.create({ userId: u._id, title });
         conversationId = conv._id.toString();
@@ -221,21 +218,14 @@ export async function POST(req: NextRequest) {
             encoder.encode(`data: ${JSON.stringify(obj)}\n\n`),
           );
 
-        // 1. Conversation metadata
+        // Tell the client which conversation this belongs to immediately
         send({ type: "meta", conversationId, isNewConversation });
 
-        // 2. Status: searching papers
-        send({ type: "status", text: "Searching 200M+ papers…" });
-
-        // 3. Send papers so sources panel opens instantly
+        // Send papers so sources panel opens instantly
         send({ type: "papers", papers });
-
-        // 4. Status: analysing
-        send({ type: "status", text: `Analysing ${papers.length} sources…` });
 
         // ── Stream the answer ─────────────────────────────────
         if (fromCache && cached) {
-          send({ type: "status", text: "Loading from cache…" });
           const words = cached.answer.split(" ");
           for (let i = 0; i < words.length; i += 4) {
             const chunk =
@@ -246,10 +236,9 @@ export async function POST(req: NextRequest) {
             await new Promise((r) => setTimeout(r, 10));
           }
         } else {
-          send({ type: "status", text: "Writing answer…" });
           const streamResp = await ant.messages.stream({
-            model: "claude-sonnet-4-6", // ← upgraded from haiku
-            max_tokens: 3500,
+            model: "claude-haiku-4-5-20251001",
+            max_tokens: 3000,
             system: SYSTEM,
             messages: [{ role: "user", content: buildPrompt(q, papers) }],
           });
@@ -266,12 +255,7 @@ export async function POST(req: NextRequest) {
           void saveToCache(q, fullAnswer, papers);
         }
 
-        // 5. Generate related questions (fast, parallel to persist below)
-        const relatedPromise = generateRelatedQuestions(q);
-
-        // 6. Send done + related questions
-        const related = await relatedPromise;
-        send({ type: "done", fromCache, conversationId, related });
+        send({ type: "done", fromCache, conversationId });
         controller.close();
 
         // ── Persist after stream closes ───────────────────────
@@ -279,6 +263,7 @@ export async function POST(req: NextRequest) {
           const now = new Date();
           const plan = u.plan ?? "free";
 
+          // 1. Save user message
           await MessageModel.create({
             conversationId,
             userId: u._id,
@@ -286,6 +271,8 @@ export async function POST(req: NextRequest) {
             content: q,
             papers: [],
           });
+
+          // 2. Save assistant message (with papers)
           await MessageModel.create({
             conversationId,
             userId: u._id,
@@ -293,10 +280,13 @@ export async function POST(req: NextRequest) {
             content: fullAnswer,
             papers,
           });
+
+          // 3. Touch conversation updatedAt
           await ConversationModel.findByIdAndUpdate(conversationId, {
             updatedAt: now,
           });
 
+          // 4. Update rate-limit counters on User
           const counterUpdate: Record<string, unknown> = {};
           if (plan === "free") {
             counterUpdate.searchesToday = (u.searchesToday ?? 0) + 1;
@@ -306,32 +296,19 @@ export async function POST(req: NextRequest) {
             counterUpdate.searchMonthReset = now;
           }
 
-          const existingIdx = (u.searchHistory ?? []).findIndex(
-            (h) => h.query.toLowerCase() === q.toLowerCase(),
-          );
-          if (existingIdx !== -1) {
-            await UserModel.findByIdAndUpdate(u._id, {
-              $set: {
-                ...counterUpdate,
-                [`searchHistory.${existingIdx}.answer`]: fullAnswer,
-                [`searchHistory.${existingIdx}.papers`]: papers,
-                [`searchHistory.${existingIdx}.searchedAt`]: now,
+          // 5. Save to searchHistory — always push new entry, cap at 50
+          // ✅ Single atomic update instead of findFirst + conditional update
+          // ✅ Don't store full answer text in history — saves DB space & load time
+          await UserModel.findByIdAndUpdate(u._id, {
+            $set: counterUpdate,
+            $push: {
+              searchHistory: {
+                $each: [{ query: q, searchedAt: now }],
+                $position: 0,
+                $slice: 50,
               },
-            });
-          } else {
-            await UserModel.findByIdAndUpdate(u._id, {
-              $set: counterUpdate,
-              $push: {
-                searchHistory: {
-                  $each: [
-                    { query: q, answer: fullAnswer, papers, searchedAt: now },
-                  ],
-                  $position: 0,
-                  $slice: 50,
-                },
-              },
-            });
-          }
+            },
+          });
         }
       },
     });

@@ -102,48 +102,40 @@ export default function Sidebar({
       ? "var(--brand)"
       : "var(--text-muted)";
 
-  // ── Fetch conversations ──────────────────────────────────────
-  const fetchConversations = useCallback(() => {
+  // ── Fetch sidebar data — ONE request instead of two ──────────
+  const fetchSidebar = useCallback(() => {
     if (!session?.user?.email) return;
-    fetch("/api/conversations")
+    // ✅ Single /api/sidebar replaces /api/conversations + /api/user/history
+    fetch("/api/sidebar")
       .then((r) => r.json())
-      .then((d: { conversations?: Conversation[] }) => {
-        setConversations(d.conversations ?? []);
-      })
-      .catch(() => {});
-  }, [session?.user?.email]);
-
-  // Fetch counters separately (keep existing logic)
-  const fetchCounters = useCallback(() => {
-    if (!session?.user?.email) return;
-    fetch("/api/user/history")
-      .then((r) => r.json())
-      .then((d: { searchesToday?: number; searchesThisMonth?: number }) => {
-        setSearchesToday(d.searchesToday ?? 0);
-        setSearchesThisMonth(d.searchesThisMonth ?? 0);
-      })
+      .then(
+        (d: {
+          conversations?: Conversation[];
+          searchesToday?: number;
+          searchesThisMonth?: number;
+        }) => {
+          setConversations(d.conversations ?? []);
+          setSearchesToday(d.searchesToday ?? 0);
+          setSearchesThisMonth(d.searchesThisMonth ?? 0);
+        },
+      )
       .catch(() => {});
   }, [session?.user?.email]);
 
   useEffect(() => {
-    fetchConversations();
-    fetchCounters();
-  }, [fetchConversations, fetchCounters]);
+    fetchSidebar();
+  }, [fetchSidebar]);
 
-  // Auto-refresh sidebar when a new message is sent
+  // Auto-refresh sidebar when a new search/message is sent
   useEffect(() => {
-    const handler = () => {
-      fetchConversations();
-      fetchCounters();
-    };
+    const handler = () => fetchSidebar();
     window.addEventListener("researchly:conversation-updated", handler);
-    // Keep legacy event name working too
     window.addEventListener("researchly:history-updated", handler);
     return () => {
       window.removeEventListener("researchly:conversation-updated", handler);
       window.removeEventListener("researchly:history-updated", handler);
     };
-  }, [fetchConversations, fetchCounters]);
+  }, [fetchSidebar]);
 
   const counter = isFree
     ? { used: searchesToday, max: 5, warn: 4, period: "today" }
