@@ -1,50 +1,68 @@
 "use client";
-import { motion } from "framer-motion";
+import { motion, Variants } from "framer-motion";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useSession, signIn, signOut } from "next-auth/react";
 import Image from "next/image";
 import {
-  Plus, Search, BookOpen, FileText, Library, CreditCard,
-  AlignLeft, LogOut, LogIn, ChevronUp, Crown, Sparkles,
+  Plus,
+  Search,
+  BookOpen,
+  FileText,
+  Library,
+  CreditCard,
+  AlignLeft,
+  LogOut,
+  LogIn,
+  ChevronUp,
+  Crown,
+  Sparkles,
 } from "lucide-react";
 import { useEffect, useState, useCallback } from "react";
 
 const NAV = [
-  { href: "/search",    label: "Research Search",    icon: Search },
-  { href: "/review",    label: "Literature Review",   icon: BookOpen },
-  { href: "/upload",    label: "PDF Chat",            icon: FileText },
-  { href: "/dashboard", label: "My Library",          icon: Library },
-  { href: "/pricing",   label: "Plans & Billing",     icon: CreditCard },
+  { href: "/search", label: "Research Search", icon: Search },
+  { href: "/review", label: "Literature Review", icon: BookOpen },
+  { href: "/upload", label: "PDF Chat", icon: FileText },
+  { href: "/dashboard", label: "My Library", icon: Library },
+  { href: "/pricing", label: "Plans & Billing", icon: CreditCard },
 ];
 
-export interface Conversation { _id: string; title: string; updatedAt: string; }
+export interface Conversation {
+  _id: string;
+  title: string;
+  updatedAt: string;
+}
 
 function groupConversations(items: Conversation[]) {
   const now = new Date();
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-  const yest  = today - 86_400_000;
-  const week  = today - 6 * 86_400_000;
+  const today = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate(),
+  ).getTime();
+  const yest = today - 86_400_000;
+  const week = today - 6 * 86_400_000;
   const groups = [
-    { label: "Today",           items: [] as Conversation[] },
-    { label: "Yesterday",       items: [] as Conversation[] },
+    { label: "Today", items: [] as Conversation[] },
+    { label: "Yesterday", items: [] as Conversation[] },
     { label: "Previous 7 Days", items: [] as Conversation[] },
-    { label: "Older",           items: [] as Conversation[] },
+    { label: "Older", items: [] as Conversation[] },
   ];
   for (const c of items) {
     const t = new Date(c.updatedAt).getTime();
-    if      (t >= today) groups[0].items.push(c);
-    else if (t >= yest)  groups[1].items.push(c);
-    else if (t >= week)  groups[2].items.push(c);
-    else                 groups[3].items.push(c);
+    if (t >= today) groups[0].items.push(c);
+    else if (t >= yest) groups[1].items.push(c);
+    else if (t >= week) groups[2].items.push(c);
+    else groups[3].items.push(c);
   }
-  return groups.filter(g => g.items.length > 0);
+  return groups.filter((g) => g.items.length > 0);
 }
-
-const itemVariants = {
-  hidden:  { opacity: 0, x: -10 },
+const itemVariants: Variants = {
+  hidden: { opacity: 0, x: -10 },
   visible: (i: number) => ({
-    opacity: 1, x: 0,
+    opacity: 1,
+    x: 0,
     transition: { delay: i * 0.04, duration: 0.28, ease: "easeOut" },
   }),
 };
@@ -58,33 +76,41 @@ export default function Sidebar({
   onNewSearch?: () => void;
   activeConversationId?: string;
 }) {
-  const path   = usePathname();
+  const path = usePathname();
   const router = useRouter();
   const { data: session } = useSession();
   const [collapsed, setCollapsed] = useState(false);
   const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [searchesToday,    setSearchesToday]    = useState(0);
+  const [searchesToday, setSearchesToday] = useState(0);
   const [searchesThisMonth, setSearchesThisMonth] = useState(0);
 
-  const plan      = session?.user?.plan ?? "free";
-  const isFree    = plan === "free";
+  const plan = session?.user?.plan ?? "free";
+  const isFree = plan === "free";
   const isStudent = plan === "student";
-  const isPro     = plan === "pro";
+  const isPro = plan === "pro";
   const planLabel = isPro ? "Pro" : isStudent ? "Student" : "Free";
 
   const fetchSidebar = useCallback(() => {
     if (!session?.user?.email) return;
     fetch("/api/sidebar")
-      .then(r => r.json())
-      .then((d: { conversations?: Conversation[]; searchesToday?: number; searchesThisMonth?: number }) => {
-        setConversations(d.conversations ?? []);
-        setSearchesToday(d.searchesToday ?? 0);
-        setSearchesThisMonth(d.searchesThisMonth ?? 0);
-      })
+      .then((r) => r.json())
+      .then(
+        (d: {
+          conversations?: Conversation[];
+          searchesToday?: number;
+          searchesThisMonth?: number;
+        }) => {
+          setConversations(d.conversations ?? []);
+          setSearchesToday(d.searchesToday ?? 0);
+          setSearchesThisMonth(d.searchesThisMonth ?? 0);
+        },
+      )
       .catch(() => {});
   }, [session?.user?.email]);
 
-  useEffect(() => { fetchSidebar(); }, [fetchSidebar]);
+  useEffect(() => {
+    fetchSidebar();
+  }, [fetchSidebar]);
 
   useEffect(() => {
     const h = () => fetchSidebar();
@@ -97,10 +123,10 @@ export default function Sidebar({
   }, [fetchSidebar]);
 
   const counter = isFree
-    ? { used: searchesToday,     max: 5,   warn: 4,   period: "today" }
+    ? { used: searchesToday, max: 5, warn: 4, period: "today" }
     : isStudent
-    ? { used: searchesThisMonth, max: 500, warn: 450, period: "this month" }
-    : null;
+      ? { used: searchesThisMonth, max: 500, warn: 450, period: "this month" }
+      : null;
 
   const grouped = groupConversations(conversations);
 
@@ -115,7 +141,10 @@ export default function Sidebar({
       {/* Header */}
       <div className="sidebar-header">
         <motion.span
-          animate={{ opacity: collapsed ? 0 : 1, width: collapsed ? 0 : "auto" }}
+          animate={{
+            opacity: collapsed ? 0 : 1,
+            width: collapsed ? 0 : "auto",
+          }}
           transition={{ duration: 0.2 }}
           className="sidebar-brand"
           style={{ overflow: "hidden", whiteSpace: "nowrap" }}
@@ -123,7 +152,10 @@ export default function Sidebar({
           Researchly
         </motion.span>
         <button
-          onClick={() => { setCollapsed(c => !c); onClose?.(); }}
+          onClick={() => {
+            setCollapsed((c) => !c);
+            onClose?.();
+          }}
           className="icon-btn"
           style={{ flexShrink: 0 }}
           title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
@@ -140,18 +172,34 @@ export default function Sidebar({
           initial="hidden"
           animate="visible"
           variants={itemVariants}
-          onClick={() => { onNewSearch?.(); onClose?.(); }}
+          onClick={() => {
+            onNewSearch?.();
+            onClose?.();
+          }}
           className="sidebar-nav-btn"
           style={{ color: "#8a8a8a" }}
-          whileHover={{ backgroundColor: "#1f1f1f" }}
+          onMouseEnter={(e) => {
+            (e.currentTarget as HTMLElement).style.backgroundColor = "#1f1f1f";
+          }}
+          onMouseLeave={(e) => {
+            (e.currentTarget as HTMLElement).style.backgroundColor = "";
+          }}
         >
           <span className="sidebar-new-circle" style={{ flexShrink: 0 }}>
             <Plus size={10} />
           </span>
           <motion.span
-            animate={{ opacity: collapsed ? 0 : 1, width: collapsed ? 0 : "auto" }}
+            animate={{
+              opacity: collapsed ? 0 : 1,
+              width: collapsed ? 0 : "auto",
+            }}
             transition={{ duration: 0.18 }}
-            style={{ overflow: "hidden", whiteSpace: "nowrap", fontSize: 13.5, fontWeight: 300 }}
+            style={{
+              overflow: "hidden",
+              whiteSpace: "nowrap",
+              fontSize: 13.5,
+              fontWeight: 300,
+            }}
           >
             New Research
           </motion.span>
@@ -174,7 +222,10 @@ export default function Sidebar({
               >
                 <Icon size={15} style={{ flexShrink: 0 }} />
                 <motion.span
-                  animate={{ opacity: collapsed ? 0 : 1, width: collapsed ? 0 : "auto" }}
+                  animate={{
+                    opacity: collapsed ? 0 : 1,
+                    width: collapsed ? 0 : "auto",
+                  }}
                   transition={{ duration: 0.18 }}
                   style={{ overflow: "hidden", whiteSpace: "nowrap" }}
                 >
@@ -207,14 +258,34 @@ export default function Sidebar({
           <div className="usage-bar">
             <div
               className={`usage-bar-fill${counter.used >= counter.max ? " limit" : counter.used >= counter.warn ? " warn" : ""}`}
-              style={{ width: `${Math.min((counter.used / counter.max) * 100, 100)}%` }}
+              style={{
+                width: `${Math.min((counter.used / counter.max) * 100, 100)}%`,
+              }}
             />
           </div>
           <p className="usage-hint">
             {counter.used >= counter.max ? (
-              <><span style={{ color: "#e06060" }}>Limit reached</span> · <Link href="/pricing" onClick={onClose} style={{ color: "#c9b99a" }}>Upgrade →</Link></>
+              <>
+                <span style={{ color: "#e06060" }}>Limit reached</span> ·{" "}
+                <Link
+                  href="/pricing"
+                  onClick={onClose}
+                  style={{ color: "#c9b99a" }}
+                >
+                  Upgrade →
+                </Link>
+              </>
             ) : (
-              <>{counter.max - counter.used} left {counter.period} · <Link href="/pricing" onClick={onClose} style={{ color: "#555" }}>Upgrade</Link></>
+              <>
+                {counter.max - counter.used} left {counter.period} ·{" "}
+                <Link
+                  href="/pricing"
+                  onClick={onClose}
+                  style={{ color: "#555" }}
+                >
+                  Upgrade
+                </Link>
+              </>
             )}
           </p>
         </motion.div>
@@ -228,7 +299,10 @@ export default function Sidebar({
           transition={{ delay: 0.25 }}
           className="sidebar-signin-promo"
         >
-          <p>Sign in free to save your research history and access it from any device.</p>
+          <p>
+            Sign in free to save your research history and access it from any
+            device.
+          </p>
           <button onClick={() => void signIn()} className="signin-promo-btn">
             Sign In Free
           </button>
@@ -244,21 +318,32 @@ export default function Sidebar({
           style={{ flex: 1, overflowY: "auto", padding: "0 8px" }}
         >
           <p className="sidebar-section-label">Recents</p>
-          {grouped.map(group => (
+          {grouped.map((group) => (
             <div key={group.label} style={{ marginBottom: 12 }}>
-              <p style={{
-                fontSize: 10, fontWeight: 700, color: "#444",
-                letterSpacing: "0.08em", textTransform: "uppercase",
-                padding: "0 4px", marginBottom: 2,
-              }}>
+              <p
+                style={{
+                  fontSize: 10,
+                  fontWeight: 700,
+                  color: "#444",
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase",
+                  padding: "0 4px",
+                  marginBottom: 2,
+                }}
+              >
                 {group.label}
               </p>
-              {group.items.map(conv => {
-                const isActive = activeConversationId === conv._id || path === `/chat/${conv._id}`;
+              {group.items.map((conv) => {
+                const isActive =
+                  activeConversationId === conv._id ||
+                  path === `/chat/${conv._id}`;
                 return (
                   <button
                     key={conv._id}
-                    onClick={() => { router.push(`/chat/${conv._id}`); onClose?.(); }}
+                    onClick={() => {
+                      router.push(`/chat/${conv._id}`);
+                      onClose?.();
+                    }}
                     title={conv.title}
                     className={`sidebar-history-btn${isActive ? " active" : ""}`}
                   >
@@ -277,7 +362,13 @@ export default function Sidebar({
           <>
             <div className="sidebar-avatar" style={{ flexShrink: 0 }}>
               {session.user?.image ? (
-                <Image src={session.user.image} alt="avatar" width={32} height={32} style={{ borderRadius: "50%" }} />
+                <Image
+                  src={session.user.image}
+                  alt="avatar"
+                  width={32}
+                  height={32}
+                  style={{ borderRadius: "50%" }}
+                />
               ) : (
                 <span>{(session.user?.name?.[0] ?? "U").toUpperCase()}</span>
               )}
@@ -289,7 +380,16 @@ export default function Sidebar({
                 transition={{ delay: 0.1 }}
                 style={{ flex: 1, minWidth: 0 }}
               >
-                <p style={{ fontSize: 13, fontWeight: 500, color: "#e8e3dc", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                <p
+                  style={{
+                    fontSize: 13,
+                    fontWeight: 500,
+                    color: "#e8e3dc",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
                   {session.user?.name ?? "Researcher"}
                 </p>
                 <p style={{ fontSize: 11, color: "#555", fontWeight: 300 }}>
@@ -322,8 +422,12 @@ export default function Sidebar({
                 animate={{ opacity: 1 }}
                 onClick={() => void signIn()}
                 style={{
-                  background: "none", border: "none", cursor: "pointer",
-                  fontSize: 13, color: "#6b6b6b", fontWeight: 300,
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  fontSize: 13,
+                  color: "#6b6b6b",
+                  fontWeight: 300,
                   fontFamily: "'DM Sans', system-ui, sans-serif",
                   textAlign: "left",
                 }}
