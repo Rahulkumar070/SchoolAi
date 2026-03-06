@@ -21,18 +21,12 @@ export default function Shell({
   const pathname = usePathname();
   const router = useRouter();
 
-  // Close sidebar on navigation
-  useEffect(() => {
-    setSidebarOpen(false);
-  }, [pathname]);
+  useEffect(() => { setSidebarOpen(false); }, [pathname]);
 
-  // Lock body scroll when sidebar OR drawer is open on mobile
   useEffect(() => {
     if (sidebarOpen || drawerOpen) document.body.style.overflow = "hidden";
     else document.body.style.overflow = "";
-    return () => {
-      document.body.style.overflow = "";
-    };
+    return () => { document.body.style.overflow = ""; };
   }, [sidebarOpen, drawerOpen]);
 
   const handleNewSearch = () => {
@@ -43,103 +37,95 @@ export default function Shell({
 
   return (
     <div className="shell">
-      {/* ── Left sidebar ─────────────────────────────────── */}
-      <aside className={`sidebar${sidebarOpen ? " open" : ""}`}>
+      {/* ── Sidebar — desktop (framer-motion animated) ── */}
+      <div className="hidden md:block" style={{ flexShrink: 0 }}>
         <Sidebar
-          onClose={() => setSidebarOpen(false)}
           onNewSearch={handleNewSearch}
           activeConversationId={activeConversationId}
         />
-      </aside>
+      </div>
 
-      {/* Sidebar backdrop */}
+      {/* ── Mobile sidebar drawer ── */}
       {sidebarOpen && (
-        <div
-          className="sidebar-backdrop"
-          onClick={() => setSidebarOpen(false)}
-          aria-hidden="true"
-        />
+        <>
+          <div
+            className="sidebar-backdrop"
+            onClick={() => setSidebarOpen(false)}
+            aria-hidden
+            style={{
+              position: "fixed", inset: 0, zIndex: 99,
+              background: "rgba(0,0,0,0.65)",
+            }}
+          />
+          <div
+            style={{
+              position: "fixed", top: 0, left: 0, bottom: 0,
+              zIndex: 100, width: "min(260px, 85vw)",
+            }}
+          >
+            <Sidebar
+              onClose={() => setSidebarOpen(false)}
+              onNewSearch={handleNewSearch}
+              activeConversationId={activeConversationId}
+            />
+          </div>
+        </>
       )}
 
-      {/* ── Main content ─────────────────────────────────── */}
+      {/* ── Main content ── */}
       <div className="main">
-        <header className="mobile-bar">
-          <button
-            className="icon-btn"
-            onClick={() => setSidebarOpen(true)}
-            aria-label="Open menu"
-          >
+        {/* Mobile top bar */}
+        <header className="mobile-bar md:hidden">
+          <button className="icon-btn" onClick={() => setSidebarOpen(true)} aria-label="Open menu">
             <Menu size={18} />
           </button>
-          <Link href="/" className="mobile-logo" aria-label="Researchly home">
-            <div
-              className="logo-mark"
-              style={{ width: 24, height: 24, borderRadius: 6 }}
-            >
-              <BookOpen size={11} color="#000" strokeWidth={2.5} />
-            </div>
-            <span>Researchly</span>
+          <Link href="/" className="mobile-logo">
+            <BookOpen size={15} color="#c9b99a" />
+            <span style={{ fontFamily: "Georgia, serif" }}>Researchly</span>
           </Link>
-          <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
-            {/* Sources button — only shown on mobile when panel has content */}
+          <div style={{ display: "flex", gap: 4 }}>
             {rightPanel && (
               <button
-                className={`icon-btn mobile-sources-btn${drawerOpen ? " active" : ""}`}
-                onClick={() => setDrawerOpen((o) => !o)}
-                aria-label="View sources"
-                title="Sources"
+                className={`icon-btn${drawerOpen ? " mobile-sources-btn active" : ""}`}
+                onClick={() => setDrawerOpen(o => !o)}
+                aria-label="Sources"
               >
                 <Layers size={16} />
               </button>
             )}
-            <button
-              className="icon-btn"
-              onClick={handleNewSearch}
-              aria-label="New search"
-              title="New search"
-            >
+            <button className="icon-btn" onClick={handleNewSearch} aria-label="New search">
               <Plus size={18} />
             </button>
           </div>
         </header>
+
         <div className="main-content">{children}</div>
       </div>
 
-      {/* ── Right panel — desktop only ────────────────────── */}
+      {/* ── Right panel — desktop ── */}
       {rightPanel && <aside className="right-panel">{rightPanel}</aside>}
 
-      {/* ── Bottom drawer — mobile only ───────────────────── */}
+      {/* ── Bottom drawer — mobile ── */}
       {rightPanel && (
         <>
-          {/* Drawer backdrop */}
           <div
             className={`drawer-backdrop${drawerOpen ? " open" : ""}`}
             onClick={() => setDrawerOpen(false)}
-            aria-hidden="true"
+            aria-hidden
           />
-          {/* Drawer */}
           <div
             className={`mobile-drawer${drawerOpen ? " open" : ""}`}
             role="dialog"
-            aria-modal="true"
-            aria-label="Sources panel"
+            aria-modal
+            aria-label="Sources"
           >
-            {/* Drag handle + header */}
-            <div className="mobile-drawer-header">
+            <div className="mobile-drawer-header" style={{ position: "relative" }}>
               <div className="drawer-handle" />
-              <span className="drawer-title">
-                {rightPanelTitle ?? "Sources"}
-              </span>
-              <button
-                className="icon-btn"
-                onClick={() => setDrawerOpen(false)}
-                aria-label="Close"
-                style={{ marginLeft: "auto" }}
-              >
-                <X size={16} />
+              <span className="drawer-title">{rightPanelTitle ?? "Sources"}</span>
+              <button className="icon-btn" onClick={() => setDrawerOpen(false)} style={{ marginLeft: "auto" }}>
+                <X size={15} />
               </button>
             </div>
-            {/* Drawer content */}
             <div className="mobile-drawer-body">{rightPanel}</div>
           </div>
         </>
