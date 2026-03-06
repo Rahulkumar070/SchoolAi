@@ -25,7 +25,6 @@ const SearchHistoryItem = new Schema(
   { _id: false },
 );
 
-// Literature review history
 const ReviewHistoryItem = new Schema(
   {
     topic: { type: String, required: true },
@@ -62,5 +61,11 @@ const User = new Schema(
   },
   { timestamps: true },
 );
+
+// ✅ Explicit index on email — fastest possible user lookup on every request
+User.index({ email: 1 });
+
+// ✅ Index on plan — used in subscription/limit checks
+User.index({ plan: 1 });
 
 export const UserModel = models.User ?? model("User", User);
