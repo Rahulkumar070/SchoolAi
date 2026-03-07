@@ -465,6 +465,16 @@ function SearchApp() {
                   return u;
                 });
                 scrollDown();
+              } else if (evt.type === "answer_replace" && evt.text) {
+                // Server stripped bibliography — hard replace the full answer
+                const cleanAnswer = evt.text as string;
+                setTurns((prev) => {
+                  const u = [...prev];
+                  const last = { ...u[u.length - 1] };
+                  last.answer = cleanAnswer;
+                  u[u.length - 1] = last;
+                  return [...u];
+                });
               } else if (evt.type === "done") {
                 const related = evt.related ?? [];
                 setTurns((prev) => {
