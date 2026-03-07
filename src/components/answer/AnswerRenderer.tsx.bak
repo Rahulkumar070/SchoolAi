@@ -51,45 +51,27 @@ interface AnswerRendererProps {
 export function PaperCitationCard({ paper }: { paper: Paper }) {
   const link = paper.doi ? `https://doi.org/${paper.doi}` : (paper.url ?? null);
   const source = paper.journal ?? paper.source ?? "Research Paper";
-  const authorsDisplay =
-    paper.authors && paper.authors.length > 0
-      ? paper.authors.slice(0, 2).join(", ") +
-        (paper.authors.length > 2 ? " et al." : "")
-      : null;
 
   return (
     <div
       style={{
-        margin: "1.1rem 0",
-        padding: "16px 20px",
-        background: "rgba(255,255,255,0.03)",
-        border: "1px solid rgba(255,255,255,0.08)",
-        borderRadius: 12,
+        margin: "1rem 0",
+        padding: "14px 16px",
+        background: "rgba(232,160,69,0.05)",
+        border: "1px solid rgba(232,160,69,0.18)",
+        borderLeft: "3px solid var(--brand)",
+        borderRadius: "0 10px 10px 0",
         display: "flex",
-        gap: 16,
+        gap: 12,
         alignItems: "flex-start",
-        transition: "border-color 0.2s, background 0.2s",
-      }}
-      onMouseEnter={(e) => {
-        (e.currentTarget as HTMLElement).style.background =
-          "rgba(255,255,255,0.05)";
-        (e.currentTarget as HTMLElement).style.borderColor =
-          "rgba(255,255,255,0.14)";
-      }}
-      onMouseLeave={(e) => {
-        (e.currentTarget as HTMLElement).style.background =
-          "rgba(255,255,255,0.03)";
-        (e.currentTarget as HTMLElement).style.borderColor =
-          "rgba(255,255,255,0.08)";
       }}
     >
       <div
         style={{
-          width: 34,
-          height: 34,
+          width: 32,
+          height: 32,
           borderRadius: 8,
-          background: "rgba(255,255,255,0.06)",
-          border: "1px solid rgba(255,255,255,0.1)",
+          background: "rgba(232,160,69,0.12)",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
@@ -97,17 +79,16 @@ export function PaperCitationCard({ paper }: { paper: Paper }) {
           marginTop: 1,
         }}
       >
-        <BookOpen size={14} style={{ color: "rgba(255,255,255,0.5)" }} />
+        <BookOpen size={14} style={{ color: "var(--brand)" }} />
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <p
           style={{
             fontSize: 13.5,
             fontWeight: 600,
-            color: "rgba(255,255,255,0.92)",
-            lineHeight: 1.45,
-            marginBottom: 6,
-            letterSpacing: "-0.01em",
+            color: "var(--text-primary)",
+            lineHeight: 1.4,
+            marginBottom: 4,
           }}
         >
           {paper.title}
@@ -116,58 +97,41 @@ export function PaperCitationCard({ paper }: { paper: Paper }) {
           style={{
             display: "flex",
             flexWrap: "wrap",
-            alignItems: "center",
-            gap: "4px 10px",
-            marginBottom: 8,
+            gap: "4px 12px",
+            marginBottom: 6,
           }}
         >
-          {authorsDisplay && (
-            <span
-              style={{
-                fontSize: 11.5,
-                color: "rgba(255,255,255,0.45)",
-                fontWeight: 400,
-              }}
-            >
-              {authorsDisplay}
-            </span>
-          )}
-          {authorsDisplay && paper.year && (
-            <span style={{ fontSize: 11, color: "rgba(255,255,255,0.2)" }}>
-              ·
+          {paper.authors && paper.authors.length > 0 && (
+            <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>
+              {paper.authors.slice(0, 3).join(", ")}
+              {paper.authors.length > 3 ? " et al." : ""}
             </span>
           )}
           {paper.year && (
             <span
               style={{
-                fontSize: 11.5,
-                color: "rgba(255,255,255,0.55)",
-                fontWeight: 500,
+                fontSize: 11,
+                fontWeight: 600,
+                color: "var(--brand)",
+                background: "rgba(232,160,69,0.1)",
+                padding: "1px 7px",
+                borderRadius: 99,
               }}
             >
               {paper.year}
             </span>
           )}
-          {source && (
-            <>
-              <span style={{ fontSize: 11, color: "rgba(255,255,255,0.2)" }}>
-                ·
-              </span>
-              <span
-                style={{
-                  fontSize: 10.5,
-                  color: "rgba(255,255,255,0.38)",
-                  background: "rgba(255,255,255,0.06)",
-                  padding: "2px 8px",
-                  borderRadius: 99,
-                  border: "1px solid rgba(255,255,255,0.08)",
-                  letterSpacing: "0.02em",
-                }}
-              >
-                {source}
-              </span>
-            </>
-          )}
+          <span
+            style={{
+              fontSize: 11,
+              color: "var(--text-muted)",
+              background: "var(--surface-2)",
+              padding: "1px 7px",
+              borderRadius: 99,
+            }}
+          >
+            {source}
+          </span>
         </div>
         {link && (
           <a
@@ -179,17 +143,15 @@ export function PaperCitationCard({ paper }: { paper: Paper }) {
               color: "var(--brand)",
               display: "inline-flex",
               alignItems: "center",
-              gap: 5,
+              gap: 4,
               textDecoration: "none",
-              fontWeight: 500,
-              opacity: 0.8,
-              transition: "opacity 0.15s",
+              opacity: 0.85,
             }}
             onMouseEnter={(e) =>
               ((e.currentTarget as HTMLElement).style.opacity = "1")
             }
             onMouseLeave={(e) =>
-              ((e.currentTarget as HTMLElement).style.opacity = "0.8")
+              ((e.currentTarget as HTMLElement).style.opacity = "0.85")
             }
           >
             View paper <ExternalLink size={10} />
@@ -445,77 +407,67 @@ function TableWrapper({ children }: { children: React.ReactNode }) {
 
 const SECTION_META: Record<
   string,
-  { color: string; bg: string; border: string; icon: string; accent: string }
+  { color: string; bg: string; border: string; icon: string }
 > = {
   overview: {
-    color: "rgba(255,255,255,0.85)",
-    bg: "transparent",
-    border: "rgba(255,255,255,0.07)",
-    icon: "01",
-    accent: "#5c9ae0",
+    color: "#5c9ae0",
+    bg: "rgba(92,154,224,0.06)",
+    border: "rgba(92,154,224,0.18)",
+    icon: "◈",
   },
   "key concepts": {
-    color: "rgba(255,255,255,0.85)",
-    bg: "transparent",
-    border: "rgba(255,255,255,0.07)",
-    icon: "02",
-    accent: "#ad73e0",
+    color: "#ad73e0",
+    bg: "rgba(173,115,224,0.06)",
+    border: "rgba(173,115,224,0.18)",
+    icon: "◆",
   },
   "system architecture": {
-    color: "rgba(255,255,255,0.85)",
-    bg: "transparent",
-    border: "rgba(255,255,255,0.07)",
-    icon: "03",
-    accent: "#e8a045",
+    color: "#e8a045",
+    bg: "rgba(232,160,69,0.06)",
+    border: "rgba(232,160,69,0.18)",
+    icon: "◉",
   },
   "technical details": {
-    color: "rgba(255,255,255,0.85)",
-    bg: "transparent",
-    border: "rgba(255,255,255,0.07)",
-    icon: "04",
-    accent: "#5db87a",
+    color: "#5db87a",
+    bg: "rgba(93,184,122,0.06)",
+    border: "rgba(93,184,122,0.18)",
+    icon: "◎",
   },
   "technical details or comparison": {
-    color: "rgba(255,255,255,0.85)",
-    bg: "transparent",
-    border: "rgba(255,255,255,0.07)",
-    icon: "04",
-    accent: "#5db87a",
+    color: "#5db87a",
+    bg: "rgba(93,184,122,0.06)",
+    border: "rgba(93,184,122,0.18)",
+    icon: "◎",
   },
   "key research papers": {
-    color: "rgba(255,255,255,0.85)",
-    bg: "transparent",
-    border: "rgba(255,255,255,0.07)",
-    icon: "05",
-    accent: "#e8a045",
+    color: "#e8a045",
+    bg: "rgba(232,160,69,0.06)",
+    border: "rgba(232,160,69,0.18)",
+    icon: "📄",
   },
   limitations: {
-    color: "rgba(255,255,255,0.85)",
-    bg: "transparent",
-    border: "rgba(255,255,255,0.07)",
-    icon: "06",
-    accent: "#e05c5c",
+    color: "#e05c5c",
+    bg: "rgba(224,92,92,0.06)",
+    border: "rgba(224,92,92,0.18)",
+    icon: "⚠",
   },
   "key takeaways": {
-    color: "rgba(255,255,255,0.85)",
-    bg: "transparent",
-    border: "rgba(255,255,255,0.07)",
-    icon: "07",
-    accent: "#5db87a",
+    color: "#5db87a",
+    bg: "rgba(93,184,122,0.06)",
+    border: "rgba(93,184,122,0.18)",
+    icon: "✦",
   },
   "what to search next": {
-    color: "rgba(255,255,255,0.85)",
-    bg: "transparent",
-    border: "rgba(255,255,255,0.07)",
-    icon: "08",
-    accent: "#5c9ae0",
+    color: "#5c9ae0",
+    bg: "rgba(92,154,224,0.06)",
+    border: "rgba(92,154,224,0.18)",
+    icon: "→",
   },
   "quick revision points": {
-    color: "rgba(255,255,255,0.85)",
-    bg: "transparent",
-    border: "rgba(255,255,255,0.07)",
-    icon: "09",
-    accent: "#ad73e0",
+    color: "#ad73e0",
+    bg: "rgba(173,115,224,0.06)",
+    border: "rgba(173,115,224,0.18)",
+    icon: "✦",
   },
 };
 
@@ -523,11 +475,10 @@ function getSectionMeta(title: string) {
   const key = title.toLowerCase().trim();
   return (
     SECTION_META[key] ?? {
-      color: "rgba(255,255,255,0.85)",
-      bg: "transparent",
-      border: "rgba(255,255,255,0.07)",
-      icon: "—",
-      accent: "rgba(255,255,255,0.3)",
+      color: "var(--text-muted)",
+      bg: "var(--surface)",
+      border: "var(--border-mid)",
+      icon: "○",
     }
   );
 }
@@ -545,11 +496,12 @@ function SectionCard({
   return (
     <div
       style={{
-        margin: "0 0 6px",
-        borderRadius: 0,
-        borderBottom: `1px solid rgba(255,255,255,0.06)`,
-        background: "transparent",
+        margin: "0 0 12px",
+        borderRadius: 14,
+        border: `1px solid ${meta.border}`,
+        background: meta.bg,
         overflow: "hidden",
+        transition: "border-color .2s",
       }}
     >
       {/* Section header */}
@@ -560,28 +512,22 @@ function SectionCard({
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          padding: "20px 0 14px",
+          padding: "14px 18px",
           background: "transparent",
           border: "none",
           cursor: "pointer",
           textAlign: "left",
-          gap: 14,
+          gap: 10,
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-          {/* Accent number pill */}
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <span
             style={{
-              fontSize: 9,
-              color: (meta as { accent?: string }).accent ?? meta.color,
+              fontSize: 13,
+              color: meta.color,
               fontWeight: 700,
-              letterSpacing: "0.08em",
-              background: `${(meta as { accent?: string }).accent ?? meta.color}18`,
-              border: `1px solid ${(meta as { accent?: string }).accent ?? meta.color}30`,
-              padding: "3px 7px",
-              borderRadius: 6,
+              lineHeight: 1,
               flexShrink: 0,
-              fontFamily: "var(--font-mono, monospace)",
             }}
           >
             {meta.icon}
@@ -589,10 +535,10 @@ function SectionCard({
           <h2
             style={{
               margin: 0,
-              fontSize: 13,
-              fontWeight: 600,
-              color: "rgba(255,255,255,0.75)",
-              letterSpacing: "0.06em",
+              fontSize: 14,
+              fontWeight: 700,
+              color: meta.color,
+              letterSpacing: "0.03em",
               textTransform: "uppercase",
               fontFamily: "var(--font-ui)",
             }}
@@ -600,8 +546,8 @@ function SectionCard({
             {title}
           </h2>
         </div>
-        <div style={{ color: "rgba(255,255,255,0.25)", flexShrink: 0 }}>
-          {collapsed ? <ChevronDown size={13} /> : <ChevronUp size={13} />}
+        <div style={{ color: meta.color, opacity: 0.6, flexShrink: 0 }}>
+          {collapsed ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
         </div>
       </button>
 
@@ -609,7 +555,8 @@ function SectionCard({
       {!collapsed && (
         <div
           style={{
-            paddingBottom: 20,
+            padding: "0 18px 16px",
+            borderTop: `1px solid ${meta.border}`,
           }}
         >
           {children}
@@ -644,9 +591,7 @@ function InlinePaperCard({ raw }: { raw: string }) {
     const keyLower = key.toLowerCase();
     const line = lines.find((l) => {
       const ll = l.toLowerCase();
-      return (
-        ll.startsWith(`**${keyLower}**`) || ll.startsWith(`**${keyLower}:**`)
-      );
+      return ll.startsWith(`**${keyLower}**`) || ll.startsWith(`**${keyLower}:**`);
     });
     if (line) return line.replace(/^\*\*[^*]+\*\*[:\s]*/i, "").trim();
 
@@ -819,10 +764,10 @@ function buildMdComponents(onSection: (title: string) => void) {
     p: ({ children }: any) => (
       <p
         style={{
-          marginBottom: "1em",
-          lineHeight: 1.9,
-          fontSize: 15,
-          color: "rgba(255,255,255,0.68)",
+          marginBottom: "0.85em",
+          lineHeight: 1.82,
+          fontSize: 14.5,
+          color: "var(--text-secondary)",
           letterSpacing: "0.01em",
         }}
       >
@@ -853,9 +798,8 @@ function buildMdComponents(onSection: (title: string) => void) {
     ul: ({ children }: any) => (
       <ul
         style={{
-          paddingLeft: "0.2em",
-          marginBottom: "1em",
-          marginTop: "0.4em",
+          paddingLeft: "1.4em",
+          marginBottom: "0.85em",
           listStyleType: "none",
         }}
       >
@@ -878,27 +822,27 @@ function buildMdComponents(onSection: (title: string) => void) {
     li: ({ children, ordered }: any) => (
       <li
         style={{
-          marginBottom: "0.7em",
+          marginBottom: "0.4em",
           fontSize: 14.5,
-          color: "rgba(255,255,255,0.7)",
-          lineHeight: 1.8,
+          color: "var(--text-secondary)",
+          lineHeight: 1.75,
           display: "flex",
           alignItems: "flex-start",
-          gap: 12,
-          paddingLeft: 2,
+          gap: 8,
         }}
       >
         <span
           style={{
-            width: 5,
-            height: 5,
-            borderRadius: "50%",
-            background: "rgba(255,255,255,0.2)",
+            color: "var(--brand)",
+            fontWeight: 700,
+            fontSize: 13,
+            marginTop: 3,
             flexShrink: 0,
-            marginTop: 9,
           }}
-        />
-        <span style={{ flex: 1 }}>{children}</span>
+        >
+          ›
+        </span>
+        <span>{children}</span>
       </li>
     ),
 
@@ -1166,9 +1110,9 @@ function resolveRefMarkers(body: string, papers: Paper[]): React.ReactNode[] {
 
   // Papers array: guaranteed papers first (sent first by stream), then retrieved
   // Guaranteed papers: REF-1, REF-2 ... (matching prompt numbering)
-  // Retrieved papers: REF-(G+1), REF-(G+2) ...
-  const guaranteed = papers.filter((p) => p._refKey);
-  const retrieved = papers.filter((p) => !p._refKey);
+  // Retrieved papers: REF-(G+1), REF-(G+2) ... 
+  const guaranteed = papers.filter(p => p._refKey);
+  const retrieved = papers.filter(p => !p._refKey);
   const G = guaranteed.length;
 
   // Guaranteed papers: index by both position (REF-1) and _refKey (REF-FOUND-1) for safety
@@ -1228,38 +1172,25 @@ function preprocessBody(body: string, papers: Paper[]): string {
   cleaned = cleaned.replace(/(\n|^)(\[\d+\][^\n]+\n?){2,}/gm, "\n");
 
   // 2. Strip any remaining single "[N] ..." reference lines with a URL
-  cleaned = cleaned.replace(
-    /^\[\d+\][^\n]*(https?:\/\/|doi\.org)[^\n]*\n?/gm,
-    "",
-  );
+  cleaned = cleaned.replace(/^\[\d+\][^\n]*(https?:\/\/|doi\.org)[^\n]*\n?/gm, "");
 
   // 3. Replace ALL "(From general knowledge...)" variants with [REF-1]
   const fgkPattern = new RegExp("\\(From general knowledge[^)]*\\)", "gi");
-  cleaned =
-    papers.length > 0
-      ? cleaned.replace(fgkPattern, "[REF-1]")
-      : cleaned.replace(fgkPattern, "");
+  cleaned = papers.length > 0
+    ? cleaned.replace(fgkPattern, "[REF-1]")
+    : cleaned.replace(fgkPattern, "");
 
   // 4. Strip "Foundational Paper/citation/Reference: ..." lines
-  cleaned = cleaned.replace(
-    /^.{0,5}Foundational (Paper|citation|Reference)[^\n]+\n?/gim,
-    "",
-  );
+  cleaned = cleaned.replace(/^.{0,5}Foundational (Paper|citation|Reference)[^\n]+\n?/gim, "");
 
   // 5. Strip "Related Work: ..." lines
   cleaned = cleaned.replace(/^.{0,5}Related Work[^\n]+\n?/gim, "");
 
   // 6. Strip "Key Benchmark/Finding/Result/Note: ..." annotation lines
-  cleaned = cleaned.replace(
-    /^.{0,5}Key (Benchmark|Finding|Result|Note)[^\n]+\n?/gim,
-    "",
-  );
+  cleaned = cleaned.replace(/^.{0,5}Key (Benchmark|Finding|Result|Note)[^\n]+\n?/gim, "");
 
   // 7. Strip plain-text citation lines: Title — Author et al., YEAR | https://...
-  cleaned = cleaned.replace(
-    /^[\s"]*[A-Z][^\n]{10,}(et al\.|[0-9]{4})[^\n]*(https?:\/\/|doi\.org)[^\n]*\n?/gm,
-    "",
-  );
+  cleaned = cleaned.replace(/^[\s"]*[A-Z][^\n]{10,}(et al\.|[0-9]{4})[^\n]*(https?:\/\/|doi\.org)[^\n]*\n?/gm, "");
 
   // 8. Strip lines that are just a URL
   cleaned = cleaned.replace(/^\s*https?:\/\/\S+\s*$/gm, "");
@@ -1274,6 +1205,13 @@ function preprocessBody(body: string, papers: Paper[]): string {
   cleaned = cleaned.replace(/\n{3,}/g, "\n\n");
 
   return cleaned;
+}
+
+
+
+
+
+
 }
 
 function SectionContent({ body, papers }: { body: string; papers: Paper[] }) {
@@ -1291,10 +1229,7 @@ function SectionContent({ body, papers }: { body: string; papers: Paper[] }) {
   const mdComponents = buildMdComponents(() => {});
   return (
     <div style={{ paddingTop: 14 }}>
-      <ReactMarkdown
-        remarkPlugins={[remarkGfm]}
-        components={mdComponents as any}
-      >
+      <ReactMarkdown remarkPlugins={[remarkGfm]} components={mdComponents as any}>
         {processedBody}
       </ReactMarkdown>
     </div>
