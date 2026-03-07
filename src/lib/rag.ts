@@ -273,6 +273,8 @@ export async function searchAllWithPubMed(q: string): Promise<Paper[]> {
   const seenTitles = new Set<string>();
   const seenDois = new Set<string>();
 
+  const currentYear = new Date().getFullYear();
+
   return all
     .filter((p) => {
       if (!p.title || !p.abstract) return false;
@@ -287,7 +289,13 @@ export async function searchAllWithPubMed(q: string): Promise<Paper[]> {
       if (doiKey) seenDois.add(doiKey);
       return true;
     })
-    .sort((a, b) => (b.citationCount ?? 0) - (a.citationCount ?? 0))
+    .sort((a, b) => {
+      // Hybrid score: citation count + recency boost
+      // Papers from last 3 years get a 20% score boost to surface newer work
+      const aScore = (a.citationCount ?? 0) * (a.year && a.year >= currentYear - 3 ? 1.2 : 1.0);
+      const bScore = (b.citationCount ?? 0) * (b.year && b.year >= currentYear - 3 ? 1.2 : 1.0);
+      return bScore - aScore;
+    })
     .slice(0, 25);
 }
 
