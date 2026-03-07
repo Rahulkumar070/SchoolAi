@@ -48,6 +48,12 @@ export async function getCachedResult(
 }
 
 // ── Save to cache ─────────────────────────────────────────────
+// Detect time-sensitive queries (recent, latest, current, 2024, 2025, etc.)
+// These get a short 7-day TTL instead of the default 60-day TTL
+function isTimeSensitive(query: string): boolean {
+  return /\b(latest|recent|current|new|2024|2025|2026|today|this year|this month|trending|state of the art|sota)\b/i.test(query);
+}
+
 export async function saveToCache(
   originalQuery: string,
   answer: string,
@@ -57,6 +63,10 @@ export async function saveToCache(
     await connectDB();
     const key = normalizeQuery(originalQuery);
 
+    // Smart TTL: time-sensitive queries expire in 7 days, stable ones in 60 days
+    const ttlDays = isTimeSensitive(originalQuery) ? 7 : 60;
+    const expiresAt = new Date(Date.now() + ttlDays * 24 * 60 * 60 * 1000);
+
     await CacheModel.findOneAndUpdate(
       { query: key },
       {
@@ -65,11 +75,11 @@ export async function saveToCache(
           originalQuery: originalQuery,
           answer: answer,
           papers: papers,
-          modelVersion: CURRENT_MODEL_VERSION, // ✅ store version with every entry
+          modelVersion: CURRENT_MODEL_VERSION,
           updatedAt: new Date(),
+          createdAt: expiresAt, // MongoDB TTL index on createdAt — reset expiry on update
         },
         $setOnInsert: {
-          createdAt: new Date(),
           usageCount: 1,
         },
       },

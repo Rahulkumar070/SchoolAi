@@ -12,18 +12,25 @@ const ant = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 const REVIEW_SYSTEM = `You are Researchly, an elite academic research assistant. Write publication-quality literature reviews.
 
 RULES:
-- Every factual claim MUST be cited with [n]
-- Write in formal academic English — third person, passive voice where appropriate
-- No bullet points in main sections — only flowing academic paragraphs
-- Synthesize ideas across papers, don't summarize each separately
-- Minimum 1400 words`;
+- NEVER use [n] numeric citations — use full inline citation cards after every factual claim:
+  > 📄 **Paper:** <full title>
+  > **Authors:** <up to 3 names, then "et al.">
+  > **Year:** <year or n.d.>
+  > **Source:** <journal/conference/arXiv>
+  > **Link:** <DOI or URL, or "Not available">
+  > **Key Contribution:** <1–2 sentences>
+- Write in formal academic English — third person, flowing paragraphs only
+- No bullet points in main sections
+- Synthesize ideas across papers — do NOT summarize each paper separately
+- Prioritize: foundational papers first, then major follow-ups, then benchmarks
+- Minimum 1600 words`;
 
 function buildReviewPrompt(topic: string, papers: Paper[]): string {
   const paperCtx = papers
-    .slice(0, 12)
+    .slice(0, 15)
     .map(
       (p, i) =>
-        `[${i + 1}] "${p.title}"
+        `[REF-${i + 1}] "${p.title}"
 Authors: ${p.authors.slice(0, 4).join(", ")}${p.authors.length > 4 ? " et al." : ""} | Year: ${p.year ?? "n.d."} | Journal: ${p.journal ?? p.source}
 Abstract: ${p.abstract.slice(0, 900)}
 ${p.url ? `URL: ${p.url}` : ""}${p.doi ? `\nDOI: https://doi.org/${p.doi}` : ""}`,
