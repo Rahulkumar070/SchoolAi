@@ -534,8 +534,30 @@ export async function searchAllWithPubMed(q: string): Promise<Paper[]> {
         /multiobjective.*pareto|pareto.*frontier.*optimization/i,
         /matrix factorization.*distributed.*mapreduce|dsgd.*web.?scale/i,
         /ellipsoid norm.*quasi.?newton|quasi.?newton.*ellipsoid/i,
+        // Medical/clinical papers that only use transformers as a tool
+        /postoperative|delirium|intraoperative|clinical.*transformer|transformer.*clinical/i,
+        /software architecture.*design|architecture.*spread.*sets/i,
+        /quantum computing|fault.?tolerant quantum|qubit|FTQC|floorplan.*quantum/i,
+        /load.?store.*quantum|quantum.*memory.*architecture|LSQCA/i,
       ];
       if (isModernAIQuery && nonMLDomainPatterns.some(pat => pat.test(p.title + ' ' + (p.abstract ?? '')))) return false;
+
+      // Topic relevance check for transformer queries
+      // If asking about transformer architecture, reject papers where transformer is merely a tool
+      const isTransformerQuery = /transformer|attention mechanism|self.?attention/i.test(q);
+      if (isTransformerQuery) {
+        const titleLower = p.title.toLowerCase();
+        // Reject papers where the title is clearly a domain application, not about transformer architecture itself
+        const isApplicationOnly = (
+          /video transformer|object.*region.*transformer|medical.*transformer|clinical.*transformer/i.test(p.title) ||
+          /delirium|surgical|intraoperative|postoperative/i.test(p.title) ||
+          /software architecture.*design|spread.*sets.*design/i.test(p.title) ||
+          /tractography|histopathology|radiology.*transformer/i.test(p.title)
+        );
+        // Only block if it's an application paper AND has fewer than 500 citations
+        // (highly cited application papers like ViT are still useful context)
+        if (isApplicationOnly && (p.citationCount ?? 0) < 500) return false;
+      }
 
       // For optimization queries, filter pure math theory papers unlikely to help students
       if (isOptimizationQuery) {

@@ -1223,8 +1223,13 @@ function ReactMarkdownSegment({ content }: { content: string }) {
 function preprocessBody(body: string, papers: Paper[]): string {
   let cleaned = body;
 
-  // 1. Strip bibliography block: any run of 2+ consecutive lines starting with [N]
-  // Matches: "[1] Author... \n [2] Author... \n" etc at end of answer
+  // 1. Strip bibliography heading block
+  cleaned = cleaned.replace(/\n+(references|bibliography)[\s\S]*/i, "");
+
+  // 1b. Strip [1] bibliography — catches " [1] Author" or "\n[1] Author" patterns
+  cleaned = cleaned.replace(/\s*\[1\][\s\S]*$/, "");
+
+  // 1c. Strip any run of 2+ consecutive lines starting with [N]
   cleaned = cleaned.replace(/(\n|^)(\[\d+\][^\n]+\n?){2,}/gm, "\n");
 
   // 2. Strip any remaining single "[N] ..." reference lines with a URL

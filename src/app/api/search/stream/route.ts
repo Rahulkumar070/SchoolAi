@@ -2,7 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { searchAll } from "@/lib/papers";
-import { chunkPapers, rankChunks, rerankChunks, buildRAGContext, enrichWithFullText } from "@/lib/rag";
+import {
+  chunkPapers,
+  rankChunks,
+  rerankChunks,
+  buildRAGContext,
+  enrichWithFullText,
+} from "@/lib/rag";
 import { connectDB } from "@/lib/mongodb";
 import { UserModel } from "@/models/User";
 import { ConversationModel } from "@/models/Conversation";
@@ -38,7 +44,12 @@ type UserDoc = {
   searchDateReset?: Date;
   searchesThisMonth?: number;
   searchMonthReset?: Date;
-  searchHistory?: { query: string; answer?: string; papers?: unknown[]; searchedAt?: Date }[];
+  searchHistory?: {
+    query: string;
+    answer?: string;
+    papers?: unknown[];
+    searchedAt?: Date;
+  }[];
 };
 
 async function buildPrompt(query: string, papers: PaperRow[]) {
@@ -51,25 +62,100 @@ async function buildPrompt(query: string, papers: PaperRow[]) {
     // Inject hardcoded foundational papers for well-known topics so they always appear in the index
     // Build guaranteed entries for well-known foundational papers
     // They are numbered REF-1, REF-2 ... and retrieved papers follow after
-    interface GuaranteedPaperDef { title: string; authors: string; year: number; source: string; url: string; }
+    interface GuaranteedPaperDef {
+      title: string;
+      authors: string;
+      year: number;
+      source: string;
+      url: string;
+    }
     const GUARANTEED_DEFS: Record<string, GuaranteedPaperDef> = {
-      "attention-transformer": { title: "Attention Is All You Need", authors: "Ashish Vaswani, Noam Shazeer, Niki Parmar et al.", year: 2017, source: "NeurIPS / arXiv", url: "https://arxiv.org/abs/1706.03762" },
-      "bert": { title: "BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding", authors: "Jacob Devlin, Ming-Wei Chang, Kenton Lee et al.", year: 2019, source: "NAACL / arXiv", url: "https://arxiv.org/abs/1810.04805" },
-      "tinybert": { title: "TinyBERT: Distilling BERT for Natural Language Understanding", authors: "Xiaoqi Jiao, Yichun Yin, Lifeng Shang et al.", year: 2020, source: "EMNLP / arXiv", url: "https://arxiv.org/abs/1909.10351" },
-      "roberta": { title: "RoBERTa: A Robustly Optimized BERT Pretraining Approach", authors: "Yinhan Liu, Myle Ott, Naman Goyal et al.", year: 2019, source: "arXiv", url: "https://arxiv.org/abs/1907.11692" },
-      "gpt2": { title: "Language Models are Unsupervised Multitask Learners", authors: "Alec Radford, Jeffrey Wu, Rewon Child et al.", year: 2019, source: "OpenAI Blog", url: "https://cdn.openai.com/better-language-models/language_models_are_unsupervised_multitask_learners.pdf" },
-      "gpt3": { title: "Language Models are Few-Shot Learners", authors: "Tom Brown, Benjamin Mann, Nick Ryder et al.", year: 2020, source: "NeurIPS / arXiv", url: "https://arxiv.org/abs/2005.14165" },
-      "instructgpt": { title: "Training language models to follow instructions with human feedback", authors: "Long Ouyang, Jeffrey Wu, Xu Jiang et al.", year: 2022, source: "NeurIPS / arXiv", url: "https://arxiv.org/abs/2203.02155" },
-      "gradient_descent": { title: "An overview of gradient descent optimization algorithms", authors: "Sebastian Ruder", year: 2016, source: "arXiv", url: "https://arxiv.org/abs/1609.04747" },
-      "attention": { title: "Attention Is All You Need", authors: "Ashish Vaswani, Noam Shazeer, Niki Parmar et al.", year: 2017, source: "NeurIPS / arXiv", url: "https://arxiv.org/abs/1706.03762" },
-      "rag": { title: "Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks", authors: "Patrick Lewis, Ethan Perez, Aleksandra Piktus et al.", year: 2020, source: "NeurIPS / arXiv", url: "https://arxiv.org/abs/2005.11401" },
+      "attention-transformer": {
+        title: "Attention Is All You Need",
+        authors: "Ashish Vaswani, Noam Shazeer, Niki Parmar et al.",
+        year: 2017,
+        source: "NeurIPS / arXiv",
+        url: "https://arxiv.org/abs/1706.03762",
+      },
+      bert: {
+        title:
+          "BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding",
+        authors: "Jacob Devlin, Ming-Wei Chang, Kenton Lee et al.",
+        year: 2019,
+        source: "NAACL / arXiv",
+        url: "https://arxiv.org/abs/1810.04805",
+      },
+      tinybert: {
+        title: "TinyBERT: Distilling BERT for Natural Language Understanding",
+        authors: "Xiaoqi Jiao, Yichun Yin, Lifeng Shang et al.",
+        year: 2020,
+        source: "EMNLP / arXiv",
+        url: "https://arxiv.org/abs/1909.10351",
+      },
+      roberta: {
+        title: "RoBERTa: A Robustly Optimized BERT Pretraining Approach",
+        authors: "Yinhan Liu, Myle Ott, Naman Goyal et al.",
+        year: 2019,
+        source: "arXiv",
+        url: "https://arxiv.org/abs/1907.11692",
+      },
+      gpt2: {
+        title: "Language Models are Unsupervised Multitask Learners",
+        authors: "Alec Radford, Jeffrey Wu, Rewon Child et al.",
+        year: 2019,
+        source: "OpenAI Blog",
+        url: "https://cdn.openai.com/better-language-models/language_models_are_unsupervised_multitask_learners.pdf",
+      },
+      gpt3: {
+        title: "Language Models are Few-Shot Learners",
+        authors: "Tom Brown, Benjamin Mann, Nick Ryder et al.",
+        year: 2020,
+        source: "NeurIPS / arXiv",
+        url: "https://arxiv.org/abs/2005.14165",
+      },
+      instructgpt: {
+        title:
+          "Training language models to follow instructions with human feedback",
+        authors: "Long Ouyang, Jeffrey Wu, Xu Jiang et al.",
+        year: 2022,
+        source: "NeurIPS / arXiv",
+        url: "https://arxiv.org/abs/2203.02155",
+      },
+      gradient_descent: {
+        title: "An overview of gradient descent optimization algorithms",
+        authors: "Sebastian Ruder",
+        year: 2016,
+        source: "arXiv",
+        url: "https://arxiv.org/abs/1609.04747",
+      },
+      attention: {
+        title: "Attention Is All You Need",
+        authors: "Ashish Vaswani, Noam Shazeer, Niki Parmar et al.",
+        year: 2017,
+        source: "NeurIPS / arXiv",
+        url: "https://arxiv.org/abs/1706.03762",
+      },
+      rag: {
+        title:
+          "Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks",
+        authors: "Patrick Lewis, Ethan Perez, Aleksandra Piktus et al.",
+        year: 2020,
+        source: "NeurIPS / arXiv",
+        url: "https://arxiv.org/abs/2005.11401",
+      },
     };
 
     const guaranteedDefs: GuaranteedPaperDef[] = [];
-    if (/attention.*transformer|transformer.*attention|self.?attention|multi.?head|how.*transformer/i.test(query)) {
+    if (
+      /attention.*transformer|transformer.*attention|self.?attention|multi.?head|how.*transformer/i.test(
+        query,
+      )
+    ) {
       guaranteedDefs.push(GUARANTEED_DEFS["attention-transformer"]);
     }
-    if (/\bbert\b|bidirectional.*transformer|masked.*language.*model/i.test(query)) {
+    if (
+      /\bbert\b|bidirectional.*transformer|masked.*language.*model/i.test(query)
+    ) {
       guaranteedDefs.push(GUARANTEED_DEFS["bert"]);
       guaranteedDefs.push(GUARANTEED_DEFS["tinybert"]);
       guaranteedDefs.push(GUARANTEED_DEFS["roberta"]);
@@ -77,7 +163,11 @@ async function buildPrompt(query: string, papers: PaperRow[]) {
     if (/\brag\b|retrieval.?augmented generation/i.test(query)) {
       guaranteedDefs.push(GUARANTEED_DEFS["rag"]);
     }
-    if (/\bgpt\b|generative pre.?trained|few.?shot.*learn|language model.*few.?shot/i.test(query)) {
+    if (
+      /\bgpt\b|generative pre.?trained|few.?shot.*learn|language model.*few.?shot/i.test(
+        query,
+      )
+    ) {
       guaranteedDefs.push(GUARANTEED_DEFS["gpt3"]);
       guaranteedDefs.push(GUARANTEED_DEFS["instructgpt"]);
       guaranteedDefs.push(GUARANTEED_DEFS["attention-transformer"]);
@@ -85,15 +175,18 @@ async function buildPrompt(query: string, papers: PaperRow[]) {
     if (/gradient descent|sgd|adam optimizer|backprop/i.test(query)) {
       guaranteedDefs.push(GUARANTEED_DEFS["gradient_descent"]);
     }
-    if (/\battention mechanism\b|self.?attention|scaled dot.?product/i.test(query)) {
+    if (
+      /\battention mechanism\b|self.?attention|scaled dot.?product/i.test(query)
+    ) {
       guaranteedDefs.push(GUARANTEED_DEFS["attention-transformer"]);
       guaranteedDefs.push(GUARANTEED_DEFS["bert"]);
     }
 
     // Guaranteed papers get REF-1, REF-2 ... ; retrieved papers follow as REF-(G+1), REF-(G+2) ...
     const G = guaranteedDefs.length;
-    const guaranteedEntries = guaranteedDefs.map((p, i) =>
-      `[REF-${i + 1}]\nTitle: "${p.title}"\nAuthors: ${p.authors}\nYear: ${p.year}\nSource: ${p.source}\nLink: ${p.url}`
+    const guaranteedEntries = guaranteedDefs.map(
+      (p, i) =>
+        `[REF-${i + 1}]\nTitle: "${p.title}"\nAuthors: ${p.authors}\nYear: ${p.year}\nSource: ${p.source}\nLink: ${p.url}`,
     );
 
     const paperList = [
@@ -130,9 +223,15 @@ function getGuaranteedPaperObjects(query: string) {
     {
       id: "vaswani2017",
       title: "Attention Is All You Need",
-      authors: ["Ashish Vaswani", "Noam Shazeer", "Niki Parmar", "Jakob Uszkoreit"],
+      authors: [
+        "Ashish Vaswani",
+        "Noam Shazeer",
+        "Niki Parmar",
+        "Jakob Uszkoreit",
+      ],
       year: 2017,
-      abstract: "We propose a new network architecture, the Transformer, based solely on attention mechanisms.",
+      abstract:
+        "We propose a new network architecture, the Transformer, based solely on attention mechanisms.",
       source: "NeurIPS / arXiv",
       doi: "10.48550/arXiv.1706.03762",
       url: "https://arxiv.org/abs/1706.03762",
@@ -141,10 +240,17 @@ function getGuaranteedPaperObjects(query: string) {
     },
     {
       id: "devlin2019",
-      title: "BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding",
-      authors: ["Jacob Devlin", "Ming-Wei Chang", "Kenton Lee", "Kristina Toutanova"],
+      title:
+        "BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding",
+      authors: [
+        "Jacob Devlin",
+        "Ming-Wei Chang",
+        "Kenton Lee",
+        "Kristina Toutanova",
+      ],
       year: 2019,
-      abstract: "BERT is designed to pre-train deep bidirectional representations from unlabeled text.",
+      abstract:
+        "BERT is designed to pre-train deep bidirectional representations from unlabeled text.",
       source: "NAACL / arXiv",
       url: "https://arxiv.org/abs/1810.04805",
       citationCount: 90000,
@@ -163,7 +269,11 @@ function getGuaranteedPaperObjects(query: string) {
   ];
 
   const matched: typeof all = [];
-  if (/attention.*transformer|transformer.*attention|self.?attention|multi.?head|how.*transformer/i.test(query)) {
+  if (
+    /attention.*transformer|transformer.*attention|self.?attention|multi.?head|how.*transformer/i.test(
+      query,
+    )
+  ) {
     matched.push(all[0]);
   }
   if (/\bbert\b|bidirectional.*transformer|masked.*language/i.test(query)) {
@@ -171,9 +281,16 @@ function getGuaranteedPaperObjects(query: string) {
     matched.push({
       id: "liu2019",
       title: "RoBERTa: A Robustly Optimized BERT Pretraining Approach",
-      authors: ["Yinhan Liu", "Myle Ott", "Naman Goyal", "Jingfei Du", "Mandar Joshi"],
+      authors: [
+        "Yinhan Liu",
+        "Myle Ott",
+        "Naman Goyal",
+        "Jingfei Du",
+        "Mandar Joshi",
+      ],
       year: 2019,
-      abstract: "RoBERTa replicates, simplifies, and better tunes BERT. It removes NSP and trains with larger batches over more data.",
+      abstract:
+        "RoBERTa replicates, simplifies, and better tunes BERT. It removes NSP and trains with larger batches over more data.",
       source: "arXiv",
       url: "https://arxiv.org/abs/1907.11692",
       citationCount: 25000,
@@ -182,9 +299,16 @@ function getGuaranteedPaperObjects(query: string) {
     matched.push({
       id: "jiao2020",
       title: "TinyBERT: Distilling BERT for Natural Language Understanding",
-      authors: ["Xiaoqi Jiao", "Yichun Yin", "Lifeng Shang", "Xin Jiang", "Xuan Chen"],
+      authors: [
+        "Xiaoqi Jiao",
+        "Yichun Yin",
+        "Lifeng Shang",
+        "Xin Jiang",
+        "Xuan Chen",
+      ],
       year: 2020,
-      abstract: "TinyBERT is a compressed BERT model using two-stage knowledge distillation, achieving 96.8% of BERT performance with 7.5x fewer parameters.",
+      abstract:
+        "TinyBERT is a compressed BERT model using two-stage knowledge distillation, achieving 96.8% of BERT performance with 7.5x fewer parameters.",
       source: "EMNLP / arXiv",
       url: "https://arxiv.org/abs/1909.10351",
       citationCount: 3000,
@@ -194,22 +318,102 @@ function getGuaranteedPaperObjects(query: string) {
   if (/\brag\b|retrieval.?augmented/i.test(query)) {
     matched.push(all[2]);
   }
-  if (/\bgpt\b|generative pre.?trained|few.?shot.*learn|language model.*few.?shot/i.test(query)) {
+  if (
+    /\bgpt\b|generative pre.?trained|few.?shot.*learn|language model.*few.?shot/i.test(
+      query,
+    )
+  ) {
     matched.push(
-      { id: "brown2020", title: "Language Models are Few-Shot Learners", authors: ["Tom Brown", "Benjamin Mann", "Nick Ryder", "Melanie Subbiah"], year: 2020, source: "NeurIPS / arXiv", url: "https://arxiv.org/abs/2005.14165", citationCount: 35000, _refKey: "REF-FOUND-gpt3" },
-      { id: "ouyang2022", title: "Training language models to follow instructions with human feedback", authors: ["Long Ouyang", "Jeffrey Wu", "Xu Jiang", "Diogo Almeida"], year: 2022, source: "NeurIPS / arXiv", url: "https://arxiv.org/abs/2203.02155", citationCount: 12000, _refKey: "REF-FOUND-instructgpt" },
-      { id: "vaswani2017gpt", title: "Attention Is All You Need", authors: ["Ashish Vaswani", "Noam Shazeer", "Niki Parmar", "Jakob Uszkoreit"], year: 2017, source: "NeurIPS / arXiv", url: "https://arxiv.org/abs/1706.03762", citationCount: 120000, _refKey: "REF-FOUND-vaswani-gpt" }
+      {
+        id: "brown2020",
+        title: "Language Models are Few-Shot Learners",
+        authors: [
+          "Tom Brown",
+          "Benjamin Mann",
+          "Nick Ryder",
+          "Melanie Subbiah",
+        ],
+        year: 2020,
+        source: "NeurIPS / arXiv",
+        url: "https://arxiv.org/abs/2005.14165",
+        citationCount: 35000,
+        _refKey: "REF-FOUND-gpt3",
+      },
+      {
+        id: "ouyang2022",
+        title:
+          "Training language models to follow instructions with human feedback",
+        authors: ["Long Ouyang", "Jeffrey Wu", "Xu Jiang", "Diogo Almeida"],
+        year: 2022,
+        source: "NeurIPS / arXiv",
+        url: "https://arxiv.org/abs/2203.02155",
+        citationCount: 12000,
+        _refKey: "REF-FOUND-instructgpt",
+      },
+      {
+        id: "vaswani2017gpt",
+        title: "Attention Is All You Need",
+        authors: [
+          "Ashish Vaswani",
+          "Noam Shazeer",
+          "Niki Parmar",
+          "Jakob Uszkoreit",
+        ],
+        year: 2017,
+        source: "NeurIPS / arXiv",
+        url: "https://arxiv.org/abs/1706.03762",
+        citationCount: 120000,
+        _refKey: "REF-FOUND-vaswani-gpt",
+      },
     );
   }
   if (/gradient descent|sgd|adam optimizer|backprop/i.test(query)) {
-    matched.push(
-      { id: "ruder2016", title: "An overview of gradient descent optimization algorithms", authors: ["Sebastian Ruder"], year: 2016, source: "arXiv", url: "https://arxiv.org/abs/1609.04747", citationCount: 14000, _refKey: "REF-FOUND-ruder" }
-    );
+    matched.push({
+      id: "ruder2016",
+      title: "An overview of gradient descent optimization algorithms",
+      authors: ["Sebastian Ruder"],
+      year: 2016,
+      source: "arXiv",
+      url: "https://arxiv.org/abs/1609.04747",
+      citationCount: 14000,
+      _refKey: "REF-FOUND-ruder",
+    });
   }
-  if (/\battention mechanism\b|self.?attention|scaled dot.?product/i.test(query)) {
+  if (
+    /\battention mechanism\b|self.?attention|scaled dot.?product/i.test(query)
+  ) {
     matched.push(
-      { id: "vaswani2017attn", title: "Attention Is All You Need", authors: ["Ashish Vaswani", "Noam Shazeer", "Niki Parmar", "Jakob Uszkoreit"], year: 2017, source: "NeurIPS / arXiv", url: "https://arxiv.org/abs/1706.03762", citationCount: 120000, _refKey: "REF-FOUND-vaswani-attn" },
-      { id: "devlin2019attn", title: "BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding", authors: ["Jacob Devlin", "Ming-Wei Chang", "Kenton Lee", "Kristina Toutanova"], year: 2019, source: "NAACL / arXiv", url: "https://arxiv.org/abs/1810.04805", citationCount: 90000, _refKey: "REF-FOUND-bert-attn" }
+      {
+        id: "vaswani2017attn",
+        title: "Attention Is All You Need",
+        authors: [
+          "Ashish Vaswani",
+          "Noam Shazeer",
+          "Niki Parmar",
+          "Jakob Uszkoreit",
+        ],
+        year: 2017,
+        source: "NeurIPS / arXiv",
+        url: "https://arxiv.org/abs/1706.03762",
+        citationCount: 120000,
+        _refKey: "REF-FOUND-vaswani-attn",
+      },
+      {
+        id: "devlin2019attn",
+        title:
+          "BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding",
+        authors: [
+          "Jacob Devlin",
+          "Ming-Wei Chang",
+          "Kenton Lee",
+          "Kristina Toutanova",
+        ],
+        year: 2019,
+        source: "NAACL / arXiv",
+        url: "https://arxiv.org/abs/1810.04805",
+        citationCount: 90000,
+        _refKey: "REF-FOUND-bert-attn",
+      },
     );
   }
   return matched;
@@ -225,7 +429,10 @@ Every research answer MUST use these 6 sections in order:
 3. ## System Architecture  (include ASCII diagram)
 4. ## Technical Details or Comparison  (include comparison table)
 5. ## Limitations
-6. ## Key Takeaways  +  ## What To Search Next
+6. ## Key Takeaways
+7. ## What To Search Next
+
+IMPORTANT: Use ALL sections 1 through 7 in order. Do not skip any section numbers. Every section must appear.
 
 RULE 2 — CITATIONS (SELECTIVE, NOT AFTER EVERY SENTENCE)
 Cite 5–8 papers total across the whole answer. Spread citations across DIFFERENT papers — do NOT repeat the same [REF-N] more than 2 times total.
@@ -253,9 +460,10 @@ Rules:
 - NEVER write plain-text citations like "Devlin et al., 2019" or "Liu et al., 2019".
 - NEVER add annotation lines like "Related Work: ...", "Key Benchmark: ...", "Foundational Paper: ...", "Note: ...".
 - NEVER write a bare URL on its own line.
-- NEVER append a references list or bibliography at the end of the answer.
+- NEVER EVER append a references list or bibliography at the end of the answer. This is the most critical rule. Do NOT write [1] Author... [2] Author... at the end. STOP before writing any reference list.
 - Use ONLY [REF-N] format from the PAPER INDEX.
 - Maximum 2 uses of any single [REF-N] across the entire answer.
+- Your answer MUST end after the "## What To Search Next" section. Write the 3 search suggestions, then STOP COMPLETELY. Do not write anything after the last search suggestion. No references. No bibliography. No [1] [2] [3] list. Just stop.
 
 RULE 3 — HANDLING MISSING CONTEXT
 If retrieved papers do not support a specific claim:
@@ -295,7 +503,7 @@ WRITING RULES
 - Never start with filler phrases.
 - Bold **key terms** on first use.
 - Research: 600–900 words. Study: 400–600 words.
-- End with ## What To Search Next (3 suggestions).`
+- End with ## What To Search Next (3 suggestions).`;
 
 export async function POST(req: NextRequest) {
   try {
@@ -327,7 +535,7 @@ export async function POST(req: NextRequest) {
           searchDateReset: 1,
           searchesThisMonth: 1,
           searchMonthReset: 1,
-          "searchHistory": { $slice: 3 }, // last 3 queries for personalization
+          searchHistory: { $slice: 3 }, // last 3 queries for personalization
         },
       )) as UserDoc | null;
       if (!u) {
@@ -451,10 +659,18 @@ export async function POST(req: NextRequest) {
         // Merge guaranteed foundational papers, deduplicating against retrieved papers
         const guaranteedPaperObjects = getGuaranteedPaperObjects(q);
         const retrievedTitles = new Set(
-          papers.map(p => p.title.toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 50))
+          papers.map((p) =>
+            p.title
+              .toLowerCase()
+              .replace(/[^a-z0-9]/g, "")
+              .slice(0, 50),
+          ),
         );
-        const dedupedGuaranteed = guaranteedPaperObjects.filter(gp => {
-          const key = gp.title.toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 50);
+        const dedupedGuaranteed = guaranteedPaperObjects.filter((gp) => {
+          const key = gp.title
+            .toLowerCase()
+            .replace(/[^a-z0-9]/g, "")
+            .slice(0, 50);
           return !retrievedTitles.has(key);
         });
         // Guaranteed papers go FIRST so REF-1 = guaranteed[0], REF-2 = guaranteed[1], etc.
@@ -479,17 +695,49 @@ export async function POST(req: NextRequest) {
             system: SYSTEM,
             messages: [{ role: "user", content: await buildPrompt(q, papers) }],
           });
+          let bibliographyStarted = false;
           for await (const event of streamResp) {
             if (
               event.type === "content_block_delta" &&
               event.delta.type === "text_delta"
             ) {
               const chunk = event.delta.text;
+
+              if (bibliographyStarted) continue; // discard all chunks after bibliography detected
+
               fullAnswer += chunk;
+
+              // Detect bibliography: check if accumulated answer now contains [1] Author pattern
+              // Detect bibliography: [1] anywhere after "What To Search Next" section
+              // Model outputs it as "
+              //[1] Author" or " [1] Author"
+              const bibMatch = fullAnswer.match(/[\n ][\s]*\[1\]\s*[A-Za-z]/);
+              if (bibMatch) {
+                bibliographyStarted = true;
+                // Strip everything from [1] onwards (with any preceding whitespace/newlines)
+                fullAnswer = fullAnswer.replace(/\s*\[1\][\s\S]*$/, "");
+                // Replace what was already streamed with clean version
+                send({ type: "answer_replace", text: fullAnswer });
+                continue;
+              }
+
               send({ type: "text", text: chunk });
             }
           }
           void saveToCache(q, fullAnswer, papers);
+        }
+
+        // Strip bibliography block from fullAnswer before any further processing
+        const rawAnswer = fullAnswer;
+        fullAnswer = fullAnswer.replace(
+          /\n+(references|bibliography)[\s\S]*/i,
+          "",
+        );
+        fullAnswer = fullAnswer.replace(/\s*\[1\][\s\S]*$/, "");
+
+        // If bibliography was stripped, send a correction to frontend
+        if (fullAnswer !== rawAnswer) {
+          send({ type: "answer_replace", text: fullAnswer });
         }
 
         // Send only papers that were actually cited in the answer (REF-N markers)
@@ -498,9 +746,10 @@ export async function POST(req: NextRequest) {
         for (const m of refMatches) {
           citedIndices.add(parseInt(m[1], 10) - 1); // convert to 0-based
         }
-        const citedPapers = citedIndices.size > 0
-          ? allPapers.filter((_, i) => citedIndices.has(i))
-          : allPapers.slice(0, 6); // fallback: first 6 if no REF markers found
+        const citedPapers =
+          citedIndices.size > 0
+            ? allPapers.filter((_, i) => citedIndices.has(i))
+            : allPapers.slice(0, 6); // fallback: first 6 if no REF markers found
         send({ type: "papers", papers: citedPapers });
 
         // Generate personalized related questions using user's search history
@@ -508,8 +757,16 @@ export async function POST(req: NextRequest) {
           .slice(0, 3)
           .map((h: { query: string }) => h.query)
           .filter((hq: string) => hq !== q);
-        const relatedQuestions = await generateRelatedQuestions(q, recentHistory).catch(() => []);
-        send({ type: "done", fromCache, conversationId, related: relatedQuestions });
+        const relatedQuestions = await generateRelatedQuestions(
+          q,
+          recentHistory,
+        ).catch(() => []);
+        send({
+          type: "done",
+          fromCache,
+          conversationId,
+          related: relatedQuestions,
+        });
         controller.close();
 
         // ── Persist after stream closes ───────────────────────
@@ -557,7 +814,9 @@ export async function POST(req: NextRequest) {
             $set: counterUpdate,
             $push: {
               searchHistory: {
-                $each: [{ query: q, answer: fullAnswer, papers, searchedAt: now }],
+                $each: [
+                  { query: q, answer: fullAnswer, papers, searchedAt: now },
+                ],
                 $position: 0,
                 $slice: 100,
               },
