@@ -35,6 +35,7 @@ interface Paper {
   doi?: string;
   url?: string;
   abstract?: string;
+  _refKey?: string; // e.g. "REF-FOUND-1", "REF-1" etc for inline citation resolution
 }
 
 interface AnswerRendererProps {
@@ -574,15 +575,26 @@ function InlinePaperCard({ raw }: { raw: string }) {
   // Parse fields from blockquote lines — handles both "> " prefixed and plain text
   const lines = raw
     .split("\n")
-    .map((l) => l.replace(/^>\s*/, "").trim())
+    .map((l) => {
+      // Strip "> " blockquote prefix
+      const stripped = l.replace(/^>\s*/, "").trim();
+      // Strip any leading non-bold prefix (e.g. "📄 " before "**Paper:**")
+      // This handles the case where the first line is "📄 **Paper:** ..."
+      return stripped.replace(/^[^*]*(\*\*)/, "$1");
+    })
     .filter(Boolean);
   const fullText = lines.join(" ");
 
   const get = (key: string) => {
     // Try line-by-line first (structured format)
-    const line = lines.find((l) =>
-      l.toLowerCase().startsWith(`**${key.toLowerCase()}**`),
-    );
+    // Match both "**Key**" and "**Key:**" formats
+    const keyLower = key.toLowerCase();
+    const line = lines.find((l) => {
+      const ll = l.toLowerCase();
+      return (
+        ll.startsWith(`**${keyLower}**`) || ll.startsWith(`**${keyLower}:**`)
+      );
+    });
     if (line) return line.replace(/^\*\*[^*]+\*\*[:\s]*/i, "").trim();
 
     // Fallback: extract from full text using regex (for children-extracted text)
@@ -1087,7 +1099,141 @@ function StreamingCursor() {
 // SectionContent — renders markdown inside a section
 // ─────────────────────────────────────────────
 
-function SectionContent({ body }: { body: string }) {
+// ─────────────────────────────────────────────
+// REF marker resolver
+// Splits body text on [REF-N] markers and renders inline citation cards
+// ─────────────────────────────────────────────
+
+function resolveRefMarkers(body: string, papers: Paper[]): React.ReactNode[] {
+  // Build lookup map correctly:
+  // - Papers with _refKey (guaranteed): keyed by their _refKey (e.g. "REF-FOUND-1")
+  // - Regular retrieved papers: keyed by REF-1, REF-2 ... (1-based, in order)
+  const refMap = new Map<string, Paper>();
+
+  // Papers array: guaranteed papers first (sent first by stream), then retrieved
+  // Guaranteed papers: REF-1, REF-2 ... (matching prompt numbering)
+  // Retrieved papers: REF-(G+1), REF-(G+2) ...
+  const guaranteed = papers.filter((p) => p._refKey);
+  const retrieved = papers.filter((p) => !p._refKey);
+  const G = guaranteed.length;
+
+  // Guaranteed papers: index by both position (REF-1) and _refKey (REF-FOUND-1) for safety
+  guaranteed.forEach((p, i) => {
+    refMap.set(`REF-${i + 1}`, p);
+    if (p._refKey) refMap.set(p._refKey, p);
+  });
+
+  // Retrieved papers: start from REF-(G+1)
+  retrieved.forEach((p, i) => {
+    refMap.set(`REF-${G + i + 1}`, p);
+  });
+
+  // Split on [REF-N] or [REF-FOUND-N] markers
+  const parts = body.split(/(\[REF-(?:FOUND-)?\d+\])/g);
+  const nodes: React.ReactNode[] = [];
+
+  // Track how many times each paper has been cited — cap at 2 per paper
+  const citationCount = new Map<string, number>();
+
+  parts.forEach((part, i) => {
+    const refMatch = part.match(/^\[((REF-(?:FOUND-)?\d+))\]$/);
+    if (refMatch) {
+      const key = refMatch[1];
+      const paper = refMap.get(key);
+      if (paper) {
+        const count = citationCount.get(key) ?? 0;
+        if (count < 2) {
+          citationCount.set(key, count + 1);
+          nodes.push(<PaperCitationCard key={`ref-${i}`} paper={paper} />);
+        }
+        // If cited 2+ times already, silently drop the extra card
+      }
+    } else if (part) {
+      nodes.push(<ReactMarkdownSegment key={`md-${i}`} content={part} />);
+    }
+  });
+
+  return nodes;
+}
+
+function ReactMarkdownSegment({ content }: { content: string }) {
+  const mdComponents = buildMdComponents(() => {});
+  return (
+    <ReactMarkdown remarkPlugins={[remarkGfm]} components={mdComponents as any}>
+      {content}
+    </ReactMarkdown>
+  );
+}
+
+// Strip noise patterns the model adds despite instructions
+function preprocessBody(body: string, papers: Paper[]): string {
+  let cleaned = body;
+
+  // 1. Strip bibliography block: any run of 2+ consecutive lines starting with [N]
+  // Matches: "[1] Author... \n [2] Author... \n" etc at end of answer
+  cleaned = cleaned.replace(/(\n|^)(\[\d+\][^\n]+\n?){2,}/gm, "\n");
+
+  // 2. Strip any remaining single "[N] ..." reference lines with a URL
+  cleaned = cleaned.replace(
+    /^\[\d+\][^\n]*(https?:\/\/|doi\.org)[^\n]*\n?/gm,
+    "",
+  );
+
+  // 3. Replace ALL "(From general knowledge...)" variants with [REF-1]
+  const fgkPattern = new RegExp("\\(From general knowledge[^)]*\\)", "gi");
+  cleaned =
+    papers.length > 0
+      ? cleaned.replace(fgkPattern, "[REF-1]")
+      : cleaned.replace(fgkPattern, "");
+
+  // 4. Strip "Foundational Paper/citation/Reference: ..." lines
+  cleaned = cleaned.replace(
+    /^.{0,5}Foundational (Paper|citation|Reference)[^\n]+\n?/gim,
+    "",
+  );
+
+  // 5. Strip "Related Work: ..." lines
+  cleaned = cleaned.replace(/^.{0,5}Related Work[^\n]+\n?/gim, "");
+
+  // 6. Strip "Key Benchmark/Finding/Result/Note: ..." annotation lines
+  cleaned = cleaned.replace(
+    /^.{0,5}Key (Benchmark|Finding|Result|Note)[^\n]+\n?/gim,
+    "",
+  );
+
+  // 7. Strip plain-text citation lines: Title — Author et al., YEAR | https://...
+  cleaned = cleaned.replace(
+    /^[\s"]*[A-Z][^\n]{10,}(et al\.|[0-9]{4})[^\n]*(https?:\/\/|doi\.org)[^\n]*\n?/gm,
+    "",
+  );
+
+  // 8. Strip lines that are just a URL
+  cleaned = cleaned.replace(/^\s*https?:\/\/\S+\s*$/gm, "");
+
+  // 9. Strip lone ** lines
+  cleaned = cleaned.replace(/^\*\*\s*$/gm, "");
+
+  // 10. Strip orphan citation-only list items: "- [REF-1]" with nothing else
+  cleaned = cleaned.replace(/^[\s>›*-]*\[REF-\d+\]\s*$/gm, "");
+
+  // 11. Collapse 3+ blank lines into 2
+  cleaned = cleaned.replace(/\n{3,}/g, "\n\n");
+
+  return cleaned;
+}
+
+function SectionContent({ body, papers }: { body: string; papers: Paper[] }) {
+  const processedBody = preprocessBody(body, papers);
+
+  // If body contains [REF-N] markers, resolve them into cards
+  if (/\[REF-(?:FOUND-)?\d+\]/.test(processedBody)) {
+    return (
+      <div style={{ paddingTop: 14 }}>
+        {resolveRefMarkers(processedBody, papers)}
+      </div>
+    );
+  }
+  // Fallback: plain markdown (no ref markers)
   const mdComponents = buildMdComponents(() => {});
   return (
     <div style={{ paddingTop: 14 }}>
@@ -1095,7 +1241,7 @@ function SectionContent({ body }: { body: string }) {
         remarkPlugins={[remarkGfm]}
         components={mdComponents as any}
       >
-        {body}
+        {processedBody}
       </ReactMarkdown>
     </div>
   );
@@ -1133,7 +1279,7 @@ export default function AnswerRenderer({
             background: "var(--bg-raised)",
           }}
         >
-          <SectionContent body={sections[0].body} />
+          <SectionContent body={sections[0].body} papers={papers ?? []} />
         </div>
       )}
 
@@ -1142,7 +1288,7 @@ export default function AnswerRenderer({
         .filter((s) => s.title !== null)
         .map((section, i) => (
           <SectionCard key={i} title={section.title!}>
-            <SectionContent body={section.body} />
+            <SectionContent body={section.body} papers={papers ?? []} />
           </SectionCard>
         ))}
 
