@@ -207,12 +207,26 @@ ${ragCtx}
 ${paperList}
 
 CITATION INSTRUCTION:
-- Place 5–7 [REF-N] markers total, spread across Overview, Technical Details, Limitations, and Takeaways.
-- REF-1 is the foundational paper — use it MAX 2 TIMES across the whole answer.
-- For the remaining citations, look at REF-2, REF-3, REF-4 etc. in the PAPER INDEX and use whichever best matches the claim.
-- DO NOT write "(From general knowledge)" or plain-text citations like "Devlin et al." — only [REF-N].
-- DO NOT repeat the same [REF-N] more than twice.
-Classify this question and respond with the full 6-section structure.`;
+CITATION PLACEMENT — follow this exactly:
+- Overview (end of paragraph): [REF-1] once only
+- Key Concepts: ONE [REF-N] on the single most important bullet only. Do NOT cite any other bullet.
+- Technical Details: ONE [REF-N] after the comparison table only
+- Key Takeaways: ONE [REF-N] on the first takeaway only
+- All other sections (Architecture, Limitations, What To Search Next): ZERO citations
+- Total across the whole answer: maximum 4 [REF-N] markers
+- REF-1 is the foundational paper — use it MAX 2 TIMES across the whole answer
+- DO NOT write plain-text citations like "Devlin et al." — only [REF-N]
+- DO NOT repeat the same [REF-N] more than twice
+
+MANDATORY SECTION CHECKLIST — respond with ALL 7 in order:
+1. ## Overview
+2. ## Key Concepts
+3. ## System Architecture
+4. ## Technical Details or Comparison
+5. ## Limitations
+6. ## Key Takeaways
+7. ## What To Search Next
+CRITICAL: Do NOT skip ## Limitations (section 5). Do NOT merge sections. Do NOT number sections yourself.`;
   }
   return `QUESTION: "${query}"\n\nNo academic papers found.\n\nClassify as Study Help / Exam Practice / General Academic / Non-Academic.\nIf non-academic: politely redirect. For study: thorough explanation + ## What To Search Next. For exam (JEE/NEET/UPSC/GATE): generate original questions with detailed answers. NEVER say you cannot help.`;
 }
@@ -423,7 +437,7 @@ const SYSTEM = `You are Researchly, an expert academic research assistant for In
 You ONLY help with academic, research, and study topics.
 
 RULE 1 — MANDATORY RESPONSE STRUCTURE
-Every research answer MUST use these 6 sections in order:
+Every research answer MUST use these exact 7 sections in this exact order:
 1. ## Overview
 2. ## Key Concepts
 3. ## System Architecture  (include ASCII diagram)
@@ -432,21 +446,27 @@ Every research answer MUST use these 6 sections in order:
 6. ## Key Takeaways
 7. ## What To Search Next
 
-IMPORTANT: Use ALL sections 1 through 7 in order. Do not skip any section numbers. Every section must appear.
+CRITICAL: Write ALL 7 sections in exact order. After "## Technical Details or Comparison", your VERY NEXT section MUST be "## Limitations" — never skip it, never merge it with another section. Then write "## Key Takeaways". Then write "## What To Search Next". Never number sections yourself.
 
 RULE 2 — CITATIONS (SELECTIVE, NOT AFTER EVERY SENTENCE)
-Cite 5–8 papers total across the whole answer. Spread citations across DIFFERENT papers — do NOT repeat the same [REF-N] more than 2 times total.
+Cite 3–5 papers total across the whole answer. Use DIFFERENT papers where possible.
 
-Where to place citations — EXACTLY ONE per location:
-- Overview: exactly ONE [REF-1] at the END of the overview paragraph only
-- Key Concepts: ONE citation on the most important technical bullet (MLM or self-attention)
-- Technical Details: ONE citation after the comparison table
-- Key Takeaways: ONE citation on the first takeaway
+STRICT PER-SECTION CITATION LIMITS — these are hard maximums, not targets:
+- ## Overview: exactly 1 citation, at the END of the paragraph. No more.
+- ## Key Concepts: exactly 1 citation total across ALL bullets. Pick the single most important bullet only.
+- ## System Architecture: 0 citations (diagrams need no citation)
+- ## Technical Details or Comparison: exactly 1 citation, after the comparison table
+- ## Limitations: 0 citations
+- ## Key Takeaways: exactly 1 citation on the first takeaway only
+- ## What To Search Next: 0 citations
+
+TOTAL across the whole answer: maximum 4 citations. Never more.
 
 Where NOT to place citations:
-- Do NOT place two citations in the Overview — one is enough
-- Do NOT cite after every bullet point — most bullets need NO citation
-- Do NOT repeat [REF-1] more than 2 times total across the whole answer
+- Do NOT cite more than once per section — even if you think two bullets deserve it
+- Do NOT cite after every bullet — most bullets need NO citation
+- Do NOT repeat the same [REF-N] more than 2 times total across the whole answer
+- Do NOT cite in Limitations or Architecture sections
 - Do NOT cite obvious general facts
 
 Good example (BERT query) — 4 citations total, spread across sections:
@@ -631,13 +651,66 @@ export async function POST(req: NextRequest) {
     let papers: PaperRow[];
     let fromCache: boolean;
 
+    // Route-level junk filter — runs on BOTH cached and fresh results
+    // Query-aware: only blocks papers that are off-topic for the SPECIFIC query being asked
+    const routeJunkFilter = (p: PaperRow, query: string): boolean => {
+      const isTransformerArchQ = /transformer|attention mechanism|self.?attention/i.test(query);
+      if (!isTransformerArchQ) return true; // non-transformer queries: no filtering here
+
+      // Detect if query is specifically about a domain (those queries SHOULD see domain papers)
+      const isFPGAQ = /FPGA|hardware accelerat|field.?programmable|chip design/i.test(query);
+      const isTimeSeriesQ = /time series|forecasting|LTSF/i.test(query);
+      const isMedicalQ = /medical imaging|segmentation|radiology|clinical|tumor/i.test(query);
+      const isGraphQ = /graph neural|GNN|graph transformer/i.test(query);
+      const isPhysicsQ = /physics simulation|harmonic oscillator/i.test(query);
+      const isVisionQ = /computer vision|image classification|ViT.*how|vision transformer.*how/i.test(query);
+      const isMultilingualQ = /multilingual|cross.?lingual/i.test(query);
+
+      const t = p.title ?? "";
+      const blocked =
+        // Physics/math apps — block unless physics query
+        (!isPhysicsQ && (/simple harmonic oscillator|harmonic oscillator/i.test(t) ||
+          /transformers.*do.*physics|do.*physics.*investigating/i.test(t))) ||
+        // Medical apps — block unless medical query
+        (!isMedicalQ && (/UNETR|medical image segmentation|3d.*segmentation/i.test(t) ||
+          /tumor|organ segmentation|brain.*transformer/i.test(t) ||
+          /delirium|surgical|intraoperative|postoperative/i.test(t) ||
+          /medical.*transformer|clinical.*transformer/i.test(t))) ||
+        // Graph apps — block unless graph query
+        (!isGraphQ && /graph transformer|spectral attention.*graph/i.test(t)) ||
+        // Time-series apps — block unless time-series query
+        (!isTimeSeriesQ && (/time series forecasting.*transformer|transformers.*effective.*time series|LTSF/i.test(t))) ||
+        // FPGA/hardware apps — block unless hardware query
+        (!isFPGAQ && (/FPGA.*transformer|transformer.*FPGA|FTRANS|energy.?efficient.*transformer.*accelerat/i.test(t))) ||
+        // Vision niche comparisons — block unless specifically vision query
+        (!isVisionQ && (/how do vision transformers work|do vision transformers see like|going deeper with image transformer/i.test(t) ||
+          /intriguing properties.*vision transformer/i.test(t) ||
+          /comparing.*vision transformer.*convolutional|comparing.*vision transformer.*CNN/i.test(t) ||
+          /vision transformer.*CNN.*literature review|ViT.*CNN.*review/i.test(t) ||
+          /survey of visual transformer|visual transformer.*survey/i.test(t) ||
+          /survey.*vision transformer|vision transformer.*survey/i.test(t))) ||
+        // Multilingual bias — block unless multilingual query
+        (!isMultilingualQ && /do llamas work in english|latent language.*multilingual/i.test(t)) ||
+        // Always block regardless of query (truly irrelevant to any transformer question)
+        /how to represent part.?whole hierarchies/i.test(t) ||
+        /implicit reasoning.*shortcut|reasoning.*through shortcut/i.test(t) ||
+        /video transformer|image captioning.*transformer/i.test(t) ||
+        // Block domain-specific transformer surveys on generic transformer queries
+        (!isVisionQ && /survey.*transformer|transformer.*survey/i.test(t) && (p.citationCount ?? 0) < 5000) ||
+        // Low-citation clickbait surveys
+        (/rise of transformer|redefining.*landscape|landscape of.*intelligence/i.test(t) && (p.citationCount ?? 0) < 100);
+
+      return !blocked;
+    };
+
     if (cached) {
-      papers = cached.papers as PaperRow[];
+      papers = (cached.papers as PaperRow[]).filter(p => routeJunkFilter(p, q));
       fromCache = true;
     } else {
       const rawPapers = (await searchAll(q)) as PaperRow[];
       // Enrich top 3 open-access papers with full-text URL hints
-      papers = (await enrichWithFullText(rawPapers as any, 3)) as PaperRow[];
+      const enriched = (await enrichWithFullText(rawPapers as any, 3)) as PaperRow[];
+      papers = enriched.filter(p => routeJunkFilter(p, q));
       fromCache = false;
     }
 
@@ -703,28 +776,22 @@ export async function POST(req: NextRequest) {
             ) {
               const chunk = event.delta.text;
 
-              if (bibliographyStarted) continue; // discard all chunks after bibliography detected
+              if (bibliographyStarted) continue;
 
-              fullAnswer += chunk;
-
-              // Detect bibliography: check if accumulated answer now contains [1] Author pattern
-              // Detect bibliography: [1] anywhere after "What To Search Next" section
-              // Model outputs it as "
-              //[1] Author" or " [1] Author"
-              const bibMatch = fullAnswer.match(/[\n ][\s]*\[1\]\s*[A-Za-z]/);
+              // Check tentative (BEFORE adding to fullAnswer) so bib chunk never reaches the client
+              const tentative = fullAnswer + chunk;
+              const bibMatch = tentative.match(/[\n ]\s*(More\s*)?\[1\]\s*[A-Za-z]/);
               if (bibMatch) {
                 bibliographyStarted = true;
-                // Strip everything from [1] onwards (with any preceding whitespace/newlines)
-                fullAnswer = fullAnswer.replace(/\s*\[1\][\s\S]*$/, "");
-                // Replace what was already streamed with clean version
+                fullAnswer = tentative.replace(/\s*(More\s*)?\[1\][\s\S]*$/, "");
                 send({ type: "answer_replace", text: fullAnswer });
                 continue;
               }
 
+              fullAnswer += chunk;
               send({ type: "text", text: chunk });
             }
           }
-          void saveToCache(q, fullAnswer, papers);
         }
 
         // Strip bibliography block from fullAnswer before any further processing
@@ -733,7 +800,10 @@ export async function POST(req: NextRequest) {
           /\n+(references|bibliography)[\s\S]*/i,
           "",
         );
-        fullAnswer = fullAnswer.replace(/\s*\[1\][\s\S]*$/, "");
+        fullAnswer = fullAnswer.replace(/\s*(More\s*)?\[1\][\s\S]*$/, "");
+
+        // Save CLEAN answer to cache (after bibliography strip)
+        void saveToCache(q, fullAnswer, papers);
 
         // If bibliography was stripped, send a correction to frontend
         if (fullAnswer !== rawAnswer) {

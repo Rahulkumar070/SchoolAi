@@ -423,6 +423,7 @@ function SearchApp() {
                 isNewConversation?: boolean;
                 related?: string[];
               };
+              let answerLocked = false;
               if (evt.type === "meta" && evt.conversationId) {
                 setConversationId(evt.conversationId);
                 if (evt.isNewConversation)
@@ -454,6 +455,7 @@ function SearchApp() {
                 );
                 setPanelTab("sources");
               } else if (evt.type === "text" && evt.text) {
+                if (!answerLocked) {
                 setTurns((prev) => {
                   const u = [...prev];
                   const last = u[u.length - 1];
@@ -465,9 +467,11 @@ function SearchApp() {
                   return u;
                 });
                 scrollDown();
+                }
               } else if (evt.type === "answer_replace" && evt.text) {
-                // Server stripped bibliography — hard replace the full answer
+                // Server stripped bibliography — hard replace and lock to prevent further text appending
                 const cleanAnswer = evt.text as string;
+                answerLocked = true;
                 setTurns((prev) => {
                   const u = [...prev];
                   const last = { ...u[u.length - 1] };
