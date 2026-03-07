@@ -47,13 +47,13 @@ function buildPrompt(query: string, papers: PaperRow[]) {
     const topChunks = rankChunks(query, chunks);
     const ragCtx = buildRAGContext(topChunks);
     const paperList = papers
-      .slice(0, 18)
+      .slice(0, 20)
       .map(
         (p, i) =>
-          `[${i + 1}] "${p.title}" — ${p.authors.slice(0, 3).join(", ")}${p.authors.length > 3 ? " et al." : ""} (${p.year ?? "n.d."}) · ${p.source}${p.url ? " · " + p.url : ""}`,
+          `[REF-${i + 1}]\nTitle: "${p.title}"\nAuthors: ${p.authors.slice(0, 3).join(", ")}${p.authors.length > 3 ? " et al." : ""}\nYear: ${p.year ?? "n.d."}\nSource: ${p.source}\nLink: ${p.doi ? `https://doi.org/${p.doi}` : p.url ? p.url : "Not available"}`,
       )
-      .join("\n");
-    return `RESEARCH QUESTION: "${query}"\n\n## RETRIEVED CONTEXT (RAG — top ${topChunks.length} chunks ranked by relevance)\n${ragCtx}\n\n## FULL PAPER INDEX (for citations)\n${paperList}\n\nClassify and respond:\n- Research: after every claim insert a citation card (> 📄 Paper / Authors / Year / Source / Link). End with ## Key Takeaways, ## What To Search Next. NEVER use [n] numbers.\n- Study help: clear structure, real examples, ## Quick Revision Points, ## What To Search Next\n- Exam practice: original questions with answers and explanations\nMake every sentence count — no filler, maximum insight.`;
+      .join("\n\n");
+    return `RESEARCH QUESTION: "${query}"\n\n## RETRIEVED CONTEXT (RAG — top ${topChunks.length} chunks ranked by relevance)\n${ragCtx}\n\n## FULL PAPER INDEX (for citations)\n${paperList}\n\nClassify and respond:\n- Research: after every factual claim insert a full citation card using ONLY metadata from FULL PAPER INDEX above:\n  > 📄 **Paper:** <full title>\n  > **Authors:** <up to 3, then et al.>\n  > **Year:** <year>\n  > **Source:** <source>\n  > **Link:** <DOI or URL>\n  > **Key Contribution:** <1-2 sentences>\n  End with ## Key Takeaways, ## What To Search Next. NEVER use [n] numbers. NEVER fabricate paper details.\n- Study help: clear structure, real examples, ## Quick Revision Points, ## What To Search Next\n- Exam practice: original questions with answers and explanations\nMake every sentence count — no filler, maximum insight.`;
   }
   return `QUESTION: "${query}"\n\nNo academic papers found.\n\nClassify as Study Help / Exam Practice / General Academic / Non-Academic.\nIf non-academic: politely redirect. For study: thorough explanation + ## What To Search Next. For exam (JEE/NEET/UPSC/GATE): generate original questions with detailed answers. NEVER say you cannot help.`;
 }
@@ -280,7 +280,7 @@ export async function POST(req: NextRequest) {
           }
         } else {
           const streamResp = await ant.messages.stream({
-            model: "claude-haiku-4-5-20251001",
+            model: "claude-sonnet-4-6",
             max_tokens: 3000,
             system: SYSTEM,
             messages: [{ role: "user", content: buildPrompt(q, papers) }],
