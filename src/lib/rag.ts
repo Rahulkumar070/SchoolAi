@@ -523,7 +523,8 @@ export async function searchAllWithPubMed(q: string): Promise<Paper[]> {
         const cites = p.citationCount ?? 0;
         // Recent papers (last 2 years) get a pass — they haven't had time to accumulate
         const isRecent = p.year && p.year >= new Date().getFullYear() - 2;
-        if (!isRecent && cites < 50) return false;
+        if (!isRecent && cites < 100) return false; // raised from 50
+        if (isRecent && cites < 25) return false;   // min floor for very new papers (raised from 10)
       }
 
       // Hard domain filter: reject papers from clearly non-ML domains
@@ -539,24 +540,86 @@ export async function searchAllWithPubMed(q: string): Promise<Paper[]> {
         /software architecture.*design|architecture.*spread.*sets/i,
         /quantum computing|fault.?tolerant quantum|qubit|FTQC|floorplan.*quantum/i,
         /load.?store.*quantum|quantum.*memory.*architecture|LSQCA/i,
+        /FPGA.*accelerat|accelerat.*FPGA|field.?programmable.*gate.*array/i,
+        /ReRAM|PIM.*transformer|processing.?in.?memory.*transformer/i,
+        /block.?circulant.*matrix|weight.*compression.*FPGA/i,
       ];
-      if (isModernAIQuery && nonMLDomainPatterns.some(pat => pat.test(p.title + ' ' + (p.abstract ?? '')))) return false;
+      // Only apply domain filter when query is NOT specifically about that domain
+      const isFPGAorHardwareQ = /FPGA|hardware accelerat|VLSI|ASIC|chip design|processing.?in.?memory/i.test(q);
+      const isQuantumQ = /quantum computing|qubit|quantum circuit|quantum machine learning/i.test(q);
+      const isMedicalQ = /medical imaging|clinical|radiology|pathology|tumor|segmentation/i.test(q);
+      const filteredDomainPatterns = nonMLDomainPatterns.filter(pat => {
+        const patStr = pat.toString();
+        if (isFPGAorHardwareQ && /FPGA|ReRAM|circulant|field.?programmable/i.test(patStr)) return false;
+        if (isQuantumQ && /quantum/i.test(patStr)) return false;
+        if (isMedicalQ && /postoperative|delirium|intraoperative|clinical/i.test(patStr)) return false;
+        return true;
+      });
+      if (isModernAIQuery && filteredDomainPatterns.some(pat => pat.test(p.title + ' ' + (p.abstract ?? '')))) return false;
 
-      // Topic relevance check for transformer queries
-      // If asking about transformer architecture, reject papers where transformer is merely a tool
-      const isTransformerQuery = /transformer|attention mechanism|self.?attention/i.test(q);
-      if (isTransformerQuery) {
-        const titleLower = p.title.toLowerCase();
-        // Reject papers where the title is clearly a domain application, not about transformer architecture itself
-        const isApplicationOnly = (
-          /video transformer|object.*region.*transformer|medical.*transformer|clinical.*transformer/i.test(p.title) ||
+      // ── Query-aware paper relevance filter ─────────────────────────────
+      // Detect what the query is SPECIFICALLY about, not just what words it contains
+      const isTransformerArchQuery = /transformer|attention mechanism|self.?attention/i.test(q);
+
+      // Detect if query is SPECIFICALLY about a niche domain (these queries SHOULD see domain papers)
+      const isFPGAQuery = /FPGA|field.?programmable|hardware accelerat|VLSI|ASIC|chip design/i.test(q);
+      const isTimeSeriesQuery = /time series|forecasting|temporal prediction|LTSF/i.test(q);
+      const isVisionQuery = /computer vision|image classification|object detection|ViT.*how|vision transformer.*how/i.test(q);
+      const isMedicalQuery = /medical imaging|segmentation|radiology|clinical|tumor|pathology/i.test(q);
+      const isMultilingualQuery = /multilingual|cross.?lingual|language bias|llama.*english/i.test(q);
+      const isGraphQuery = /graph neural|GNN|graph transformer|node classification/i.test(q);
+      const isPhysicsQuery = /physics simulation|harmonic oscillator|differential equation.*neural/i.test(q);
+
+      // Only apply architecture-specific filters when the query is about transformer architecture
+      // AND NOT about a specific domain where those papers would be legitimate
+      if (isTransformerArchQuery && !isFPGAQuery && !isTimeSeriesQuery && !isMedicalQuery &&
+          !isGraphQuery && !isPhysicsQuery) {
+
+        const isNicheApp = (
+          // Medical/clinical applications (not architecture)
+          /video transformer|medical.*transformer|clinical.*transformer/i.test(p.title) ||
           /delirium|surgical|intraoperative|postoperative/i.test(p.title) ||
-          /software architecture.*design|spread.*sets.*design/i.test(p.title) ||
-          /tractography|histopathology|radiology.*transformer/i.test(p.title)
+          /tractography|histopathology|radiology.*transformer/i.test(p.title) ||
+          /UNETR|medical image segmentation|3d.*segmentation/i.test(p.title) ||
+          /tumor|organ segmentation|brain.*transformer/i.test(p.title) ||
+          // Physics / math applications
+          /simple harmonic oscillator|harmonic oscillator/i.test(p.title) ||
+          /transformers.*do.*physics|do.*physics.*investigating/i.test(p.title) ||
+          /mathematical equation.*transformer|equation recognition/i.test(p.title) ||
+          // Graph applications (unless graph query)
+          /graph transformer|spectral attention.*graph|graph.*spectral/i.test(p.title) ||
+          // Time-series applications (unless time-series query)
+          /time series forecasting.*transformer|transformer.*time series|transformers.*effective.*time series/i.test(p.title) ||
+          /LTSF.?Linear|long.?term.*time series.*forecasting/i.test(p.title) ||
+          // Hardware/FPGA applications (unless hardware query)
+          /FPGA.*transformer|transformer.*FPGA|FTRANS|block.?circulant.*transformer/i.test(p.title) ||
+          /energy.?efficient.*transformer.*accelerat|transformer.*acceleration.*FPGA/i.test(p.title) ||
+          /hardware.*transformer.*accelerat|ReRAM.*transformer/i.test(p.title) ||
+          // ViT niche comparison papers (unless vision query)
+          (!isVisionQuery && (
+            /how do vision transformers work/i.test(p.title) ||
+            /do vision transformers see like/i.test(p.title) ||
+            /going deeper with image transformer/i.test(p.title) ||
+            /intriguing properties.*vision transformer/i.test(p.title) ||
+            /comparing.*vision transformer.*convolutional|comparing.*vision transformer.*CNN/i.test(p.title) ||
+            /vision transformer.*CNN.*literature review|ViT.*CNN.*review/i.test(p.title)
+          )) ||
+          // Niche probing / bias papers
+          (!isMultilingualQuery && /do llamas work in english|latent language.*multilingual/i.test(p.title)) ||
+          /implicit reasoning.*shortcut|reasoning.*through shortcut/i.test(p.title) ||
+          /how to represent part.?whole hierarchies/i.test(p.title) ||
+          /image captioning.*transformer|transformer.*captioning/i.test(p.title) ||
+          /software architecture.*design|spread.*sets.*design/i.test(p.title)
         );
-        // Only block if it's an application paper AND has fewer than 500 citations
-        // (highly cited application papers like ViT are still useful context)
-        if (isApplicationOnly && (p.citationCount ?? 0) < 500) return false;
+        if (isNicheApp) return false;
+
+        // Block low-quality clickbait surveys (< 100 citations)
+        const isClickbaitSurvey = (
+          /rise of transformer|redefining.*landscape|landscape of.*intelligence/i.test(p.title) ||
+          /survey.*transformer.*artificial intelligence|transformer.*survey.*2024|transformer.*survey.*2025/i.test(p.title) ||
+          /babylonian journal/i.test((p.journal ?? '') + (p.source ?? ''))
+        );
+        if (isClickbaitSurvey && (p.citationCount ?? 0) < 100) return false;
       }
 
       // For optimization queries, filter pure math theory papers unlikely to help students
@@ -812,6 +875,13 @@ export function rankChunks(
 // as a cross-encoder to select the most answer-relevant chunks.
 // This significantly improves citation quality vs keyword-only ranking.
 
+// Score each chunk independently — no pairwise comparison needed.
+// Each chunk gets a 0–10 relevance score; we keep top-N by score.
+// Benefits vs old list-ranking approach:
+//   - Longer text slice (400 chars) gives Haiku more signal per chunk
+//   - Parallel scoring: each chunk is a separate scoring item in one call
+//   - Title + year given as context header for better grounding
+//   - Gracefully degrades: chunks with parse errors keep their BM25 rank
 export async function rerankChunks(
   query: string,
   chunks: Chunk[],
@@ -819,38 +889,48 @@ export async function rerankChunks(
 ): Promise<Chunk[]> {
   if (chunks.length <= topN) return chunks;
   try {
-    const chunkList = chunks
-      .map((c, i) => `[${i}] (${c.title}, ${c.year ?? "n.d."}): ${c.text.slice(0, 250)}`)
-      .join("\n\n");
+    // Build scoring items: include title, year, authors, and longer text slice
+    const items = chunks.map((c, i) => {
+      const authors = c.authors && c.authors.length > 0
+        ? c.authors.slice(0, 2).join(", ") + (c.authors.length > 2 ? " et al." : "")
+        : "";
+      return `[${i}] "${c.title}" (${c.year ?? "n.d."}${authors ? ", " + authors : ""})\n${c.text.slice(0, 400)}`;
+    }).join("\n---\n");
 
     const r = await ant.messages.create({
       model: "claude-haiku-4-5-20251001",
-      max_tokens: 120,
-      system: "You are a relevance ranking expert for academic research.",
-      messages: [
-        {
-          role: "user",
-          content: `Query: "${query}"
+      max_tokens: 200,
+      system: "You are a relevance scoring expert for academic research. Score each chunk 0-10 based on how directly it answers the query. Return only JSON.",
+      messages: [{
+        role: "user",
+        content: `Query: "${query}"
 
-Rank these ${chunks.length} text chunks by how directly they answer the query.
-Return ONLY a JSON array of the top ${topN} chunk indices (0-based), most relevant first.
-Example: [2, 0, 5, 3, 1, 7, 4, 6]
-No explanation, no markdown, just the JSON array.
+Score each chunk 0-10 (10 = directly answers the query, 0 = completely off-topic).
+Return ONLY a JSON object mapping chunk index to score.
+Example: {"0": 8, "1": 3, "2": 9, "3": 5}
+No explanation, no markdown.
 
 Chunks:
-${chunkList}`,
-        },
-      ],
+${items}`,
+      }],
     });
 
     const b = r.content[0];
     if (b.type !== "text") return chunks.slice(0, topN);
-    const indices = JSON.parse(b.text.trim().replace(/```json|```/g, "").trim()) as number[];
-    if (!Array.isArray(indices)) return chunks.slice(0, topN);
-    return indices
-      .filter((i) => typeof i === "number" && i >= 0 && i < chunks.length)
+
+    const raw = b.text.trim().replace(/```json|```/g, "").trim();
+    const scores = JSON.parse(raw) as Record<string, number>;
+
+    // Attach scores to chunks, fallback to BM25 rank (descending from chunks.length) if missing
+    const scored = chunks.map((chunk, i) => ({
+      chunk,
+      score: typeof scores[String(i)] === "number" ? scores[String(i)] : (chunks.length - i) * 0.1,
+    }));
+
+    return scored
+      .sort((a, b) => b.score - a.score)
       .slice(0, topN)
-      .map((i) => chunks[i]);
+      .map(s => s.chunk);
   } catch {
     // Fallback to BM25 order if re-ranking fails
     return chunks.slice(0, topN);

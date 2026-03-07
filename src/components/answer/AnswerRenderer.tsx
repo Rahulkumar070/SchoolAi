@@ -493,28 +493,28 @@ const SECTION_META: Record<
     color: "rgba(255,255,255,0.85)",
     bg: "transparent",
     border: "rgba(255,255,255,0.07)",
-    icon: "06",
+    icon: "05",
     accent: "#e05c5c",
   },
   "key takeaways": {
     color: "rgba(255,255,255,0.85)",
     bg: "transparent",
     border: "rgba(255,255,255,0.07)",
-    icon: "07",
+    icon: "06",
     accent: "#5db87a",
   },
   "what to search next": {
     color: "rgba(255,255,255,0.85)",
     bg: "transparent",
     border: "rgba(255,255,255,0.07)",
-    icon: "08",
+    icon: "07",
     accent: "#5c9ae0",
   },
   "quick revision points": {
     color: "rgba(255,255,255,0.85)",
     bg: "transparent",
     border: "rgba(255,255,255,0.07)",
-    icon: "09",
+    icon: "08",
     accent: "#ad73e0",
   },
 };
@@ -1155,59 +1155,262 @@ function StreamingCursor() {
 
 // ─────────────────────────────────────────────
 // REF marker resolver
-// Splits body text on [REF-N] markers and renders inline citation cards
+// ─────────────────────────────────────────────
+// Citation Alignment System
+//
+// Strategy: [REF-N] markers are replaced inline with compact numbered badges.
+// After each paragraph block, any papers cited IN that block are rendered
+// as citation cards — keeping reading flow uninterrupted.
 // ─────────────────────────────────────────────
 
-function resolveRefMarkers(body: string, papers: Paper[]): React.ReactNode[] {
-  // Build lookup map correctly:
-  // - Papers with _refKey (guaranteed): keyed by their _refKey (e.g. "REF-FOUND-1")
-  // - Regular retrieved papers: keyed by REF-1, REF-2 ... (1-based, in order)
+function buildRefMap(papers: Paper[]): Map<string, Paper> {
   const refMap = new Map<string, Paper>();
-
-  // Papers array: guaranteed papers first (sent first by stream), then retrieved
-  // Guaranteed papers: REF-1, REF-2 ... (matching prompt numbering)
-  // Retrieved papers: REF-(G+1), REF-(G+2) ...
   const guaranteed = papers.filter((p) => p._refKey);
   const retrieved = papers.filter((p) => !p._refKey);
   const G = guaranteed.length;
-
-  // Guaranteed papers: index by both position (REF-1) and _refKey (REF-FOUND-1) for safety
   guaranteed.forEach((p, i) => {
     refMap.set(`REF-${i + 1}`, p);
     if (p._refKey) refMap.set(p._refKey, p);
   });
-
-  // Retrieved papers: start from REF-(G+1)
   retrieved.forEach((p, i) => {
     refMap.set(`REF-${G + i + 1}`, p);
   });
+  return refMap;
+}
 
-  // Split on [REF-N] or [REF-FOUND-N] markers
-  const parts = body.split(/(\[REF-(?:FOUND-)?\d+\])/g);
+// Inline badge: small numbered superscript rendered where [REF-N] appears in text
+function CitationBadge({ num, label }: { num: number; label: string }) {
+  return (
+    <sup
+      title={label}
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        minWidth: 16,
+        height: 16,
+        padding: "0 4px",
+        marginLeft: 2,
+        borderRadius: 4,
+        background: "rgba(92,154,224,0.18)",
+        border: "1px solid rgba(92,154,224,0.32)",
+        color: "#5c9ae0",
+        fontSize: 10,
+        fontWeight: 700,
+        fontFamily: "var(--font-ui)",
+        cursor: "default",
+        verticalAlign: "super",
+        lineHeight: 1,
+        letterSpacing: 0,
+      }}
+    >
+      {num}
+    </sup>
+  );
+}
+
+// Resolves [REF-N] markers into:
+//   - Inline numbered badges in the text
+//   - Citation cards grouped AFTER each paragraph block (not inline)
+function resolveRefMarkers(body: string, papers: Paper[]): React.ReactNode[] {
+  const refMap = buildRefMap(papers);
+
+  // Global citation counter — tracks badges rendered across ALL paragraphs in this section
+  const citationDisplayNum = new Map<string, number>();
+  const globalBadgeCount = new Map<string, number>(); // total badges per key across whole section
+  let nextNum = 1;
+
+  // Pre-scan: count how many times each REF key appears in the full body
+  // This lets us enforce per-key limits BEFORE rendering
+  const keyAppearances = new Map<string, number>();
+  const allRefs = body.match(/\[REF-(?:FOUND-)?\d+\]/g) ?? [];
+  for (const ref of allRefs) {
+    const k = ref.replace(/[\[\]]/g, "");
+    keyAppearances.set(k, (keyAppearances.get(k) ?? 0) + 1);
+  }
+
+  function getDisplayNum(key: string): number | null {
+    const paper = refMap.get(key);
+    if (!paper) return null;
+    const rendered = globalBadgeCount.get(key) ?? 0;
+    // Hard cap: max 1 badge per key per section body passed to resolveRefMarkers
+    if (rendered >= 1) return null; // suppress — already showed this badge once
+    globalBadgeCount.set(key, rendered + 1);
+    if (!citationDisplayNum.has(key)) {
+      citationDisplayNum.set(key, nextNum++);
+    }
+    return citationDisplayNum.get(key)!;
+  }
+
+  // Split body into paragraph-level blocks (split on double newlines)
+  // Then process each block: replace [REF-N] with badges, collect cited papers
+  const paragraphs = body.split(/\n\n+/);
   const nodes: React.ReactNode[] = [];
 
-  // Track how many times each paper has been cited — cap at 2 per paper
-  const citationCount = new Map<string, number>();
+  paragraphs.forEach((para, pi) => {
+    if (!para.trim()) return;
 
-  parts.forEach((part, i) => {
-    const refMatch = part.match(/^\[((REF-(?:FOUND-)?\d+))\]$/);
-    if (refMatch) {
-      const key = refMatch[1];
-      const paper = refMap.get(key);
-      if (paper) {
-        const count = citationCount.get(key) ?? 0;
-        if (count < 2) {
-          citationCount.set(key, count + 1);
-          nodes.push(<PaperCitationCard key={`ref-${i}`} paper={paper} />);
+    // Split this paragraph on [REF-N] markers
+    const parts = para.split(/(\[REF-(?:FOUND-)?\d+\])/g);
+    const paraNodes: React.ReactNode[] = [];
+    const citedInPara: Array<{ key: string; paper: Paper; num: number }> = [];
+    const seenInPara = new Set<string>();
+
+    parts.forEach((part, i) => {
+      const refMatch = part.match(/^\[((REF-(?:FOUND-)?\d+))\]$/);
+      if (refMatch) {
+        const key = refMatch[1];
+        const num = getDisplayNum(key);
+        const paper = refMap.get(key);
+        if (num !== null && paper) {
+          paraNodes.push(
+            <CitationBadge key={`badge-${pi}-${i}`} num={num} label={paper.title} />
+          );
+          // Collect for rendering below paragraph (first cite only per paragraph)
+          if (!seenInPara.has(key)) {
+            seenInPara.add(key);
+            const count = globalBadgeCount.get(key) ?? 0;
+            // Only render the card on first citation globally
+            if (count <= 1) {
+              citedInPara.push({ key, paper, num });
+            }
+          }
         }
-        // If cited 2+ times already, silently drop the extra card
+      } else if (part) {
+        paraNodes.push(<ReactMarkdownSegment key={`md-${pi}-${i}`} content={part} />);
       }
-    } else if (part) {
-      nodes.push(<ReactMarkdownSegment key={`md-${i}`} content={part} />);
+    });
+
+    // Render the paragraph text
+    if (paraNodes.length > 0) {
+      nodes.push(
+        <div key={`para-${pi}`} style={{ marginBottom: citedInPara.length > 0 ? 4 : 0 }}>
+          {paraNodes}
+        </div>
+      );
+    }
+
+    // Render citation cards BELOW the paragraph, aligned and compact
+    if (citedInPara.length > 0) {
+      nodes.push(
+        <div
+          key={`citations-${pi}`}
+          style={{
+            margin: "6px 0 14px 0",
+            paddingLeft: 12,
+            borderLeft: "2px solid rgba(92,154,224,0.22)",
+            display: "flex",
+            flexDirection: "column",
+            gap: 6,
+          }}
+        >
+          {citedInPara.map(({ paper, num }) => (
+            <InlineCitationRow key={`citerow-${num}`} paper={paper} num={num} />
+          ))}
+        </div>
+      );
     }
   });
 
   return nodes;
+}
+
+// Compact citation row — replaces the large PaperCitationCard in-flow
+// Shows: [N] Title · Authors · Year · Source + link icon
+function InlineCitationRow({ paper, num }: { paper: Paper; num: number }) {
+  const link = paper.doi ? `https://doi.org/${paper.doi}` : (paper.url ?? null);
+  const source = paper.journal ?? paper.source ?? "";
+  const authorsDisplay =
+    paper.authors && paper.authors.length > 0
+      ? paper.authors.slice(0, 2).join(", ") + (paper.authors.length > 2 ? " et al." : "")
+      : "";
+
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "flex-start",
+        gap: 10,
+        padding: "8px 12px",
+        background: "rgba(255,255,255,0.02)",
+        border: "1px solid rgba(255,255,255,0.06)",
+        borderRadius: 8,
+      }}
+    >
+      {/* Badge */}
+      <span
+        style={{
+          flexShrink: 0,
+          width: 18,
+          height: 18,
+          borderRadius: 4,
+          background: "rgba(92,154,224,0.18)",
+          border: "1px solid rgba(92,154,224,0.3)",
+          color: "#5c9ae0",
+          fontSize: 10,
+          fontWeight: 700,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          marginTop: 1,
+        }}
+      >
+        {num}
+      </span>
+      {/* Content */}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <p
+          style={{
+            fontSize: 12.5,
+            fontWeight: 600,
+            color: "rgba(255,255,255,0.88)",
+            lineHeight: 1.4,
+            margin: 0,
+            marginBottom: 3,
+          }}
+        >
+          {paper.title}
+        </p>
+        <div
+          style={{
+            display: "flex",
+            flexWrap: "wrap",
+            alignItems: "center",
+            gap: "3px 8px",
+            fontSize: 11,
+            color: "rgba(255,255,255,0.42)",
+          }}
+        >
+          {authorsDisplay && <span>{authorsDisplay}</span>}
+          {authorsDisplay && paper.year && <span style={{ opacity: 0.4 }}>·</span>}
+          {paper.year && <span style={{ color: "rgba(255,255,255,0.55)" }}>{paper.year}</span>}
+          {source && <span style={{ opacity: 0.4 }}>·</span>}
+          {source && <span>{source}</span>}
+          {link && (
+            <>
+              <span style={{ opacity: 0.4 }}>·</span>
+              <a
+                href={link}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  color: "#5c9ae0",
+                  fontSize: 11,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 3,
+                  textDecoration: "none",
+                }}
+              >
+                View paper
+                <ExternalLink size={9} />
+              </a>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function ReactMarkdownSegment({ content }: { content: string }) {
@@ -1226,8 +1429,8 @@ function preprocessBody(body: string, papers: Paper[]): string {
   // 1. Strip bibliography heading block
   cleaned = cleaned.replace(/\n+(references|bibliography)[\s\S]*/i, "");
 
-  // 1b. Strip [1] bibliography — catches " [1] Author" or "\n[1] Author" patterns
-  cleaned = cleaned.replace(/\s*\[1\][\s\S]*$/, "");
+  // 1b. Strip [1] bibliography — catches "More [1]", " [1] Author", "\n[1] Author" patterns
+  cleaned = cleaned.replace(/\s*(More\s*)?\[1\][\s\S]*$/, "");
 
   // 1c. Strip any run of 2+ consecutive lines starting with [N]
   cleaned = cleaned.replace(/(\n|^)(\[\d+\][^\n]+\n?){2,}/gm, "\n");
@@ -1272,17 +1475,59 @@ function preprocessBody(body: string, papers: Paper[]): string {
   // 9. Strip lone ** lines
   cleaned = cleaned.replace(/^\*\*\s*$/gm, "");
 
-  // 10. Strip orphan citation-only list items: "- [REF-1]" with nothing else
-  cleaned = cleaned.replace(/^[\s>›*-]*\[REF-\d+\]\s*$/gm, "");
+  // 10. Merge orphan [REF-N] lines onto the end of the preceding content line
+  // Handles both mid-body and end-of-body orphan markers
+  cleaned = cleaned.replace(/([^\n]+)\n+(\[REF-(?:FOUND-)?\d+\])(\s*\n|$)/g, "$1 $2\n");
 
   // 11. Collapse 3+ blank lines into 2
   cleaned = cleaned.replace(/\n{3,}/g, "\n\n");
 
+  // 12. NUCLEAR DEDUP: keep only the FIRST occurrence of each [REF-N] key
+  // This is the last line of defence — runs after all other transforms
+  const seenRefs = new Set<string>();
+  cleaned = cleaned.replace(/\[REF-(?:FOUND-)?\d+\]/g, (match) => {
+    if (seenRefs.has(match)) return "";
+    seenRefs.add(match);
+    return match;
+  });
+
   return cleaned;
 }
 
-function SectionContent({ body, papers }: { body: string; papers: Paper[] }) {
-  const processedBody = preprocessBody(body, papers);
+// Per-section citation hard cap — enforced in the frontend regardless of model output
+const SECTION_CITATION_LIMIT: Record<string, number> = {
+  "overview": 1,
+  "key concepts": 1,
+  "system architecture": 0,
+  "technical details": 1,
+  "technical details or comparison": 1,
+  "limitations": 0,
+  "key takeaways": 1,
+  "what to search next": 0,
+  "quick revision points": 0,
+};
+
+// Strip extra [REF-N] markers beyond the per-section limit
+function enforceMaxCitations(body: string, max: number): string {
+  if (max === 0) {
+    // Remove all [REF-N] markers
+    return body.replace(/\[REF-(?:FOUND-)?\d+\]/g, "").replace(/\n{3,}/g, "\n\n");
+  }
+  let count = 0;
+  return body.replace(/\[REF-(?:FOUND-)?\d+\]/g, (match) => {
+    count++;
+    return count <= max ? match : "";
+  });
+}
+
+function SectionContent({ body, papers, sectionTitle }: { body: string; papers: Paper[]; sectionTitle?: string }) {
+  const key = (sectionTitle ?? "").toLowerCase().trim();
+  const maxCitations = SECTION_CITATION_LIMIT[key] ?? 2;
+
+  // Run preprocessBody FIRST (it may inject [REF-1] from "From general knowledge" replacements)
+  // THEN enforce the per-section cap — order matters
+  const preprocessed = preprocessBody(body, papers);
+  const processedBody = enforceMaxCitations(preprocessed, maxCitations);
 
   // If body contains [REF-N] markers, resolve them into cards
   if (/\[REF-(?:FOUND-)?\d+\]/.test(processedBody)) {
@@ -1310,12 +1555,119 @@ function SectionContent({ body, papers }: { body: string; papers: Paper[] }) {
 // AnswerContainer — main export
 // ─────────────────────────────────────────────
 
+
+// ─────────────────────────────────────────────
+// TL;DR Summary Card
+// Extracts first 2-3 sentences from the Overview section
+// and renders them as a compact pinned card above all sections.
+// No extra LLM call — derived from content already generated.
+// ─────────────────────────────────────────────
+
+function extractTldr(content: string): string | null {
+  // Find the Overview section body
+  const overviewMatch = content.match(/##\s+Overview[\s\S]*?\n([\s\S]*?)(?=\n##|$)/i);
+  if (!overviewMatch) return null;
+
+  const overviewBody = overviewMatch[1].trim();
+  // Remove any [REF-N] markers and markdown bold for clean summary text
+  const cleaned = overviewBody
+    .replace(/\[REF-(?:FOUND-)?\d+\]/g, "")
+    .replace(/\*\*/g, "")
+    .replace(/\n+/g, " ")
+    .trim();
+
+  if (!cleaned || cleaned.length < 40) return null;
+
+  // Split into sentences and take first 2
+  const sentences = cleaned
+    .split(/(?<=[.!?])\s+/)
+    .map(s => s.trim())
+    .filter(s => s.length > 20);
+
+  if (sentences.length === 0) return null;
+  return sentences.slice(0, 2).join(" ");
+}
+
+function TldrCard({ summary }: { summary: string }) {
+  const [expanded, setExpanded] = React.useState(false);
+  // Truncate for collapsed state
+  const isLong = summary.length > 160;
+  const displayText = !isLong || expanded ? summary : summary.slice(0, 160).trimEnd() + "…";
+
+  return (
+    <div
+      style={{
+        margin: "0 0 16px 0",
+        padding: "12px 16px",
+        background: "rgba(92,154,224,0.06)",
+        border: "1px solid rgba(92,154,224,0.18)",
+        borderRadius: 12,
+        display: "flex",
+        gap: 12,
+        alignItems: "flex-start",
+      }}
+    >
+      {/* Label pill */}
+      <span
+        style={{
+          flexShrink: 0,
+          fontSize: 9.5,
+          fontWeight: 700,
+          letterSpacing: "0.07em",
+          textTransform: "uppercase",
+          color: "#5c9ae0",
+          background: "rgba(92,154,224,0.15)",
+          border: "1px solid rgba(92,154,224,0.25)",
+          borderRadius: 5,
+          padding: "3px 7px",
+          marginTop: 2,
+          lineHeight: 1.3,
+        }}
+      >
+        TL;DR
+      </span>
+      {/* Summary text + toggle */}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <p
+          style={{
+            fontSize: 13,
+            color: "rgba(255,255,255,0.75)",
+            lineHeight: 1.6,
+            margin: 0,
+            fontStyle: "italic",
+          }}
+        >
+          {displayText}
+        </p>
+        {isLong && (
+          <button
+            onClick={() => setExpanded(e => !e)}
+            style={{
+              marginTop: 6,
+              fontSize: 11,
+              color: "#5c9ae0",
+              background: "none",
+              border: "none",
+              padding: 0,
+              cursor: "pointer",
+              opacity: 0.8,
+            }}
+          >
+            {expanded ? "Show less ↑" : "Read more ↓"}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function AnswerRenderer({
   content,
   papers,
   streaming = false,
 }: AnswerRendererProps) {
   const sections = splitIntoSections(content);
+  const tldr = !streaming ? extractTldr(content) : null;
 
   return (
     <div
@@ -1327,6 +1679,9 @@ export default function AnswerRenderer({
         fontFamily: "var(--font-ui)",
       }}
     >
+      {/* TL;DR summary card — shown only after streaming completes */}
+      {tldr && <TldrCard summary={tldr} />}
+
       {/* Pre-section content (before first ##) */}
       {sections[0]?.title === null && sections[0].body.trim() && (
         <div
@@ -1338,7 +1693,7 @@ export default function AnswerRenderer({
             background: "var(--bg-raised)",
           }}
         >
-          <SectionContent body={sections[0].body} papers={papers ?? []} />
+          <SectionContent body={sections[0].body} papers={papers ?? []} sectionTitle="" />
         </div>
       )}
 
@@ -1347,7 +1702,7 @@ export default function AnswerRenderer({
         .filter((s) => s.title !== null)
         .map((section, i) => (
           <SectionCard key={i} title={section.title!}>
-            <SectionContent body={section.body} papers={papers ?? []} />
+            <SectionContent body={section.body} papers={papers ?? []} sectionTitle={section.title ?? ""} />
           </SectionCard>
         ))}
 
