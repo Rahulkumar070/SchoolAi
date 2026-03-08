@@ -194,6 +194,7 @@ function ChatPage() {
       })
       .catch((e) => {
         if (e.message === "404") setNotFound(true);
+        else setNotFound(true); // show "not found" for any fetch error rather than blank
       })
       .finally(() => setLoadingConv(false));
   }, [convId, status]);

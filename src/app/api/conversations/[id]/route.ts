@@ -24,15 +24,17 @@ export async function GET(
 
     const user = (await UserModel.findOne({
       email: session.user.email,
-    }).lean()) as { _id: unknown } | null;
+    })
+      .select("_id")
+      .lean()) as { _id: mongoose.Types.ObjectId } | null;
     if (!user)
       return NextResponse.json({ error: "User not found" }, { status: 404 });
 
-    const conversation = (await ConversationModel.findOne({
-      _id: id,
-      userId: user._id,
-    }).lean()) as {
+    // Use findById then verify ownership via string comparison
+    // This avoids ObjectId type-mismatch issues that can happen with .lean()
+    const conversation = (await ConversationModel.findById(id).lean()) as {
       _id: { toString(): string };
+      userId: { toString(): string };
       title: string;
       updatedAt: Date;
     } | null;
@@ -40,9 +42,11 @@ export async function GET(
     if (!conversation)
       return NextResponse.json({ error: "Not found" }, { status: 404 });
 
+    if (conversation.userId.toString() !== user._id.toString())
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+
     const messages = (await MessageModel.find({
       conversationId: id,
-      userId: user._id,
     })
       .sort({ createdAt: 1 })
       .lean()) as unknown as {
