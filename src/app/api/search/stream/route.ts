@@ -8,6 +8,7 @@ import {
   rerankChunks,
   buildRAGContext,
   enrichWithFullText,
+  extractKeywords,
 } from "@/lib/rag";
 import { connectDB } from "@/lib/mongodb";
 import { UserModel } from "@/models/User";
@@ -54,11 +55,16 @@ type UserDoc = {
 
 async function buildPrompt(query: string, papers: PaperRow[]) {
   if (papers.length > 0) {
+    // v4: extract keywords so chunkPapers annotates density and buildRAGContext
+    // prioritises keyword-matching sentences within each chunk
+    const keywords = extractKeywords(query);
+
     // RAG: chunk + rank + re-rank + build context
-    const chunks = chunkPapers(papers as any);
-    const bm25Chunks = rankChunks(query, chunks);
+    // v5: rankChunks is now async (uses real embeddings when OPENAI_API_KEY is set)
+    const chunks = chunkPapers(papers as any, keywords);
+    const bm25Chunks = await rankChunks(query, chunks);
     const topChunks = await rerankChunks(query, bm25Chunks, 8); // LLM re-rank
-    const ragCtx = buildRAGContext(topChunks);
+    const ragCtx = buildRAGContext(topChunks, keywords);
     // Inject hardcoded foundational papers for well-known topics so they always appear in the index
     // Build guaranteed entries for well-known foundational papers
     // They are numbered REF-1, REF-2 ... and retrieved papers follow after
@@ -791,10 +797,9 @@ export async function POST(req: NextRequest) {
           // Clean cached answer before streaming (may have been saved with bib/dupes)
           let cachedAnswer = cached.answer;
           cachedAnswer = cachedAnswer.replace(
-            /\n+(references|bibliography)[\s\S]*/i,
+            /(\n\[1\]|\n+(?:references|bibliography|works cited))[\s\S]*$/i,
             "",
           );
-          cachedAnswer = cachedAnswer.replace(/\s*(More\s*)?\[1\][\s\S]*$/, "");
           const seenCacheRefs = new Set<string>();
           cachedAnswer = cachedAnswer.replace(
             /\[REF-(?:FOUND-)?\d+\]/g,
@@ -832,7 +837,9 @@ export async function POST(req: NextRequest) {
 
               // Check tentative (BEFORE adding to fullAnswer) so bib chunk never reaches the client
               const tentative = fullAnswer + chunk;
-              const bibMatch = tentative.match(/\[1\]\s*[A-Z][a-z]/);
+              const bibMatch = tentative.match(
+                /\[1\](?:\s*[A-Z][a-z]|OpenAlex|Semantic|arXiv|\d)/,
+              );
               if (bibMatch) {
                 bibliographyStarted = true;
                 fullAnswer = tentative.replace(/\s*\[1\][\s\S]*$/, "");
@@ -849,10 +856,9 @@ export async function POST(req: NextRequest) {
         // Strip bibliography block from fullAnswer before any further processing
         const rawAnswer = fullAnswer;
         fullAnswer = fullAnswer.replace(
-          /\n+(references|bibliography)[\s\S]*/i,
+          /(\n\[1\]|\n+(?:references|bibliography|works cited))[\s\S]*$/i,
           "",
         );
-        fullAnswer = fullAnswer.replace(/\s*(More\s*)?\[1\][\s\S]*$/, "");
 
         // SERVER-SIDE: deduplicate
         // This fixes double-badge regardless of frontend version
@@ -966,15 +972,18 @@ export async function POST(req: NextRequest) {
             counterUpdate.searchMonthReset = now;
           }
 
-          // 5. Save to searchHistory — always push new entry, cap at 50
-          // ✅ Single atomic update instead of findFirst + conditional update
-          // Save full answer + papers to searchHistory so Library/History can display them
+          // 5. Save to searchHistory — save only the cited papers (3-5), not all retrieved papers
           await UserModel.findByIdAndUpdate(u._id, {
             $set: counterUpdate,
             $push: {
               searchHistory: {
                 $each: [
-                  { query: q, answer: fullAnswer, papers, searchedAt: now },
+                  {
+                    query: q,
+                    answer: fullAnswer,
+                    papers: citedPapers,
+                    searchedAt: now,
+                  },
                 ],
                 $position: 0,
                 $slice: 100,
