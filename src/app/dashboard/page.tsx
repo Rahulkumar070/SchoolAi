@@ -13,7 +13,6 @@ import {
   Sparkles,
   CheckCircle,
   AlertTriangle,
-  History,
   Clock,
   ArrowRight,
   Lock,
@@ -27,13 +26,11 @@ import {
   TrendingUp,
 } from "lucide-react";
 import Link from "next/link";
-import ReactMarkdown from "react-markdown";
 import { downloadResearchPDF } from "@/lib/downloadPDF";
-import AnswerRenderer from "@/components/answer/AnswerRenderer";
-import remarkGfm from "remark-gfm";
 import Image from "next/image";
 import toast from "react-hot-toast";
 import { SavedPaper } from "@/types";
+import AnswerRenderer from "@/components/answer/AnswerRenderer";
 
 interface Paper {
   id: string;
@@ -44,18 +41,6 @@ interface Paper {
   abstract?: string;
   doi?: string;
   url?: string;
-}
-interface ReviewItem {
-  topic: string;
-  review?: string;
-  papers?: Paper[];
-  reviewedAt: string;
-}
-interface HistoryItem {
-  query: string;
-  answer?: string;
-  papers?: Paper[];
-  searchedAt: string;
 }
 
 function useIsMobile() {
@@ -919,16 +904,9 @@ function DashContent() {
   const { isMobile } = useIsMobile();
 
   const [papers, setPapers] = useState<SavedPaper[]>([]);
-  const [history, setHistory] = useState<HistoryItem[]>([]);
   const [searchesToday, setSearchesToday] = useState(0);
   const [searchesThisMonth, setSearchesThisMonth] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"library" | "history" | "reviews">(
-    "library",
-  );
-  const [selectedItem, setSelectedItem] = useState<HistoryItem | null>(null);
-  const [reviewHistory, setReviewHistory] = useState<ReviewItem[]>([]);
-  const [selectedReview, setSelectedReview] = useState<ReviewItem | null>(null);
   const [cancelling, setCancelling] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
 
@@ -945,25 +923,22 @@ function DashContent() {
       });
       router.replace("/dashboard", { scroll: false });
     }
-    if (searchParams.get("tab") === "history") setActiveTab("history");
   }, []);
 
   useEffect(() => {
     if (status !== "authenticated") return;
     Promise.allSettled([
       fetch("/api/papers").then((r) => r.json()),
-      fetch("/api/user/history").then((r) => r.json()),
+      fetch("/api/sidebar").then((r) => r.json()),
     ])
-      .then(([papersResult, historyResult]) => {
+      .then(([papersResult, sidebarResult]) => {
         const pd =
           papersResult.status === "fulfilled" ? papersResult.value : {};
-        const hd =
-          historyResult.status === "fulfilled" ? historyResult.value : {};
+        const sd =
+          sidebarResult.status === "fulfilled" ? sidebarResult.value : {};
         setPapers((pd as any).papers ?? []);
-        setHistory((hd as any).history ?? []);
-        setReviewHistory((hd as any).reviewHistory ?? []);
-        setSearchesToday((hd as any).searchesToday ?? 0);
-        setSearchesThisMonth((hd as any).searchesThisMonth ?? 0);
+        setSearchesToday((sd as any).searchesToday ?? 0);
+        setSearchesThisMonth((sd as any).searchesThisMonth ?? 0);
       })
       .finally(() => setLoading(false));
   }, [status]);
@@ -1057,55 +1032,6 @@ function DashContent() {
     gradient: "linear-gradient(135deg,#555,#333)",
   };
   const PlanIcon = planMeta.icon;
-
-  /* ── Detail views ── */
-  if (activeTab === "reviews" && selectedReview)
-    return (
-      <Shell>
-        <DetailView
-          type="review"
-          title={selectedReview.topic}
-          content={selectedReview.review}
-          papers={selectedReview.papers}
-          timestamp={selectedReview.reviewedAt}
-          onBack={() => setSelectedReview(null)}
-          onDownload={() =>
-            downloadResearchPDF(
-              selectedReview.topic,
-              selectedReview.review ?? "",
-              (selectedReview.papers ?? []) as any,
-              session?.user?.name ?? undefined,
-            )
-          }
-          session={session}
-        />
-      </Shell>
-    );
-
-  if (activeTab === "history" && selectedItem)
-    return (
-      <Shell>
-        <DetailView
-          type="history"
-          title={selectedItem.query}
-          content={selectedItem.answer}
-          papers={selectedItem.papers}
-          timestamp={selectedItem.searchedAt}
-          query={selectedItem.query}
-          atLimit={atLimit}
-          onBack={() => setSelectedItem(null)}
-          onDownload={() =>
-            downloadResearchPDF(
-              selectedItem.query,
-              selectedItem.answer ?? "",
-              (selectedItem.papers ?? []) as any,
-              session?.user?.name ?? undefined,
-            )
-          }
-          session={session}
-        />
-      </Shell>
-    );
 
   const firstName = session?.user?.name?.split(" ")[0] ?? "Researcher";
   const dateStr = new Date().toLocaleDateString("en-IN", {
@@ -1544,7 +1470,7 @@ function DashContent() {
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: isMobile ? "repeat(2,1fr)" : "repeat(4,1fr)",
+              gridTemplateColumns: isMobile ? "repeat(2,1fr)" : "repeat(2,1fr)",
               gap: 12,
               marginBottom: 24,
             }}
@@ -1555,18 +1481,7 @@ function DashContent() {
               icon={BookmarkCheck}
               color="#5c9ae0"
             />
-            <StatCard
-              value={history.length}
-              label="Total Searches"
-              icon={Search}
-              color="var(--brand)"
-            />
-            <StatCard
-              value={reviewHistory.length}
-              label="Lit. Reviews"
-              icon={BookOpen}
-              color="#5db87a"
-            />
+
             <StatCard
               value={isPro ? "∞" : `${counterUsed}/${counterMax}`}
               label={
@@ -1635,518 +1550,6 @@ function DashContent() {
               />
             </div>
           </div>
-
-          {/* ── Tabs + Content ────────────────────────────────── */}
-          <div
-            style={{
-              marginBottom: 16,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              gap: 10,
-              flexWrap: "wrap",
-            }}
-          >
-            {/* Tab pills */}
-            <div
-              style={{
-                display: "flex",
-                gap: 2,
-                background: "#181818",
-                padding: 4,
-                borderRadius: 12,
-                border: "1px solid #1e1e1e",
-              }}
-            >
-              {[
-                {
-                  id: "library" as const,
-                  label: "Library",
-                  icon: BookmarkCheck,
-                  count: papers.length,
-                },
-                {
-                  id: "history" as const,
-                  label: "History",
-                  icon: History,
-                  count: history.length,
-                },
-                {
-                  id: "reviews" as const,
-                  label: "Reviews",
-                  icon: BookOpen,
-                  count: reviewHistory.length,
-                },
-              ].map(({ id, label, icon: Icon, count }) => (
-                <button
-                  key={id}
-                  onClick={() => {
-                    setActiveTab(id);
-                    setSelectedItem(null);
-                    setSelectedReview(null);
-                  }}
-                  style={{
-                    padding: "8px 14px",
-                    borderRadius: 9,
-                    border: "none",
-                    cursor: "pointer",
-                    fontSize: 13,
-                    fontWeight: 600,
-                    fontFamily: "var(--font-ui)",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 6,
-                    whiteSpace: "nowrap",
-                    background: activeTab === id ? "#252525" : "transparent",
-                    color: activeTab === id ? "#e8e3dc" : "#444",
-                    boxShadow:
-                      activeTab === id ? "0 1px 4px rgba(0,0,0,.3)" : "none",
-                    transition: "background .15s, color .15s",
-                  }}
-                >
-                  <Icon size={12} /> {label}
-                  <span
-                    style={{
-                      padding: "1px 6px",
-                      borderRadius: 99,
-                      fontSize: 10,
-                      fontWeight: 700,
-                      background: activeTab === id ? "var(--brand)" : "#1e1e1e",
-                      color: activeTab === id ? "#000" : "var(--text-faint)",
-                    }}
-                  >
-                    {count}
-                  </span>
-                </button>
-              ))}
-            </div>
-            {/* Contextual button */}
-            <Link
-              href={activeTab === "reviews" ? "/review" : "/search"}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 6,
-                padding: "8px 14px",
-                borderRadius: 9,
-                border: "1px solid #1e1e1e",
-                color: "var(--text-faint)",
-                fontSize: 12.5,
-                textDecoration: "none",
-                background: "#181818",
-                fontWeight: 600,
-                transition: "border-color .14s, color .14s",
-              }}
-              onMouseEnter={(e) => {
-                (e.currentTarget as HTMLElement).style.color =
-                  "var(--text-primary)";
-                (e.currentTarget as HTMLElement).style.borderColor = "#2a2a2a";
-              }}
-              onMouseLeave={(e) => {
-                (e.currentTarget as HTMLElement).style.color =
-                  "var(--text-faint)";
-                (e.currentTarget as HTMLElement).style.borderColor = "#1e1e1e";
-              }}
-            >
-              <Plus size={12} />{" "}
-              {activeTab === "reviews" ? "New review" : "New search"}
-            </Link>
-          </div>
-
-          {/* ── Library tab ── */}
-          {activeTab === "library" &&
-            (loading ? (
-              [1, 2, 3].map((i) => <Shimmer key={i} h={76} />)
-            ) : papers.length === 0 && history.length === 0 ? (
-              <Empty
-                icon={BookmarkCheck}
-                title="No saved papers yet"
-                desc="Search papers and bookmark them to build your library"
-                href="/search"
-                cta="Start Searching"
-              />
-            ) : (
-              <div
-                style={{ display: "flex", flexDirection: "column", gap: 24 }}
-              >
-                {/* Recent Searches section */}
-                {history.length > 0 && (
-                  <div>
-                    <div
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                        marginBottom: 12,
-                      }}
-                    >
-                      <p
-                        style={{
-                          fontSize: 11,
-                          fontWeight: 700,
-                          letterSpacing: "1.5px",
-                          textTransform: "uppercase",
-                          color: "var(--text-faint)",
-                        }}
-                      >
-                        Recent Searches
-                      </p>
-                      <button
-                        onClick={() => {
-                          setActiveTab("history");
-                          setSelectedItem(null);
-                        }}
-                        style={{
-                          fontSize: 11.5,
-                          color: "var(--brand)",
-                          background: "transparent",
-                          border: "none",
-                          cursor: "pointer",
-                          fontFamily: "var(--font-ui)",
-                          fontWeight: 600,
-                        }}
-                      >
-                        View all →
-                      </button>
-                    </div>
-                    <div
-                      style={{
-                        display: "flex",
-                        flexDirection: "column",
-                        gap: 7,
-                      }}
-                    >
-                      {history.slice(0, 5).map((h, i) => (
-                        <ListRow
-                          key={i}
-                          onClick={() => {
-                            setActiveTab("history");
-                            setSelectedItem(h);
-                          }}
-                          iconEl={
-                            <Search
-                              size={13}
-                              style={{ color: "var(--brand)" }}
-                            />
-                          }
-                          iconColor="var(--brand)"
-                          title={h.query}
-                          meta={
-                            <span
-                              style={{
-                                fontSize: 10.5,
-                                color: "var(--text-faint)",
-                                display: "flex",
-                                alignItems: "center",
-                                gap: 3,
-                              }}
-                            >
-                              <Clock size={9} /> {timeAgo(h.searchedAt)}
-                            </span>
-                          }
-                          badge={
-                            h.papers && h.papers.length > 0
-                              ? `${h.papers.length} sources`
-                              : h.answer
-                                ? "\u2713 saved"
-                                : undefined
-                          }
-                        />
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Saved Papers section */}
-                {papers.length > 0 && (
-                  <div>
-                    <p
-                      style={{
-                        fontSize: 11,
-                        fontWeight: 700,
-                        letterSpacing: "1.5px",
-                        textTransform: "uppercase",
-                        color: "var(--text-faint)",
-                        marginBottom: 12,
-                      }}
-                    >
-                      Saved Papers
-                    </p>
-                    <div
-                      style={{
-                        display: "flex",
-                        flexDirection: "column",
-                        gap: 8,
-                      }}
-                    >
-                      {papers.map((p) => (
-                        <div
-                          key={p.paperId}
-                          style={{
-                            padding: "14px 16px",
-                            background: "#181818",
-                            border: "1px solid #1e1e1e",
-                            borderRadius: 12,
-                            display: "flex",
-                            gap: 12,
-                            transition: "border-color .14s, background .14s",
-                          }}
-                          onMouseEnter={(e) => {
-                            (e.currentTarget as HTMLElement).style.borderColor =
-                              "#2a2a2a";
-                            (e.currentTarget as HTMLElement).style.background =
-                              "#1e1e1e";
-                          }}
-                          onMouseLeave={(e) => {
-                            (e.currentTarget as HTMLElement).style.borderColor =
-                              "#1e1e1e";
-                            (e.currentTarget as HTMLElement).style.background =
-                              "#181818";
-                          }}
-                        >
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <p
-                              className="truncate-1"
-                              style={{
-                                fontSize: 13.5,
-                                fontWeight: 600,
-                                color: "var(--text-primary)",
-                                marginBottom: 4,
-                              }}
-                            >
-                              {p.title}
-                            </p>
-                            <p
-                              style={{
-                                fontSize: 11.5,
-                                color: "var(--text-faint)",
-                              }}
-                            >
-                              {(p.authors ?? []).slice(0, 3).join(", ")}
-                              {(p.authors?.length ?? 0) > 3 ? " et al." : ""}
-                              {p.year ? ` · ${p.year}` : ""}
-                              {p.journal ? ` · ${p.journal}` : ""}
-                            </p>
-                            {p.abstract && !isMobile && (
-                              <p
-                                className="truncate-2"
-                                style={{
-                                  fontSize: 12,
-                                  color: "var(--text-faint)",
-                                  marginTop: 5,
-                                  lineHeight: 1.55,
-                                }}
-                              >
-                                {p.abstract}
-                              </p>
-                            )}
-                          </div>
-                          <div
-                            style={{
-                              display: "flex",
-                              gap: 6,
-                              flexShrink: 0,
-                              alignItems: "flex-start",
-                            }}
-                          >
-                            {p.url && (
-                              <a
-                                href={p.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                style={{
-                                  width: 30,
-                                  height: 30,
-                                  borderRadius: 8,
-                                  background: "#1e1e1e",
-                                  border: "1px solid #252525",
-                                  display: "flex",
-                                  alignItems: "center",
-                                  justifyContent: "center",
-                                  color: "var(--text-faint)",
-                                  textDecoration: "none",
-                                  transition: "border-color .14s, color .14s",
-                                }}
-                                onMouseEnter={(e) => {
-                                  (
-                                    e.currentTarget as HTMLElement
-                                  ).style.borderColor = "#2a2a2a";
-                                  (e.currentTarget as HTMLElement).style.color =
-                                    "var(--text-primary)";
-                                }}
-                                onMouseLeave={(e) => {
-                                  (
-                                    e.currentTarget as HTMLElement
-                                  ).style.borderColor = "#1e1e1e";
-                                  (e.currentTarget as HTMLElement).style.color =
-                                    "var(--text-faint)";
-                                }}
-                              >
-                                <ExternalLink size={12} />
-                              </a>
-                            )}
-                            <button
-                              onClick={() => void removePaper(p.paperId)}
-                              style={{
-                                width: 30,
-                                height: 30,
-                                borderRadius: 8,
-                                background: "rgba(224,92,92,.07)",
-                                border: "1px solid rgba(224,92,92,.15)",
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                cursor: "pointer",
-                                color: "var(--red)",
-                                transition: "background .14s",
-                              }}
-                              onMouseEnter={(e) =>
-                                ((
-                                  e.currentTarget as HTMLElement
-                                ).style.background = "rgba(224,92,92,.14)")
-                              }
-                              onMouseLeave={(e) =>
-                                ((
-                                  e.currentTarget as HTMLElement
-                                ).style.background = "rgba(224,92,92,.07)")
-                              }
-                            >
-                              <Trash2 size={12} />
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            ))}
-
-          {/* ── History tab ── */}
-          {activeTab === "history" && (
-            <>
-              {atLimit && (
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 10,
-                    padding: "12px 16px",
-                    background: "rgba(201,185,154,.06)",
-                    border: "1px solid rgba(201,185,154,.18)",
-                    borderRadius: 10,
-                    marginBottom: 14,
-                  }}
-                >
-                  <History
-                    size={13}
-                    style={{ color: "#c9b99a", flexShrink: 0 }}
-                  />
-                  <p
-                    style={{
-                      fontSize: 12.5,
-                      color: "var(--text-secondary)",
-                      lineHeight: 1.5,
-                    }}
-                  >
-                    Limit reached — tap any search to read its saved answer for
-                    free.
-                  </p>
-                </div>
-              )}
-              {loading ? (
-                [1, 2, 3, 4].map((i) => <Shimmer key={i} />)
-              ) : history.length === 0 ? (
-                <Empty
-                  icon={History}
-                  title="No history yet"
-                  desc="Your searches will appear here once you start researching"
-                />
-              ) : (
-                <div
-                  style={{ display: "flex", flexDirection: "column", gap: 7 }}
-                >
-                  {history.map((h, i) => (
-                    <ListRow
-                      key={i}
-                      onClick={() => setSelectedItem(h)}
-                      iconEl={
-                        <Search size={13} style={{ color: "var(--brand)" }} />
-                      }
-                      iconColor="var(--brand)"
-                      title={h.query}
-                      meta={
-                        <span
-                          style={{
-                            fontSize: 10.5,
-                            color: "var(--text-faint)",
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 3,
-                          }}
-                        >
-                          <Clock size={9} /> {timeAgo(h.searchedAt)}
-                        </span>
-                      }
-                      badge={
-                        h.papers && h.papers.length > 0
-                          ? `${h.papers.length} sources`
-                          : h.answer
-                            ? "✓ saved"
-                            : undefined
-                      }
-                    />
-                  ))}
-                </div>
-              )}
-            </>
-          )}
-
-          {/* ── Reviews tab ── */}
-          {activeTab === "reviews" &&
-            (loading ? (
-              [1, 2, 3].map((i) => <Shimmer key={i} />)
-            ) : reviewHistory.length === 0 ? (
-              <Empty
-                icon={BookOpen}
-                title="No reviews yet"
-                desc="Generate your first literature review from academic papers"
-                href="/review"
-                cta="Generate a Review"
-              />
-            ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
-                {reviewHistory.map((r, i) => (
-                  <ListRow
-                    key={i}
-                    onClick={() => setSelectedReview(r)}
-                    iconEl={<BookOpen size={13} style={{ color: "#5db87a" }} />}
-                    iconColor="#5db87a"
-                    title={r.topic}
-                    meta={
-                      <span
-                        style={{
-                          fontSize: 10.5,
-                          color: "var(--text-faint)",
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 3,
-                        }}
-                      >
-                        <Clock size={9} /> {timeAgo(r.reviewedAt)}
-                      </span>
-                    }
-                    badge={
-                      r.papers && r.papers.length > 0
-                        ? `${r.papers.length} sources`
-                        : r.review
-                          ? "✓ saved"
-                          : undefined
-                    }
-                  />
-                ))}
-              </div>
-            ))}
         </div>
       </div>
 
