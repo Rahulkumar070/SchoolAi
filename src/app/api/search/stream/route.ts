@@ -654,63 +654,99 @@ export async function POST(req: NextRequest) {
     // Route-level junk filter — runs on BOTH cached and fresh results
     // Query-aware: only blocks papers that are off-topic for the SPECIFIC query being asked
     const routeJunkFilter = (p: PaperRow, query: string): boolean => {
-      const isTransformerArchQ = /transformer|attention mechanism|self.?attention/i.test(query);
+      const isTransformerArchQ =
+        /transformer|attention mechanism|self.?attention/i.test(query);
       if (!isTransformerArchQ) return true; // non-transformer queries: no filtering here
 
       // Detect if query is specifically about a domain (those queries SHOULD see domain papers)
-      const isFPGAQ = /FPGA|hardware accelerat|field.?programmable|chip design/i.test(query);
+      const isFPGAQ =
+        /FPGA|hardware accelerat|field.?programmable|chip design/i.test(query);
       const isTimeSeriesQ = /time series|forecasting|LTSF/i.test(query);
-      const isMedicalQ = /medical imaging|segmentation|radiology|clinical|tumor/i.test(query);
+      const isMedicalQ =
+        /medical imaging|segmentation|radiology|clinical|tumor/i.test(query);
       const isGraphQ = /graph neural|GNN|graph transformer/i.test(query);
       const isPhysicsQ = /physics simulation|harmonic oscillator/i.test(query);
-      const isVisionQ = /computer vision|image classification|ViT.*how|vision transformer.*how/i.test(query);
+      const isVisionQ =
+        /computer vision|image classification|ViT.*how|vision transformer.*how/i.test(
+          query,
+        );
       const isMultilingualQ = /multilingual|cross.?lingual/i.test(query);
 
       const t = p.title ?? "";
       const blocked =
         // Physics/math apps — block unless physics query
-        (!isPhysicsQ && (/simple harmonic oscillator|harmonic oscillator/i.test(t) ||
-          /transformers.*do.*physics|do.*physics.*investigating/i.test(t))) ||
+        (!isPhysicsQ &&
+          (/simple harmonic oscillator|harmonic oscillator/i.test(t) ||
+            /transformers.*do.*physics|do.*physics.*investigating/i.test(t))) ||
         // Medical apps — block unless medical query
-        (!isMedicalQ && (/UNETR|medical image segmentation|3d.*segmentation/i.test(t) ||
-          /tumor|organ segmentation|brain.*transformer/i.test(t) ||
-          /delirium|surgical|intraoperative|postoperative/i.test(t) ||
-          /medical.*transformer|clinical.*transformer/i.test(t))) ||
+        (!isMedicalQ &&
+          (/UNETR|medical image segmentation|3d.*segmentation/i.test(t) ||
+            /tumor|organ segmentation|brain.*transformer/i.test(t) ||
+            /delirium|surgical|intraoperative|postoperative/i.test(t) ||
+            /medical.*transformer|clinical.*transformer/i.test(t))) ||
         // Graph apps — block unless graph query
         (!isGraphQ && /graph transformer|spectral attention.*graph/i.test(t)) ||
         // Time-series apps — block unless time-series query
-        (!isTimeSeriesQ && (/time series forecasting.*transformer|transformers.*effective.*time series|LTSF/i.test(t))) ||
+        (!isTimeSeriesQ &&
+          /time series forecasting.*transformer|transformers.*effective.*time series|LTSF/i.test(
+            t,
+          )) ||
         // FPGA/hardware apps — block unless hardware query
-        (!isFPGAQ && (/FPGA.*transformer|transformer.*FPGA|FTRANS|energy.?efficient.*transformer.*accelerat/i.test(t))) ||
+        (!isFPGAQ &&
+          /FPGA.*transformer|transformer.*FPGA|FTRANS|energy.?efficient.*transformer.*accelerat/i.test(
+            t,
+          )) ||
         // Vision niche comparisons — block unless specifically vision query
-        (!isVisionQ && (/how do vision transformers work|do vision transformers see like|going deeper with image transformer/i.test(t) ||
-          /intriguing properties.*vision transformer/i.test(t) ||
-          /comparing.*vision transformer.*convolutional|comparing.*vision transformer.*CNN/i.test(t) ||
-          /vision transformer.*CNN.*literature review|ViT.*CNN.*review/i.test(t) ||
-          /survey of visual transformer|visual transformer.*survey/i.test(t) ||
-          /survey.*vision transformer|vision transformer.*survey/i.test(t))) ||
+        (!isVisionQ &&
+          (/how do vision transformers work|do vision transformers see like|going deeper with image transformer/i.test(
+            t,
+          ) ||
+            /intriguing properties.*vision transformer/i.test(t) ||
+            /comparing.*vision transformer.*convolutional|comparing.*vision transformer.*CNN/i.test(
+              t,
+            ) ||
+            /vision transformer.*CNN.*literature review|ViT.*CNN.*review/i.test(
+              t,
+            ) ||
+            /survey of visual transformer|visual transformer.*survey/i.test(
+              t,
+            ) ||
+            /survey.*vision transformer|vision transformer.*survey/i.test(
+              t,
+            ))) ||
         // Multilingual bias — block unless multilingual query
-        (!isMultilingualQ && /do llamas work in english|latent language.*multilingual/i.test(t)) ||
+        (!isMultilingualQ &&
+          /do llamas work in english|latent language.*multilingual/i.test(t)) ||
         // Always block regardless of query (truly irrelevant to any transformer question)
         /how to represent part.?whole hierarchies/i.test(t) ||
         /implicit reasoning.*shortcut|reasoning.*through shortcut/i.test(t) ||
         /video transformer|image captioning.*transformer/i.test(t) ||
         // Block domain-specific transformer surveys on generic transformer queries
-        (!isVisionQ && /survey.*transformer|transformer.*survey/i.test(t) && (p.citationCount ?? 0) < 5000) ||
+        (!isVisionQ &&
+          /survey.*transformer|transformer.*survey/i.test(t) &&
+          (p.citationCount ?? 0) < 5000) ||
         // Low-citation clickbait surveys
-        (/rise of transformer|redefining.*landscape|landscape of.*intelligence/i.test(t) && (p.citationCount ?? 0) < 100);
+        (/rise of transformer|redefining.*landscape|landscape of.*intelligence/i.test(
+          t,
+        ) &&
+          (p.citationCount ?? 0) < 100);
 
       return !blocked;
     };
 
     if (cached) {
-      papers = (cached.papers as PaperRow[]).filter(p => routeJunkFilter(p, q));
+      papers = (cached.papers as PaperRow[]).filter((p) =>
+        routeJunkFilter(p, q),
+      );
       fromCache = true;
     } else {
       const rawPapers = (await searchAll(q)) as PaperRow[];
       // Enrich top 3 open-access papers with full-text URL hints
-      const enriched = (await enrichWithFullText(rawPapers as any, 3)) as PaperRow[];
-      papers = enriched.filter(p => routeJunkFilter(p, q));
+      const enriched = (await enrichWithFullText(
+        rawPapers as any,
+        3,
+      )) as PaperRow[];
+      papers = enriched.filter((p) => routeJunkFilter(p, q));
       fromCache = false;
     }
 
@@ -752,7 +788,23 @@ export async function POST(req: NextRequest) {
 
         // ── Stream the answer ─────────────────────────────────
         if (fromCache && cached) {
-          const words = cached.answer.split(" ");
+          // Clean cached answer before streaming (may have been saved with bib/dupes)
+          let cachedAnswer = cached.answer;
+          cachedAnswer = cachedAnswer.replace(
+            /\n+(references|bibliography)[\s\S]*/i,
+            "",
+          );
+          cachedAnswer = cachedAnswer.replace(/\s*(More\s*)?\[1\][\s\S]*$/, "");
+          const seenCacheRefs = new Set<string>();
+          cachedAnswer = cachedAnswer.replace(
+            /\[REF-(?:FOUND-)?\d+\]/g,
+            (m: string) => {
+              if (seenCacheRefs.has(m)) return "";
+              seenCacheRefs.add(m);
+              return m;
+            },
+          );
+          const words = cachedAnswer.split(" ");
           for (let i = 0; i < words.length; i += 4) {
             const chunk =
               words.slice(i, i + 4).join(" ") +
@@ -780,10 +832,10 @@ export async function POST(req: NextRequest) {
 
               // Check tentative (BEFORE adding to fullAnswer) so bib chunk never reaches the client
               const tentative = fullAnswer + chunk;
-              const bibMatch = tentative.match(/[\n ]\s*(More\s*)?\[1\]\s*[A-Za-z]/);
+              const bibMatch = tentative.match(/\[1\]\s*[A-Z][a-z]/);
               if (bibMatch) {
                 bibliographyStarted = true;
-                fullAnswer = tentative.replace(/\s*(More\s*)?\[1\][\s\S]*$/, "");
+                fullAnswer = tentative.replace(/\s*\[1\][\s\S]*$/, "");
                 send({ type: "answer_replace", text: fullAnswer });
                 continue;
               }
@@ -802,10 +854,47 @@ export async function POST(req: NextRequest) {
         );
         fullAnswer = fullAnswer.replace(/\s*(More\s*)?\[1\][\s\S]*$/, "");
 
-        // Save CLEAN answer to cache (after bibliography strip)
+        // SERVER-SIDE: deduplicate
+        // This fixes double-badge regardless of frontend version
+        const seenServerRefs = new Set<string>();
+        fullAnswer = fullAnswer.replace(/\[REF-(?:FOUND-)?\d+\]/g, (match) => {
+          if (seenServerRefs.has(match)) return "";
+          seenServerRefs.add(match);
+          return match;
+        });
+
+        // SERVER-SIDE: per-section citation cap — strip extra [REF-N] beyond section limit
+        const SERVER_SECTION_LIMITS: Record<string, number> = {
+          "key concepts": 1,
+          overview: 1,
+          "system architecture": 0,
+          "technical details": 1,
+          "technical details or comparison": 1,
+          limitations: 0,
+          "key takeaways": 1,
+          "what to search next": 0,
+        };
+        fullAnswer = fullAnswer.replace(
+          /^##\s+(.+)$([\s\S]*?)(?=^##|\s*$)/gm,
+          (block, heading, body) => {
+            const limit = SERVER_SECTION_LIMITS[heading.trim().toLowerCase()];
+            if (limit === undefined) return block;
+            let count = 0;
+            const cappedBody = body.replace(
+              /\[REF-(?:FOUND-)?\d+\]/g,
+              (m: string) => {
+                count++;
+                return count <= limit ? m : "";
+              },
+            );
+            return `## ${heading}${cappedBody}`;
+          },
+        );
+
+        // Save CLEAN answer to cache (after all server-side cleanup)
         void saveToCache(q, fullAnswer, papers);
 
-        // If bibliography was stripped, send a correction to frontend
+        // If answer was modified, send correction to frontend
         if (fullAnswer !== rawAnswer) {
           send({ type: "answer_replace", text: fullAnswer });
         }

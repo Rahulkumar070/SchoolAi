@@ -1187,21 +1187,35 @@ function CitationBadge({ num, label }: { num: number; label: string }) {
         display: "inline-flex",
         alignItems: "center",
         justifyContent: "center",
-        minWidth: 16,
-        height: 16,
+        minWidth: 15,
+        height: 15,
         padding: "0 4px",
-        marginLeft: 2,
-        borderRadius: 4,
-        background: "rgba(92,154,224,0.18)",
-        border: "1px solid rgba(92,154,224,0.32)",
-        color: "#5c9ae0",
-        fontSize: 10,
+        marginLeft: 1,
+        marginRight: 1,
+        borderRadius: 3,
+        background: "rgba(139,92,246,0.15)",
+        border: "1px solid rgba(139,92,246,0.3)",
+        color: "#a78bfa",
+        fontSize: 9,
         fontWeight: 700,
         fontFamily: "var(--font-ui)",
         cursor: "default",
         verticalAlign: "super",
         lineHeight: 1,
         letterSpacing: 0,
+        transition: "background 0.15s, border-color 0.15s",
+      }}
+      onMouseEnter={(e) => {
+        (e.currentTarget as HTMLElement).style.background =
+          "rgba(139,92,246,0.28)";
+        (e.currentTarget as HTMLElement).style.borderColor =
+          "rgba(139,92,246,0.55)";
+      }}
+      onMouseLeave={(e) => {
+        (e.currentTarget as HTMLElement).style.background =
+          "rgba(139,92,246,0.15)";
+        (e.currentTarget as HTMLElement).style.borderColor =
+          "rgba(139,92,246,0.3)";
       }}
     >
       {num}
@@ -1264,7 +1278,11 @@ function resolveRefMarkers(body: string, papers: Paper[]): React.ReactNode[] {
         const paper = refMap.get(key);
         if (num !== null && paper) {
           paraNodes.push(
-            <CitationBadge key={`badge-${pi}-${i}`} num={num} label={paper.title} />
+            <CitationBadge
+              key={`badge-${pi}-${i}`}
+              num={num}
+              label={paper.title}
+            />,
           );
           // Collect for rendering below paragraph (first cite only per paragraph)
           if (!seenInPara.has(key)) {
@@ -1277,16 +1295,21 @@ function resolveRefMarkers(body: string, papers: Paper[]): React.ReactNode[] {
           }
         }
       } else if (part) {
-        paraNodes.push(<ReactMarkdownSegment key={`md-${pi}-${i}`} content={part} />);
+        paraNodes.push(
+          <ReactMarkdownSegment key={`md-${pi}-${i}`} content={part} />,
+        );
       }
     });
 
     // Render the paragraph text
     if (paraNodes.length > 0) {
       nodes.push(
-        <div key={`para-${pi}`} style={{ marginBottom: citedInPara.length > 0 ? 4 : 0 }}>
+        <div
+          key={`para-${pi}`}
+          style={{ marginBottom: citedInPara.length > 0 ? 4 : 0 }}
+        >
           {paraNodes}
-        </div>
+        </div>,
       );
     }
 
@@ -1296,18 +1319,18 @@ function resolveRefMarkers(body: string, papers: Paper[]): React.ReactNode[] {
         <div
           key={`citations-${pi}`}
           style={{
-            margin: "6px 0 14px 0",
-            paddingLeft: 12,
-            borderLeft: "2px solid rgba(92,154,224,0.22)",
+            margin: "5px 0 12px 0",
+            paddingLeft: 10,
+            borderLeft: "2px solid rgba(139,92,246,0.2)",
             display: "flex",
             flexDirection: "column",
-            gap: 6,
+            gap: 4,
           }}
         >
           {citedInPara.map(({ paper, num }) => (
             <InlineCitationRow key={`citerow-${num}`} paper={paper} num={num} />
           ))}
-        </div>
+        </div>,
       );
     }
   });
@@ -1315,100 +1338,154 @@ function resolveRefMarkers(body: string, papers: Paper[]): React.ReactNode[] {
   return nodes;
 }
 
-// Compact citation row — replaces the large PaperCitationCard in-flow
-// Shows: [N] Title · Authors · Year · Source + link icon
+// Compact citation row — clean, minimal, polished
 function InlineCitationRow({ paper, num }: { paper: Paper; num: number }) {
   const link = paper.doi ? `https://doi.org/${paper.doi}` : (paper.url ?? null);
   const source = paper.journal ?? paper.source ?? "";
   const authorsDisplay =
     paper.authors && paper.authors.length > 0
-      ? paper.authors.slice(0, 2).join(", ") + (paper.authors.length > 2 ? " et al." : "")
+      ? paper.authors.slice(0, 2).join(", ") +
+        (paper.authors.length > 2 ? " et al." : "")
       : "";
 
   return (
     <div
       style={{
         display: "flex",
-        alignItems: "flex-start",
+        alignItems: "center",
         gap: 10,
-        padding: "8px 12px",
-        background: "rgba(255,255,255,0.02)",
-        border: "1px solid rgba(255,255,255,0.06)",
-        borderRadius: 8,
+        padding: "7px 10px",
+        background: "rgba(139,92,246,0.04)",
+        border: "1px solid rgba(139,92,246,0.14)",
+        borderRadius: 7,
+        transition: "background 0.15s, border-color 0.15s",
+      }}
+      onMouseEnter={(e) => {
+        (e.currentTarget as HTMLElement).style.background =
+          "rgba(139,92,246,0.09)";
+        (e.currentTarget as HTMLElement).style.borderColor =
+          "rgba(139,92,246,0.25)";
+      }}
+      onMouseLeave={(e) => {
+        (e.currentTarget as HTMLElement).style.background =
+          "rgba(139,92,246,0.04)";
+        (e.currentTarget as HTMLElement).style.borderColor =
+          "rgba(139,92,246,0.14)";
       }}
     >
-      {/* Badge */}
+      {/* Number pill */}
       <span
         style={{
           flexShrink: 0,
-          width: 18,
-          height: 18,
+          width: 17,
+          height: 17,
           borderRadius: 4,
-          background: "rgba(92,154,224,0.18)",
-          border: "1px solid rgba(92,154,224,0.3)",
-          color: "#5c9ae0",
-          fontSize: 10,
+          background: "rgba(139,92,246,0.18)",
+          border: "1px solid rgba(139,92,246,0.28)",
+          color: "#a78bfa",
+          fontSize: 9,
           fontWeight: 700,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          marginTop: 1,
         }}
       >
         {num}
       </span>
-      {/* Content */}
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <p
+      {/* Title + meta in one line */}
+      <div
+        style={{
+          flex: 1,
+          minWidth: 0,
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          flexWrap: "wrap",
+        }}
+      >
+        <span
           style={{
-            fontSize: 12.5,
+            fontSize: 12,
             fontWeight: 600,
-            color: "rgba(255,255,255,0.88)",
-            lineHeight: 1.4,
-            margin: 0,
-            marginBottom: 3,
+            color: "rgba(255,255,255,0.82)",
+            lineHeight: 1.3,
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            maxWidth: 280,
           }}
         >
           {paper.title}
-        </p>
-        <div
-          style={{
-            display: "flex",
-            flexWrap: "wrap",
-            alignItems: "center",
-            gap: "3px 8px",
-            fontSize: 11,
-            color: "rgba(255,255,255,0.42)",
-          }}
-        >
-          {authorsDisplay && <span>{authorsDisplay}</span>}
-          {authorsDisplay && paper.year && <span style={{ opacity: 0.4 }}>·</span>}
-          {paper.year && <span style={{ color: "rgba(255,255,255,0.55)" }}>{paper.year}</span>}
-          {source && <span style={{ opacity: 0.4 }}>·</span>}
-          {source && <span>{source}</span>}
-          {link && (
-            <>
-              <span style={{ opacity: 0.4 }}>·</span>
-              <a
-                href={link}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{
-                  color: "#5c9ae0",
-                  fontSize: 11,
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 3,
-                  textDecoration: "none",
-                }}
-              >
-                View paper
-                <ExternalLink size={9} />
-              </a>
-            </>
-          )}
-        </div>
+        </span>
+        {authorsDisplay && (
+          <span
+            style={{
+              fontSize: 10.5,
+              color: "rgba(255,255,255,0.35)",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {authorsDisplay}
+          </span>
+        )}
+        {paper.year && (
+          <span
+            style={{
+              fontSize: 10,
+              fontWeight: 600,
+              color: "#a78bfa",
+              background: "rgba(139,92,246,0.12)",
+              padding: "1px 6px",
+              borderRadius: 99,
+            }}
+          >
+            {paper.year}
+          </span>
+        )}
+        {source && (
+          <span
+            style={{
+              fontSize: 10,
+              color: "rgba(255,255,255,0.28)",
+              background: "rgba(255,255,255,0.04)",
+              padding: "1px 6px",
+              borderRadius: 99,
+              border: "1px solid rgba(255,255,255,0.06)",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {source}
+          </span>
+        )}
       </div>
+      {/* Link */}
+      {link && (
+        <a
+          href={link}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            flexShrink: 0,
+            color: "#a78bfa",
+            fontSize: 10.5,
+            display: "flex",
+            alignItems: "center",
+            gap: 3,
+            textDecoration: "none",
+            opacity: 0.7,
+            transition: "opacity 0.15s",
+            whiteSpace: "nowrap",
+          }}
+          onMouseEnter={(e) =>
+            ((e.currentTarget as HTMLElement).style.opacity = "1")
+          }
+          onMouseLeave={(e) =>
+            ((e.currentTarget as HTMLElement).style.opacity = "0.7")
+          }
+        >
+          View <ExternalLink size={9} />
+        </a>
+      )}
     </div>
   );
 }
@@ -1425,6 +1502,9 @@ function ReactMarkdownSegment({ content }: { content: string }) {
 // Strip noise patterns the model adds despite instructions
 function preprocessBody(body: string, papers: Paper[]): string {
   let cleaned = body;
+
+  // 0. Strip plain [1] bibliography — only matches standalone [1], not [REF-1]
+  cleaned = cleaned.replace(/\s*\[(?!REF-)1\][^\[]*[\s\S]*$/, "");
 
   // 1. Strip bibliography heading block
   cleaned = cleaned.replace(/\n+(references|bibliography)[\s\S]*/i, "");
@@ -1477,7 +1557,10 @@ function preprocessBody(body: string, papers: Paper[]): string {
 
   // 10. Merge orphan [REF-N] lines onto the end of the preceding content line
   // Handles both mid-body and end-of-body orphan markers
-  cleaned = cleaned.replace(/([^\n]+)\n+(\[REF-(?:FOUND-)?\d+\])(\s*\n|$)/g, "$1 $2\n");
+  cleaned = cleaned.replace(
+    /([^\n]+)\n+(\[REF-(?:FOUND-)?\d+\])(\s*\n|$)/g,
+    "$1 $2\n",
+  );
 
   // 11. Collapse 3+ blank lines into 2
   cleaned = cleaned.replace(/\n{3,}/g, "\n\n");
@@ -1496,12 +1579,12 @@ function preprocessBody(body: string, papers: Paper[]): string {
 
 // Per-section citation hard cap — enforced in the frontend regardless of model output
 const SECTION_CITATION_LIMIT: Record<string, number> = {
-  "overview": 1,
+  overview: 1,
   "key concepts": 1,
   "system architecture": 0,
   "technical details": 1,
   "technical details or comparison": 1,
-  "limitations": 0,
+  limitations: 0,
   "key takeaways": 1,
   "what to search next": 0,
   "quick revision points": 0,
@@ -1511,7 +1594,9 @@ const SECTION_CITATION_LIMIT: Record<string, number> = {
 function enforceMaxCitations(body: string, max: number): string {
   if (max === 0) {
     // Remove all [REF-N] markers
-    return body.replace(/\[REF-(?:FOUND-)?\d+\]/g, "").replace(/\n{3,}/g, "\n\n");
+    return body
+      .replace(/\[REF-(?:FOUND-)?\d+\]/g, "")
+      .replace(/\n{3,}/g, "\n\n");
   }
   let count = 0;
   return body.replace(/\[REF-(?:FOUND-)?\d+\]/g, (match) => {
@@ -1520,7 +1605,15 @@ function enforceMaxCitations(body: string, max: number): string {
   });
 }
 
-function SectionContent({ body, papers, sectionTitle }: { body: string; papers: Paper[]; sectionTitle?: string }) {
+function SectionContent({
+  body,
+  papers,
+  sectionTitle,
+}: {
+  body: string;
+  papers: Paper[];
+  sectionTitle?: string;
+}) {
   const key = (sectionTitle ?? "").toLowerCase().trim();
   const maxCitations = SECTION_CITATION_LIMIT[key] ?? 2;
 
@@ -1555,7 +1648,6 @@ function SectionContent({ body, papers, sectionTitle }: { body: string; papers: 
 // AnswerContainer — main export
 // ─────────────────────────────────────────────
 
-
 // ─────────────────────────────────────────────
 // TL;DR Summary Card
 // Extracts first 2-3 sentences from the Overview section
@@ -1565,7 +1657,9 @@ function SectionContent({ body, papers, sectionTitle }: { body: string; papers: 
 
 function extractTldr(content: string): string | null {
   // Find the Overview section body
-  const overviewMatch = content.match(/##\s+Overview[\s\S]*?\n([\s\S]*?)(?=\n##|$)/i);
+  const overviewMatch = content.match(
+    /##\s+Overview[\s\S]*?\n([\s\S]*?)(?=\n##|$)/i,
+  );
   if (!overviewMatch) return null;
 
   const overviewBody = overviewMatch[1].trim();
@@ -1581,8 +1675,8 @@ function extractTldr(content: string): string | null {
   // Split into sentences and take first 2
   const sentences = cleaned
     .split(/(?<=[.!?])\s+/)
-    .map(s => s.trim())
-    .filter(s => s.length > 20);
+    .map((s) => s.trim())
+    .filter((s) => s.length > 20);
 
   if (sentences.length === 0) return null;
   return sentences.slice(0, 2).join(" ");
@@ -1592,7 +1686,8 @@ function TldrCard({ summary }: { summary: string }) {
   const [expanded, setExpanded] = React.useState(false);
   // Truncate for collapsed state
   const isLong = summary.length > 160;
-  const displayText = !isLong || expanded ? summary : summary.slice(0, 160).trimEnd() + "…";
+  const displayText =
+    !isLong || expanded ? summary : summary.slice(0, 160).trimEnd() + "…";
 
   return (
     <div
@@ -1641,7 +1736,7 @@ function TldrCard({ summary }: { summary: string }) {
         </p>
         {isLong && (
           <button
-            onClick={() => setExpanded(e => !e)}
+            onClick={() => setExpanded((e) => !e)}
             style={{
               marginTop: 6,
               fontSize: 11,
@@ -1693,7 +1788,11 @@ export default function AnswerRenderer({
             background: "var(--bg-raised)",
           }}
         >
-          <SectionContent body={sections[0].body} papers={papers ?? []} sectionTitle="" />
+          <SectionContent
+            body={sections[0].body}
+            papers={papers ?? []}
+            sectionTitle=""
+          />
         </div>
       )}
 
@@ -1702,7 +1801,11 @@ export default function AnswerRenderer({
         .filter((s) => s.title !== null)
         .map((section, i) => (
           <SectionCard key={i} title={section.title!}>
-            <SectionContent body={section.body} papers={papers ?? []} sectionTitle={section.title ?? ""} />
+            <SectionContent
+              body={section.body}
+              papers={papers ?? []}
+              sectionTitle={section.title ?? ""}
+            />
           </SectionCard>
         ))}
 
