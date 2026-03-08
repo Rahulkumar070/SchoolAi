@@ -950,18 +950,21 @@ function DashContent() {
 
   useEffect(() => {
     if (status !== "authenticated") return;
-    Promise.all([
+    Promise.allSettled([
       fetch("/api/papers").then((r) => r.json()),
       fetch("/api/user/history").then((r) => r.json()),
     ])
-      .then(([pd, hd]: any) => {
-        setPapers(pd.papers ?? []);
-        setHistory(hd.history ?? []);
-        setReviewHistory(hd.reviewHistory ?? []);
-        setSearchesToday(hd.searchesToday ?? 0);
-        setSearchesThisMonth(hd.searchesThisMonth ?? 0);
+      .then(([papersResult, historyResult]) => {
+        const pd =
+          papersResult.status === "fulfilled" ? papersResult.value : {};
+        const hd =
+          historyResult.status === "fulfilled" ? historyResult.value : {};
+        setPapers((pd as any).papers ?? []);
+        setHistory((hd as any).history ?? []);
+        setReviewHistory((hd as any).reviewHistory ?? []);
+        setSearchesToday((hd as any).searchesToday ?? 0);
+        setSearchesThisMonth((hd as any).searchesThisMonth ?? 0);
       })
-      .catch(() => toast.error("Failed to load data"))
       .finally(() => setLoading(false));
   }, [status]);
 
