@@ -7,6 +7,85 @@ import { connectDB } from "@/lib/mongodb";
 import { UserModel } from "@/models/User";
 import { getCachedResult, saveToCache } from "@/lib/cache";
 import { checkGuestLimit } from "@/lib/guestLimit";
+import { Paper } from "@/types";
+
+/**
+ * Extract only the papers that were actually cited in the generated answer.
+ *
+ * The RAG answer uses two citation formats:
+ *  1. Inline cards:  "> 📄 **Paper:** Some Title Here"
+ *  2. REF markers:   "[REF-1]", "[REF-2]", etc.
+ *
+ * We match cited titles back against the full paper list and return
+ * only those papers (max 5). Falls back to the top 5 papers if nothing
+ * is matched (e.g. the answer was very short or format was unexpected).
+ */
+function extractCitedPapers(answer: string, papers: Paper[]): Paper[] {
+  const cited: Paper[] = [];
+  const seen = new Set<string>();
+
+  // ── Strategy 1: parse inline citation cards ──────────────
+  // Format: > 📄 **Paper:** Exact Title Here
+  const cardTitles: string[] = [];
+  const cardRe = />\s*📄\s*\*\*Paper:\*\*\s*(.+)/g;
+  let m: RegExpExecArray | null;
+  while ((m = cardRe.exec(answer)) !== null) {
+    cardTitles.push(
+      m[1]
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9\s]/g, ""),
+    );
+  }
+
+  for (const paper of papers) {
+    const normTitle = paper.title.toLowerCase().replace(/[^a-z0-9\s]/g, "");
+    const key = normTitle.slice(0, 60);
+    if (seen.has(key)) continue;
+
+    // Fuzzy match: cited card title must share 4+ words with the paper title
+    const matched = cardTitles.some((cardTitle) => {
+      const cardWords = new Set(
+        cardTitle.split(/\s+/).filter((w) => w.length > 3),
+      );
+      const paperWords = normTitle.split(/\s+/).filter((w) => w.length > 3);
+      const overlap = paperWords.filter((w) => cardWords.has(w)).length;
+      return (
+        overlap >= 4 ||
+        (overlap >= 2 && normTitle.includes(cardTitle.slice(0, 30)))
+      );
+    });
+
+    if (matched) {
+      seen.add(key);
+      cited.push(paper);
+    }
+  }
+
+  // ── Strategy 2: REF-N index markers ─────────────────────
+  // Format: [REF-1], [REF-2], etc. (used by stream route; may appear in non-stream too)
+  if (cited.length === 0) {
+    const citedIndices = new Set<number>();
+    const refRe = /\[REF-(\d+)\]/g;
+    while ((m = refRe.exec(answer)) !== null) {
+      citedIndices.add(parseInt(m[1], 10) - 1); // 0-based
+    }
+    for (const idx of citedIndices) {
+      if (papers[idx] && !seen.has(papers[idx].id)) {
+        seen.add(papers[idx].id);
+        cited.push(papers[idx]);
+      }
+    }
+  }
+
+  // ── Fallback: return top 5 papers if nothing was matched ─
+  if (cited.length === 0) {
+    return papers.slice(0, 5);
+  }
+
+  // Hard cap at 5 — matches the citation limit enforced in the prompt
+  return cited.slice(0, 5);
+}
 
 // ── Limits ──────────────────────────────────────────────
 const FREE_DAILY_LIMIT = 5; // logged in, free plan
@@ -90,11 +169,14 @@ export async function POST(req: NextRequest) {
 
       // ── Get answer ──────────────────────────────────────
       let answer: string;
-      let papers: unknown[];
+      let allPapers: Paper[]; // full set sent to source panel on search page
+      let citedPapers: Paper[]; // only cited papers — saved to history
 
       if (cached) {
         answer = cached.answer;
-        papers = cached.papers;
+        allPapers = cached.papers as Paper[];
+        // Re-extract cited papers from cached answer so history stays clean
+        citedPapers = extractCitedPapers(answer, allPapers);
       } else {
         const fetchedPapers = await searchAll(q);
         if (!fetchedPapers.length)
@@ -103,8 +185,11 @@ export async function POST(req: NextRequest) {
             { status: 404 },
           );
         answer = await generateAnswer(q, fetchedPapers);
-        papers = fetchedPapers;
-        void saveToCache(q, answer, papers);
+        allPapers = fetchedPapers;
+        // Cache full paper set so future hits have all metadata available
+        void saveToCache(q, answer, allPapers);
+        // Extract only the 3-5 papers actually cited in the answer for history
+        citedPapers = extractCitedPapers(answer, fetchedPapers);
       }
 
       // ── Update counter ──────────────────────────────────
@@ -118,7 +203,7 @@ export async function POST(req: NextRequest) {
       }
       // pro: no counter needed
 
-      // ── Save to history (no duplicates) ─────────────────
+      // ── Save to history (cited papers only, no duplicates) ─
       const existingIdx = (u.searchHistory ?? []).findIndex(
         (h: { query: string }) => h.query.toLowerCase() === q.toLowerCase(),
       );
@@ -128,7 +213,7 @@ export async function POST(req: NextRequest) {
           $set: {
             ...counterUpdate,
             [`searchHistory.${existingIdx}.answer`]: answer,
-            [`searchHistory.${existingIdx}.papers`]: papers,
+            [`searchHistory.${existingIdx}.papers`]: citedPapers,
             [`searchHistory.${existingIdx}.searchedAt`]: now,
           },
         });
@@ -137,7 +222,9 @@ export async function POST(req: NextRequest) {
           $set: counterUpdate,
           $push: {
             searchHistory: {
-              $each: [{ query: q, answer, papers, searchedAt: now }],
+              $each: [
+                { query: q, answer, papers: citedPapers, searchedAt: now },
+              ],
               $position: 0,
               $slice: 50,
             },
@@ -146,7 +233,7 @@ export async function POST(req: NextRequest) {
       }
 
       return NextResponse.json({
-        papers,
+        papers: allPapers, // full set for the source panel on the search page
         answer,
         query: q,
         fromCache: !!cached,
