@@ -771,7 +771,7 @@ async function fetchArXiv(q: string, n = 5): Promise<Paper[]> {
           .slice(0, 1200) ?? "";
       const published = e.match(/<published>([\s\S]*?)<\/published>/)?.[1];
       const id = e.match(/<id>([\s\S]*?)<\/id>/)?.[1]?.trim() ?? "";
-      const authorMatches = [...e.matchAll(/<name>([\s\S]*?)<\/name>/g)];
+      const authorMatches = [...e.matchAll(/<n>([\s\S]*?)<\/name>/g)];
       const authors = authorMatches.map((a) => a[1].trim());
 
       if (title && abstract)
