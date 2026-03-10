@@ -173,7 +173,13 @@ export default function PaperCard({
             {citations > 0 && (
               <span
                 title={`${citations.toLocaleString()} citations`}
-                style={{ fontSize: 10, color: "var(--text-faint)", display: "flex", alignItems: "center", gap: 2 }}
+                style={{
+                  fontSize: 10,
+                  color: "var(--text-faint)",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 2,
+                }}
               >
                 <span style={{ opacity: 0.5 }}>📊</span>
                 {formatCitations(citations)} cited
@@ -188,7 +194,14 @@ export default function PaperCard({
 
           {/* Credibility badges (v7 NEW) */}
           {badges.length > 0 && (
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: 6 }}>
+            <div
+              style={{
+                display: "flex",
+                flexWrap: "wrap",
+                gap: 4,
+                marginBottom: 6,
+              }}
+            >
               {badges.slice(0, 4).map((badge) => (
                 <BadgeChip key={badge} badge={badge} />
               ))}
@@ -211,8 +224,12 @@ export default function PaperCard({
                 target="_blank"
                 rel="noopener noreferrer"
                 style={{ color: "inherit", textDecoration: "none" }}
-                onMouseEnter={(e) => (e.currentTarget.style.color = "var(--brand)")}
-                onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-primary)")}
+                onMouseEnter={(e) =>
+                  (e.currentTarget.style.color = "var(--brand)")
+                }
+                onMouseLeave={(e) =>
+                  (e.currentTarget.style.color = "var(--text-primary)")
+                }
               >
                 {paper.title}
               </a>
@@ -222,7 +239,13 @@ export default function PaperCard({
           </p>
 
           {/* Authors */}
-          <p style={{ fontSize: 10.5, color: "var(--text-faint)", marginBottom: 5 }}>
+          <p
+            style={{
+              fontSize: 10.5,
+              color: "var(--text-faint)",
+              marginBottom: 5,
+            }}
+          >
             {paper.authors.slice(0, 4).join(", ")}
             {paper.authors.length > 4 ? " et al." : ""}
             {paper.journal ? ` · ${paper.journal}` : ""}
@@ -260,7 +283,17 @@ export default function PaperCard({
                     padding: 0,
                   }}
                 >
-                  {exp ? <><ChevronUp size={10} />Less</> : <><ChevronDown size={10} />More</>}
+                  {exp ? (
+                    <>
+                      <ChevronUp size={10} />
+                      Less
+                    </>
+                  ) : (
+                    <>
+                      <ChevronDown size={10} />
+                      More
+                    </>
+                  )}
                 </button>
               )}
             </>
@@ -287,7 +320,11 @@ export default function PaperCard({
               >
                 <Quote size={9} />
                 {showEvidence ? "Hide excerpt" : "Show supporting excerpt"}
-                {showEvidence ? <ChevronUp size={9} /> : <ChevronDown size={9} />}
+                {showEvidence ? (
+                  <ChevronUp size={9} />
+                ) : (
+                  <ChevronDown size={9} />
+                )}
               </button>
               {showEvidence && (
                 <div
@@ -312,14 +349,21 @@ export default function PaperCard({
         </div>
 
         {/* Actions */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 4, flexShrink: 0 }}>
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: 5,
+            flexShrink: 0,
+          }}
+        >
           {paper.url && (
             <a
               href={paper.url}
               target="_blank"
               rel="noopener noreferrer"
               className="icon-btn"
-              title="Open"
+              title="Open paper"
             >
               <ExternalLink size={12} />
             </a>
@@ -327,11 +371,43 @@ export default function PaperCard({
           <button
             onClick={() => void save()}
             disabled={saving}
-            className="icon-btn"
-            title={saved ? "Remove" : "Save"}
-            style={{ color: saved ? "var(--brand)" : undefined }}
+            title={saved ? "Saved to library" : "Save to library"}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 4,
+              padding: "5px 9px",
+              borderRadius: 7,
+              border: saved ? "1px solid var(--brand)" : "1px solid #2a2a2a",
+              background: saved ? "var(--brand-dim)" : "#1a1a1a",
+              color: saved ? "var(--brand)" : "#888",
+              fontSize: 11,
+              fontWeight: 700,
+              cursor: saving ? "default" : "pointer",
+              fontFamily: "var(--font-ui)",
+              whiteSpace: "nowrap",
+              transition: "all .15s",
+              opacity: saving ? 0.6 : 1,
+            }}
+            onMouseEnter={(e) => {
+              if (!saved && !saving) {
+                (e.currentTarget as HTMLElement).style.borderColor =
+                  "var(--brand)";
+                (e.currentTarget as HTMLElement).style.color = "var(--brand)";
+                (e.currentTarget as HTMLElement).style.background =
+                  "var(--brand-dim)";
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!saved) {
+                (e.currentTarget as HTMLElement).style.borderColor = "#2a2a2a";
+                (e.currentTarget as HTMLElement).style.color = "#888";
+                (e.currentTarget as HTMLElement).style.background = "#1a1a1a";
+              }
+            }}
           >
-            {saved ? <BookmarkCheck size={12} /> : <BookmarkPlus size={12} />}
+            {saved ? <BookmarkCheck size={11} /> : <BookmarkPlus size={11} />}
+            {saving ? "…" : saved ? "Saved" : "Save"}
           </button>
         </div>
       </div>

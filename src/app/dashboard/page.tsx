@@ -26,7 +26,7 @@ import {
   TrendingUp,
 } from "lucide-react";
 import Link from "next/link";
-import { downloadResearchPDF } from "@/lib/downloadPDF";
+import { downloadResearchPDF, downloadSavedPaperPDF } from "@/lib/downloadPDF";
 import Image from "next/image";
 import toast from "react-hot-toast";
 import { SavedPaper } from "@/types";
@@ -894,6 +894,521 @@ function DetailView({
   );
 }
 
+/* ── Saved Paper Detail View ─────────────────────────────────── */
+function SavedPaperDetail({
+  paper,
+  onBack,
+  onRemove,
+  session,
+}: {
+  paper: SavedPaper;
+  onBack: () => void;
+  onRemove: (id: string) => Promise<void>;
+  session: any;
+}) {
+  const [removing, setRemoving] = useState(false);
+
+  const handleDownload = () => {
+    downloadSavedPaperPDF(paper, session?.user?.name ?? undefined);
+  };
+
+  const handleRemove = async () => {
+    setRemoving(true);
+    await onRemove(paper.paperId);
+    onBack();
+  };
+
+  const savedDate = paper.savedAt
+    ? new Date(paper.savedAt).toLocaleDateString("en-IN", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      })
+    : null;
+  const authorsStr =
+    (paper.authors?.slice(0, 4).join(", ") ?? "") +
+    ((paper.authors?.length ?? 0) > 4 ? " et al." : "");
+  const apaCitation = `${authorsStr}${paper.year ? ` (${paper.year}).` : " (n.d.)."} ${paper.title}.${paper.journal ? ` ${paper.journal}.` : ""}${paper.doi ? ` https://doi.org/${paper.doi}` : paper.url ? ` ${paper.url}` : ""}`;
+
+  return (
+    <div style={{ flex: 1, overflowY: "auto" }}>
+      <div
+        style={{ maxWidth: 820, margin: "0 auto", padding: "28px 24px 60px" }}
+      >
+        <button
+          onClick={onBack}
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+            padding: "7px 14px",
+            background: "#181818",
+            border: "1px solid #1e1e1e",
+            borderRadius: 9,
+            cursor: "pointer",
+            fontSize: 12.5,
+            color: "var(--text-faint)",
+            marginBottom: 24,
+            fontFamily: "var(--font-ui)",
+            transition: "color .14s",
+          }}
+          onMouseEnter={(e) =>
+            ((e.currentTarget as HTMLElement).style.color =
+              "var(--text-primary)")
+          }
+          onMouseLeave={(e) =>
+            ((e.currentTarget as HTMLElement).style.color = "var(--text-faint)")
+          }
+        >
+          <ChevronLeft size={14} /> Back to Library
+        </button>
+
+        <div
+          style={{
+            padding: "22px 24px",
+            borderRadius: 16,
+            background: "rgba(92,154,224,.06)",
+            border: "1px solid rgba(92,154,224,.18)",
+            marginBottom: 20,
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              marginBottom: 12,
+            }}
+          >
+            <span
+              style={{
+                fontSize: 10,
+                fontWeight: 700,
+                letterSpacing: "1.5px",
+                textTransform: "uppercase" as const,
+                color: "#5c9ae0",
+              }}
+            >
+              Saved Paper
+            </span>
+            {savedDate && (
+              <span
+                style={{
+                  fontSize: 10,
+                  color: "var(--text-faint)",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 4,
+                }}
+              >
+                <Clock size={9} /> Saved {savedDate}
+              </span>
+            )}
+          </div>
+          <h2
+            style={{
+              fontFamily: "var(--font-display)",
+              fontSize: 20,
+              fontWeight: 600,
+              color: "var(--text-primary)",
+              lineHeight: 1.35,
+              marginBottom: 12,
+              letterSpacing: "-.02em",
+            }}
+          >
+            {paper.title}
+          </h2>
+          <p
+            style={{
+              fontSize: 13,
+              color: "var(--text-secondary)",
+              lineHeight: 1.5,
+            }}
+          >
+            {authorsStr}
+          </p>
+          <div
+            style={{
+              display: "flex",
+              flexWrap: "wrap" as const,
+              gap: 7,
+              marginTop: 12,
+            }}
+          >
+            {paper.year && (
+              <span
+                style={{
+                  fontSize: 11,
+                  fontWeight: 600,
+                  padding: "3px 10px",
+                  borderRadius: 99,
+                  background: "rgba(92,154,224,.1)",
+                  color: "#5c9ae0",
+                  border: "1px solid rgba(92,154,224,.2)",
+                }}
+              >
+                📅 {paper.year}
+              </span>
+            )}
+            {paper.journal && (
+              <span
+                style={{
+                  fontSize: 11,
+                  fontWeight: 600,
+                  padding: "3px 10px",
+                  borderRadius: 99,
+                  background: "rgba(255,255,255,.04)",
+                  color: "var(--text-secondary)",
+                  border: "1px solid #2a2a2a",
+                }}
+              >
+                📰 {paper.journal}
+              </span>
+            )}
+            {paper.doi && (
+              <span
+                style={{
+                  fontSize: 11,
+                  fontWeight: 600,
+                  padding: "3px 10px",
+                  borderRadius: 99,
+                  background: "rgba(93,184,122,.08)",
+                  color: "#5db87a",
+                  border: "1px solid rgba(93,184,122,.2)",
+                }}
+              >
+                🔗 DOI
+              </span>
+            )}
+            {paper.url && (
+              <span
+                style={{
+                  fontSize: 11,
+                  fontWeight: 600,
+                  padding: "3px 10px",
+                  borderRadius: 99,
+                  background: "rgba(173,115,224,.08)",
+                  color: "#ad73e0",
+                  border: "1px solid rgba(173,115,224,.2)",
+                }}
+              >
+                🌐 Full Text
+              </span>
+            )}
+          </div>
+        </div>
+
+        {paper.abstract && (
+          <div style={{ marginBottom: 20 }}>
+            <p
+              style={{
+                fontSize: 11,
+                fontWeight: 700,
+                letterSpacing: "1.5px",
+                textTransform: "uppercase" as const,
+                color: "var(--text-faint)",
+                marginBottom: 10,
+              }}
+            >
+              Abstract
+            </p>
+            <div
+              style={{
+                padding: "16px 18px",
+                background: "#181818",
+                border: "1px solid #1e1e1e",
+                borderLeft: "3px solid #5c9ae0",
+                borderRadius: "0 10px 10px 0",
+              }}
+            >
+              <p
+                style={{
+                  fontSize: 13.5,
+                  color: "var(--text-secondary)",
+                  lineHeight: 1.8,
+                }}
+              >
+                {paper.abstract}
+              </p>
+            </div>
+          </div>
+        )}
+
+        <div style={{ marginBottom: 20 }}>
+          <p
+            style={{
+              fontSize: 11,
+              fontWeight: 700,
+              letterSpacing: "1.5px",
+              textTransform: "uppercase" as const,
+              color: "var(--text-faint)",
+              marginBottom: 10,
+            }}
+          >
+            APA Citation
+          </p>
+          <div
+            style={{
+              padding: "14px 16px",
+              background: "#181818",
+              border: "1px solid #1e1e1e",
+              borderRadius: 10,
+              position: "relative" as const,
+            }}
+          >
+            <p
+              style={{
+                fontSize: 12.5,
+                color: "var(--text-secondary)",
+                lineHeight: 1.7,
+                fontStyle: "italic",
+                paddingRight: 70,
+              }}
+            >
+              {apaCitation}
+            </p>
+            <button
+              onClick={() => {
+                void navigator.clipboard.writeText(apaCitation);
+                toast.success("Citation copied!");
+              }}
+              style={{
+                position: "absolute" as const,
+                top: 10,
+                right: 10,
+                padding: "4px 10px",
+                fontSize: 10.5,
+                fontWeight: 600,
+                color: "var(--text-faint)",
+                background: "#1e1e1e",
+                border: "1px solid #2a2a2a",
+                borderRadius: 6,
+                cursor: "pointer",
+                fontFamily: "var(--font-ui)",
+              }}
+            >
+              Copy
+            </button>
+          </div>
+        </div>
+
+        {(paper.doi || paper.url) && (
+          <div style={{ marginBottom: 24 }}>
+            <p
+              style={{
+                fontSize: 11,
+                fontWeight: 700,
+                letterSpacing: "1.5px",
+                textTransform: "uppercase" as const,
+                color: "var(--text-faint)",
+                marginBottom: 10,
+              }}
+            >
+              Access
+            </p>
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column" as const,
+                gap: 7,
+              }}
+            >
+              {paper.doi && (
+                <a
+                  href={`https://doi.org/${paper.doi}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    padding: "12px 16px",
+                    background: "#181818",
+                    border: "1px solid #1e1e1e",
+                    borderRadius: 10,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 10,
+                    textDecoration: "none",
+                    transition: "border-color .14s",
+                  }}
+                  onMouseEnter={(e) =>
+                    ((e.currentTarget as HTMLElement).style.borderColor =
+                      "#2a2a2a")
+                  }
+                  onMouseLeave={(e) =>
+                    ((e.currentTarget as HTMLElement).style.borderColor =
+                      "#1e1e1e")
+                  }
+                >
+                  <span
+                    style={{
+                      fontSize: 10.5,
+                      fontWeight: 700,
+                      color: "#5db87a",
+                      background: "rgba(93,184,122,.1)",
+                      padding: "2px 8px",
+                      borderRadius: 5,
+                      flexShrink: 0,
+                    }}
+                  >
+                    DOI
+                  </span>
+                  <span
+                    style={{
+                      fontSize: 12,
+                      color: "var(--text-faint)",
+                      flex: 1,
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap" as const,
+                    }}
+                  >
+                    doi.org/{paper.doi}
+                  </span>
+                  <ExternalLink
+                    size={11}
+                    style={{ color: "var(--text-faint)", flexShrink: 0 }}
+                  />
+                </a>
+              )}
+              {paper.url && (
+                <a
+                  href={paper.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    padding: "12px 16px",
+                    background: "#181818",
+                    border: "1px solid #1e1e1e",
+                    borderRadius: 10,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 10,
+                    textDecoration: "none",
+                    transition: "border-color .14s",
+                  }}
+                  onMouseEnter={(e) =>
+                    ((e.currentTarget as HTMLElement).style.borderColor =
+                      "#2a2a2a")
+                  }
+                  onMouseLeave={(e) =>
+                    ((e.currentTarget as HTMLElement).style.borderColor =
+                      "#1e1e1e")
+                  }
+                >
+                  <span
+                    style={{
+                      fontSize: 10.5,
+                      fontWeight: 700,
+                      color: "#ad73e0",
+                      background: "rgba(173,115,224,.1)",
+                      padding: "2px 8px",
+                      borderRadius: 5,
+                      flexShrink: 0,
+                    }}
+                  >
+                    Full Text
+                  </span>
+                  <span
+                    style={{
+                      fontSize: 12,
+                      color: "var(--text-faint)",
+                      flex: 1,
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap" as const,
+                    }}
+                  >
+                    {paper.url}
+                  </span>
+                  <ExternalLink
+                    size={11}
+                    style={{ color: "var(--text-faint)", flexShrink: 0 }}
+                  />
+                </a>
+              )}
+            </div>
+          </div>
+        )}
+
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" as const }}>
+          <button
+            onClick={handleDownload}
+            style={{
+              padding: "10px 18px",
+              borderRadius: 10,
+              border: "1px solid #252525",
+              color: "#888",
+              background: "transparent",
+              fontSize: 13,
+              fontWeight: 600,
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              fontFamily: "var(--font-ui)",
+              transition: "border-color .14s, color .14s",
+            }}
+            onMouseEnter={(e) => {
+              (e.currentTarget as HTMLElement).style.borderColor =
+                "var(--brand)";
+              (e.currentTarget as HTMLElement).style.color = "var(--brand)";
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget as HTMLElement).style.borderColor = "#252525";
+              (e.currentTarget as HTMLElement).style.color = "#888";
+            }}
+          >
+            <Download size={13} /> Export PDF
+          </button>
+          {paper.url && (
+            <a
+              href={paper.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                padding: "10px 18px",
+                borderRadius: 10,
+                background: "rgba(92,154,224,.1)",
+                color: "#5c9ae0",
+                fontSize: 13,
+                fontWeight: 700,
+                textDecoration: "none",
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+                border: "1px solid rgba(92,154,224,.2)",
+              }}
+            >
+              <ExternalLink size={12} /> View Full Paper
+            </a>
+          )}
+          <button
+            onClick={() => void handleRemove()}
+            disabled={removing}
+            style={{
+              padding: "10px 18px",
+              borderRadius: 10,
+              border: "1px solid rgba(224,92,92,.2)",
+              color: "var(--red)",
+              background: "transparent",
+              fontSize: 13,
+              fontWeight: 600,
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              fontFamily: "var(--font-ui)",
+              marginLeft: "auto",
+            }}
+          >
+            <Trash2 size={13} />{" "}
+            {removing ? "Removing…" : "Remove from Library"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ═══════════════════════════════════════════════════════════════
    MAIN COMPONENT
 ═══════════════════════════════════════════════════════════════ */
@@ -909,6 +1424,8 @@ function DashContent() {
   const [loading, setLoading] = useState(true);
   const [cancelling, setCancelling] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [selectedPaper, setSelectedPaper] = useState<SavedPaper | null>(null);
+  const [paperSearch, setPaperSearch] = useState("");
 
   useEffect(() => {
     if (status === "unauthenticated") router.push("/auth/signin");
@@ -943,7 +1460,7 @@ function DashContent() {
       .finally(() => setLoading(false));
   }, [status]);
 
-  const removePaper = async (id: string) => {
+  const removePaper = async (id: string): Promise<void> => {
     try {
       await fetch("/api/papers", {
         method: "POST",
@@ -1042,516 +1559,913 @@ function DashContent() {
 
   return (
     <Shell>
-      <div style={{ flex: 1, overflowY: "auto" }}>
-        <div
-          style={{
-            maxWidth: 900,
-            margin: "0 auto",
-            padding: isMobile ? "20px 16px 72px" : "28px 28px 60px",
-          }}
-        >
-          {/* ── Header ───────────────────────────────────────── */}
+      {/* Show paper detail view if a paper is selected */}
+      {selectedPaper ? (
+        <SavedPaperDetail
+          paper={selectedPaper}
+          onBack={() => setSelectedPaper(null)}
+          onRemove={removePaper}
+          session={session}
+        />
+      ) : (
+        <div style={{ flex: 1, overflowY: "auto" }}>
           <div
             style={{
-              display: "flex",
-              alignItems: isMobile ? "flex-start" : "center",
-              justifyContent: "space-between",
-              gap: 16,
-              marginBottom: 28,
-              flexDirection: isMobile ? "column" : "row",
+              maxWidth: 900,
+              margin: "0 auto",
+              padding: isMobile ? "20px 16px 72px" : "28px 28px 60px",
             }}
           >
-            <div>
-              {!isMobile && (
-                <p
-                  style={{
-                    fontSize: 12,
-                    color: "var(--text-faint)",
-                    marginBottom: 4,
-                    fontWeight: 500,
-                  }}
-                >
-                  {dateStr}
-                </p>
-              )}
-              <h1
-                style={{
-                  fontFamily: "var(--font-display)",
-                  fontSize: isMobile ? 22 : 28,
-                  fontWeight: 400,
-                  color: "#e8e3dc",
-                  letterSpacing: "-.04em",
-                  lineHeight: 1.1,
-                }}
-              >
-                {getGreeting()}, {firstName} 👋
-              </h1>
-            </div>
-            <Link
-              href="/search"
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 8,
-                padding: "10px 20px",
-                borderRadius: 11,
-                background: "var(--brand)",
-                color: "#000",
-                fontSize: 13.5,
-                fontWeight: 700,
-                textDecoration: "none",
-                flexShrink: 0,
-                boxShadow: "0 4px 20px rgba(232,160,69,.25)",
-                transition: "transform .15s, box-shadow .15s",
-              }}
-              onMouseEnter={(e) => {
-                (e.currentTarget as HTMLElement).style.transform =
-                  "translateY(-1px)";
-                (e.currentTarget as HTMLElement).style.boxShadow =
-                  "0 8px 28px rgba(232,160,69,.35)";
-              }}
-              onMouseLeave={(e) => {
-                (e.currentTarget as HTMLElement).style.transform = "";
-                (e.currentTarget as HTMLElement).style.boxShadow =
-                  "0 4px 20px rgba(232,160,69,.25)";
-              }}
-            >
-              <Search size={14} /> New Search
-            </Link>
-          </div>
-
-          {/* ── Profile + Plan row ───────────────────────────── */}
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr",
-              gap: 12,
-              marginBottom: 20,
-            }}
-          >
-            {/* Profile card */}
+            {/* ── Header ───────────────────────────────────────── */}
             <div
               style={{
-                padding: "18px 20px",
-                borderRadius: 16,
-                background: "#181818",
-                border: "1px solid #1e1e1e",
                 display: "flex",
-                alignItems: "center",
-                gap: 14,
-                position: "relative",
-                overflow: "hidden",
+                alignItems: isMobile ? "flex-start" : "center",
+                justifyContent: "space-between",
+                gap: 16,
+                marginBottom: 28,
+                flexDirection: isMobile ? "column" : "row",
               }}
             >
-              <div
-                style={{
-                  position: "absolute",
-                  top: -24,
-                  right: -24,
-                  width: 90,
-                  height: 90,
-                  borderRadius: "50%",
-                  background: `${planMeta.color}10`,
-                  filter: "blur(20px)",
-                  pointerEvents: "none",
-                }}
-              />
-              {/* Avatar */}
-              <div style={{ position: "relative", flexShrink: 0 }}>
-                {session?.user?.image ? (
-                  <Image
-                    src={session.user.image}
-                    alt="av"
-                    width={48}
-                    height={48}
+              <div>
+                {!isMobile && (
+                  <p
                     style={{
-                      borderRadius: "50%",
-                      border: `2.5px solid ${planMeta.color}35`,
-                    }}
-                  />
-                ) : (
-                  <div
-                    style={{
-                      width: 48,
-                      height: 48,
-                      borderRadius: "50%",
-                      background: planMeta.gradient,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      fontSize: 18,
-                      fontWeight: 800,
-                      color: "#000",
-                      border: `2.5px solid ${planMeta.color}35`,
+                      fontSize: 12,
+                      color: "var(--text-faint)",
+                      marginBottom: 4,
+                      fontWeight: 500,
                     }}
                   >
-                    {(session?.user?.name?.[0] ?? "U").toUpperCase()}
-                  </div>
+                    {dateStr}
+                  </p>
                 )}
+                <h1
+                  style={{
+                    fontFamily: "var(--font-display)",
+                    fontSize: isMobile ? 22 : 28,
+                    fontWeight: 400,
+                    color: "#e8e3dc",
+                    letterSpacing: "-.04em",
+                    lineHeight: 1.1,
+                  }}
+                >
+                  {getGreeting()}, {firstName} 👋
+                </h1>
+              </div>
+              <Link
+                href="/search"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 8,
+                  padding: "10px 20px",
+                  borderRadius: 11,
+                  background: "var(--brand)",
+                  color: "#000",
+                  fontSize: 13.5,
+                  fontWeight: 700,
+                  textDecoration: "none",
+                  flexShrink: 0,
+                  boxShadow: "0 4px 20px rgba(232,160,69,.25)",
+                  transition: "transform .15s, box-shadow .15s",
+                }}
+                onMouseEnter={(e) => {
+                  (e.currentTarget as HTMLElement).style.transform =
+                    "translateY(-1px)";
+                  (e.currentTarget as HTMLElement).style.boxShadow =
+                    "0 8px 28px rgba(232,160,69,.35)";
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLElement).style.transform = "";
+                  (e.currentTarget as HTMLElement).style.boxShadow =
+                    "0 4px 20px rgba(232,160,69,.25)";
+                }}
+              >
+                <Search size={14} /> New Search
+              </Link>
+            </div>
+
+            {/* ── Profile + Plan row ───────────────────────────── */}
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr",
+                gap: 12,
+                marginBottom: 20,
+              }}
+            >
+              {/* Profile card */}
+              <div
+                style={{
+                  padding: "18px 20px",
+                  borderRadius: 16,
+                  background: "#181818",
+                  border: "1px solid #1e1e1e",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 14,
+                  position: "relative",
+                  overflow: "hidden",
+                }}
+              >
                 <div
                   style={{
                     position: "absolute",
-                    bottom: -2,
-                    right: -2,
-                    width: 18,
-                    height: 18,
+                    top: -24,
+                    right: -24,
+                    width: 90,
+                    height: 90,
                     borderRadius: "50%",
-                    background: planMeta.gradient,
-                    border: "2.5px solid #141414",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
+                    background: `${planMeta.color}10`,
+                    filter: "blur(20px)",
+                    pointerEvents: "none",
                   }}
-                >
-                  <PlanIcon size={8} color="#000" />
+                />
+                {/* Avatar */}
+                <div style={{ position: "relative", flexShrink: 0 }}>
+                  {session?.user?.image ? (
+                    <Image
+                      src={session.user.image}
+                      alt="av"
+                      width={48}
+                      height={48}
+                      style={{
+                        borderRadius: "50%",
+                        border: `2.5px solid ${planMeta.color}35`,
+                      }}
+                    />
+                  ) : (
+                    <div
+                      style={{
+                        width: 48,
+                        height: 48,
+                        borderRadius: "50%",
+                        background: planMeta.gradient,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        fontSize: 18,
+                        fontWeight: 800,
+                        color: "#000",
+                        border: `2.5px solid ${planMeta.color}35`,
+                      }}
+                    >
+                      {(session?.user?.name?.[0] ?? "U").toUpperCase()}
+                    </div>
+                  )}
+                  <div
+                    style={{
+                      position: "absolute",
+                      bottom: -2,
+                      right: -2,
+                      width: 18,
+                      height: 18,
+                      borderRadius: "50%",
+                      background: planMeta.gradient,
+                      border: "2.5px solid #141414",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <PlanIcon size={8} color="#000" />
+                  </div>
                 </div>
-              </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <p
-                  style={{
-                    fontSize: 14,
-                    fontWeight: 700,
-                    color: "var(--text-primary)",
-                    marginBottom: 2,
-                  }}
-                >
-                  {session?.user?.name ?? "Researcher"}
-                </p>
-                <p
-                  style={{
-                    fontSize: 11.5,
-                    color: "var(--text-faint)",
-                    marginBottom: 9,
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  {session?.user?.email}
-                </p>
-                <span
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: 5,
-                    padding: "3px 10px",
-                    borderRadius: 99,
-                    fontSize: 10.5,
-                    fontWeight: 700,
-                    background: `${planMeta.color}15`,
-                    color: planMeta.color,
-                    border: `1px solid ${planMeta.color}30`,
-                  }}
-                >
-                  <PlanIcon size={8} /> {planMeta.label} Plan
-                </span>
-              </div>
-              {isPaid && !isMobile && (
-                <div
-                  style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: 5,
-                    flexShrink: 0,
-                  }}
-                >
-                  <Link
-                    href="/pricing"
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p
+                    style={{
+                      fontSize: 14,
+                      fontWeight: 700,
+                      color: "var(--text-primary)",
+                      marginBottom: 2,
+                    }}
+                  >
+                    {session?.user?.name ?? "Researcher"}
+                  </p>
+                  <p
                     style={{
                       fontSize: 11.5,
                       color: "var(--text-faint)",
-                      padding: "4px 10px",
-                      borderRadius: 7,
-                      border: "1px solid #1e1e1e",
-                      textDecoration: "none",
-                      textAlign: "center",
-                      transition: "color .14s, border-color .14s",
-                    }}
-                    onMouseEnter={(e) => {
-                      (e.currentTarget as HTMLElement).style.color =
-                        "var(--text-primary)";
-                      (e.currentTarget as HTMLElement).style.borderColor =
-                        "#2a2a2a";
-                    }}
-                    onMouseLeave={(e) => {
-                      (e.currentTarget as HTMLElement).style.color =
-                        "var(--text-faint)";
-                      (e.currentTarget as HTMLElement).style.borderColor =
-                        "#1e1e1e";
+                      marginBottom: 9,
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
                     }}
                   >
-                    Change
-                  </Link>
+                    {session?.user?.email}
+                  </p>
+                  <span
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 5,
+                      padding: "3px 10px",
+                      borderRadius: 99,
+                      fontSize: 10.5,
+                      fontWeight: 700,
+                      background: `${planMeta.color}15`,
+                      color: planMeta.color,
+                      border: `1px solid ${planMeta.color}30`,
+                    }}
+                  >
+                    <PlanIcon size={8} /> {planMeta.label} Plan
+                  </span>
+                </div>
+                {isPaid && !isMobile && (
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 5,
+                      flexShrink: 0,
+                    }}
+                  >
+                    <Link
+                      href="/pricing"
+                      style={{
+                        fontSize: 11.5,
+                        color: "var(--text-faint)",
+                        padding: "4px 10px",
+                        borderRadius: 7,
+                        border: "1px solid #1e1e1e",
+                        textDecoration: "none",
+                        textAlign: "center",
+                        transition: "color .14s, border-color .14s",
+                      }}
+                      onMouseEnter={(e) => {
+                        (e.currentTarget as HTMLElement).style.color =
+                          "var(--text-primary)";
+                        (e.currentTarget as HTMLElement).style.borderColor =
+                          "#2a2a2a";
+                      }}
+                      onMouseLeave={(e) => {
+                        (e.currentTarget as HTMLElement).style.color =
+                          "var(--text-faint)";
+                        (e.currentTarget as HTMLElement).style.borderColor =
+                          "#1e1e1e";
+                      }}
+                    >
+                      Change
+                    </Link>
+                    <button
+                      onClick={() => setShowConfirm(true)}
+                      disabled={cancelling}
+                      style={{
+                        fontSize: 11.5,
+                        color: "var(--red)",
+                        background: "transparent",
+                        border: "1px solid rgba(224,92,92,.25)",
+                        borderRadius: 7,
+                        padding: "4px 10px",
+                        cursor: "pointer",
+                        fontFamily: "var(--font-ui)",
+                      }}
+                    >
+                      {cancelling ? "…" : "Cancel"}
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Plan status card */}
+              <div
+                style={{
+                  padding: "18px 20px",
+                  borderRadius: 16,
+                  border: "1px solid #1e1e1e",
+                  background: atLimit
+                    ? "rgba(224,92,92,.04)"
+                    : isPaid
+                      ? "rgba(93,184,122,.04)"
+                      : "rgba(201,185,154,.04)",
+                  borderColor: atLimit
+                    ? "rgba(224,92,92,.18)"
+                    : isPaid
+                      ? "rgba(93,184,122,.18)"
+                      : "rgba(201,185,154,.18)",
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "flex-start",
+                    justifyContent: "space-between",
+                    marginBottom: isPro ? 0 : 16,
+                    gap: 10,
+                  }}
+                >
+                  <div
+                    style={{ display: "flex", alignItems: "center", gap: 10 }}
+                  >
+                    <div
+                      style={{
+                        width: 36,
+                        height: 36,
+                        borderRadius: 10,
+                        background: atLimit
+                          ? "rgba(224,92,92,.12)"
+                          : isPaid
+                            ? "rgba(93,184,122,.12)"
+                            : "var(--brand-dim)",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        flexShrink: 0,
+                      }}
+                    >
+                      {atLimit ? (
+                        <Lock size={15} style={{ color: "var(--red)" }} />
+                      ) : isPaid ? (
+                        <CheckCircle
+                          size={15}
+                          style={{ color: "var(--green)" }}
+                        />
+                      ) : (
+                        <Activity size={15} style={{ color: "var(--brand)" }} />
+                      )}
+                    </div>
+                    <div>
+                      <p
+                        style={{
+                          fontSize: 13.5,
+                          fontWeight: 700,
+                          color: atLimit
+                            ? "var(--red)"
+                            : isPaid
+                              ? "var(--green)"
+                              : "var(--brand)",
+                          marginBottom: 3,
+                        }}
+                      >
+                        {atLimit
+                          ? "Limit reached"
+                          : isPaid
+                            ? "Plan active"
+                            : "Free plan"}
+                      </p>
+                      <p
+                        style={{
+                          fontSize: 12,
+                          color: "var(--text-faint)",
+                          lineHeight: 1.4,
+                        }}
+                      >
+                        {atLimit
+                          ? isFree
+                            ? "Resets at midnight"
+                            : "Resets next month"
+                          : isPro
+                            ? "Unlimited searches & uploads"
+                            : isStudent
+                              ? `${searchesThisMonth} / 500 this month`
+                              : `${searchesToday} / 5 today`}
+                      </p>
+                    </div>
+                  </div>
+                  {!isPro && (
+                    <Link
+                      href="/pricing"
+                      style={{
+                        padding: "7px 14px",
+                        borderRadius: 8,
+                        background: atLimit ? "#e05c5c" : "#c9b99a",
+                        color: "#000",
+                        fontSize: 12,
+                        fontWeight: 700,
+                        textDecoration: "none",
+                        flexShrink: 0,
+                      }}
+                    >
+                      {atLimit ? "Upgrade" : isFree ? "Upgrade ✨" : "Change"}
+                    </Link>
+                  )}
+                </div>
+                {!isPro && (
+                  <>
+                    <div
+                      style={{
+                        height: 5,
+                        background: "#1e1e1e",
+                        borderRadius: 99,
+                        overflow: "hidden",
+                        marginBottom: 8,
+                      }}
+                    >
+                      <div
+                        style={{
+                          height: "100%",
+                          width: `${pct}%`,
+                          background: atLimit
+                            ? "var(--red)"
+                            : pct >= 80
+                              ? "var(--brand)"
+                              : "var(--green)",
+                          borderRadius: 99,
+                          transition: "width .6s ease",
+                        }}
+                      />
+                    </div>
+                    <p style={{ fontSize: 11.5, color: "var(--text-faint)" }}>
+                      {atLimit ? "0" : counterMax - counterUsed}{" "}
+                      {isPro ? "" : "searches"} remaining
+                    </p>
+                  </>
+                )}
+                {isPaid && isMobile && (
                   <button
                     onClick={() => setShowConfirm(true)}
                     disabled={cancelling}
                     style={{
-                      fontSize: 11.5,
-                      color: "var(--red)",
+                      marginTop: 12,
+                      fontSize: 12,
+                      color: "var(--text-faint)",
                       background: "transparent",
-                      border: "1px solid rgba(224,92,92,.25)",
+                      border: "1px solid #1e1e1e",
                       borderRadius: 7,
-                      padding: "4px 10px",
+                      padding: "6px 12px",
                       cursor: "pointer",
                       fontFamily: "var(--font-ui)",
                     }}
                   >
-                    {cancelling ? "…" : "Cancel"}
+                    {cancelling ? "…" : "Cancel plan"}
                   </button>
-                </div>
-              )}
-            </div>
-
-            {/* Plan status card */}
-            <div
-              style={{
-                padding: "18px 20px",
-                borderRadius: 16,
-                border: "1px solid #1e1e1e",
-                background: atLimit
-                  ? "rgba(224,92,92,.04)"
-                  : isPaid
-                    ? "rgba(93,184,122,.04)"
-                    : "rgba(201,185,154,.04)",
-                borderColor: atLimit
-                  ? "rgba(224,92,92,.18)"
-                  : isPaid
-                    ? "rgba(93,184,122,.18)"
-                    : "rgba(201,185,154,.18)",
-              }}
-            >
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "flex-start",
-                  justifyContent: "space-between",
-                  marginBottom: isPro ? 0 : 16,
-                  gap: 10,
-                }}
-              >
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <div
-                    style={{
-                      width: 36,
-                      height: 36,
-                      borderRadius: 10,
-                      background: atLimit
-                        ? "rgba(224,92,92,.12)"
-                        : isPaid
-                          ? "rgba(93,184,122,.12)"
-                          : "var(--brand-dim)",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      flexShrink: 0,
-                    }}
-                  >
-                    {atLimit ? (
-                      <Lock size={15} style={{ color: "var(--red)" }} />
-                    ) : isPaid ? (
-                      <CheckCircle
-                        size={15}
-                        style={{ color: "var(--green)" }}
-                      />
-                    ) : (
-                      <Activity size={15} style={{ color: "var(--brand)" }} />
-                    )}
-                  </div>
-                  <div>
-                    <p
-                      style={{
-                        fontSize: 13.5,
-                        fontWeight: 700,
-                        color: atLimit
-                          ? "var(--red)"
-                          : isPaid
-                            ? "var(--green)"
-                            : "var(--brand)",
-                        marginBottom: 3,
-                      }}
-                    >
-                      {atLimit
-                        ? "Limit reached"
-                        : isPaid
-                          ? "Plan active"
-                          : "Free plan"}
-                    </p>
-                    <p
-                      style={{
-                        fontSize: 12,
-                        color: "var(--text-faint)",
-                        lineHeight: 1.4,
-                      }}
-                    >
-                      {atLimit
-                        ? isFree
-                          ? "Resets at midnight"
-                          : "Resets next month"
-                        : isPro
-                          ? "Unlimited searches & uploads"
-                          : isStudent
-                            ? `${searchesThisMonth} / 500 this month`
-                            : `${searchesToday} / 5 today`}
-                    </p>
-                  </div>
-                </div>
-                {!isPro && (
-                  <Link
-                    href="/pricing"
-                    style={{
-                      padding: "7px 14px",
-                      borderRadius: 8,
-                      background: atLimit ? "#e05c5c" : "#c9b99a",
-                      color: "#000",
-                      fontSize: 12,
-                      fontWeight: 700,
-                      textDecoration: "none",
-                      flexShrink: 0,
-                    }}
-                  >
-                    {atLimit ? "Upgrade" : isFree ? "Upgrade ✨" : "Change"}
-                  </Link>
                 )}
               </div>
-              {!isPro && (
-                <>
-                  <div
-                    style={{
-                      height: 5,
-                      background: "#1e1e1e",
-                      borderRadius: 99,
-                      overflow: "hidden",
-                      marginBottom: 8,
-                    }}
-                  >
-                    <div
-                      style={{
-                        height: "100%",
-                        width: `${pct}%`,
-                        background: atLimit
-                          ? "var(--red)"
-                          : pct >= 80
-                            ? "var(--brand)"
-                            : "var(--green)",
-                        borderRadius: 99,
-                        transition: "width .6s ease",
-                      }}
-                    />
-                  </div>
-                  <p style={{ fontSize: 11.5, color: "var(--text-faint)" }}>
-                    {atLimit ? "0" : counterMax - counterUsed}{" "}
-                    {isPro ? "" : "searches"} remaining
-                  </p>
-                </>
-              )}
-              {isPaid && isMobile && (
-                <button
-                  onClick={() => setShowConfirm(true)}
-                  disabled={cancelling}
-                  style={{
-                    marginTop: 12,
-                    fontSize: 12,
-                    color: "var(--text-faint)",
-                    background: "transparent",
-                    border: "1px solid #1e1e1e",
-                    borderRadius: 7,
-                    padding: "6px 12px",
-                    cursor: "pointer",
-                    fontFamily: "var(--font-ui)",
-                  }}
-                >
-                  {cancelling ? "…" : "Cancel plan"}
-                </button>
-              )}
             </div>
-          </div>
 
-          {/* ── Stats ────────────────────────────────────────── */}
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: isMobile ? "repeat(2,1fr)" : "repeat(2,1fr)",
-              gap: 12,
-              marginBottom: 24,
-            }}
-          >
-            <StatCard
-              value={papers.length}
-              label="Saved Papers"
-              icon={BookmarkCheck}
-              color="#5c9ae0"
-            />
-
-            <StatCard
-              value={isPro ? "∞" : `${counterUsed}/${counterMax}`}
-              label={
-                isFree
-                  ? "Daily Searches"
-                  : isStudent
-                    ? "Monthly Searches"
-                    : "Searches"
-              }
-              icon={TrendingUp}
-              color={
-                atLimit
-                  ? "var(--red)"
-                  : isPro
-                    ? "#5db87a"
-                    : "var(--text-primary)"
-              }
-              sub={isPro ? "Unlimited" : undefined}
-            />
-          </div>
-
-          {/* ── Quick Actions ─────────────────────────────────── */}
-          <div style={{ marginBottom: 28 }}>
-            <p
-              style={{
-                fontSize: 11,
-                fontWeight: 700,
-                letterSpacing: "1.5px",
-                textTransform: "uppercase",
-                color: "var(--text-faint)",
-                marginBottom: 14,
-              }}
-            >
-              Quick Actions
-            </p>
+            {/* ── Stats ────────────────────────────────────────── */}
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: isMobile ? "1fr" : "repeat(3,1fr)",
+                gridTemplateColumns: isMobile
+                  ? "repeat(2,1fr)"
+                  : "repeat(2,1fr)",
                 gap: 12,
+                marginBottom: 24,
               }}
             >
-              <ActionCard
-                label="Research Search"
-                desc="AI answers from 200M+ academic papers"
-                cta="Start searching"
-                href="/search"
-                color="var(--brand)"
-                Icon={Search}
+              <StatCard
+                value={papers.length}
+                label="Saved Papers"
+                icon={BookmarkCheck}
+                color="#5c9ae0"
               />
-              <ActionCard
-                label="Literature Review"
-                desc="Full structured review in under 30 seconds"
-                cta="Generate review"
-                href="/review"
-                color="#5db87a"
-                Icon={BookOpen}
+
+              <StatCard
+                value={isPro ? "∞" : `${counterUsed}/${counterMax}`}
+                label={
+                  isFree
+                    ? "Daily Searches"
+                    : isStudent
+                      ? "Monthly Searches"
+                      : "Searches"
+                }
+                icon={TrendingUp}
+                color={
+                  atLimit
+                    ? "var(--red)"
+                    : isPro
+                      ? "#5db87a"
+                      : "var(--text-primary)"
+                }
+                sub={isPro ? "Unlimited" : undefined}
               />
-              <ActionCard
-                label="PDF Chat"
-                desc="Upload any paper and ask it questions"
-                cta="Upload a PDF"
-                href="/upload"
-                color="#ad73e0"
-                Icon={FileText}
-              />
+            </div>
+
+            {/* ── Quick Actions ─────────────────────────────────── */}
+            <div style={{ marginBottom: 28 }}>
+              <p
+                style={{
+                  fontSize: 11,
+                  fontWeight: 700,
+                  letterSpacing: "1.5px",
+                  textTransform: "uppercase",
+                  color: "var(--text-faint)",
+                  marginBottom: 14,
+                }}
+              >
+                Quick Actions
+              </p>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: isMobile ? "1fr" : "repeat(3,1fr)",
+                  gap: 12,
+                }}
+              >
+                <ActionCard
+                  label="Research Search"
+                  desc="AI answers from 200M+ academic papers"
+                  cta="Start searching"
+                  href="/search"
+                  color="var(--brand)"
+                  Icon={Search}
+                />
+                <ActionCard
+                  label="Literature Review"
+                  desc="Full structured review in under 30 seconds"
+                  cta="Generate review"
+                  href="/review"
+                  color="#5db87a"
+                  Icon={BookOpen}
+                />
+                <ActionCard
+                  label="PDF Chat"
+                  desc="Upload any paper and ask it questions"
+                  cta="Upload a PDF"
+                  href="/upload"
+                  color="#ad73e0"
+                  Icon={FileText}
+                />
+              </div>
+            </div>
+
+            {/* ── Saved Papers ─────────────────────────────────────── */}
+            <div style={{ marginBottom: 28 }}>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  marginBottom: 14,
+                }}
+              >
+                <p
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 700,
+                    letterSpacing: "1.5px",
+                    textTransform: "uppercase",
+                    color: "var(--text-faint)",
+                  }}
+                >
+                  Saved Papers
+                  {papers.length > 0 && (
+                    <span
+                      style={{
+                        marginLeft: 8,
+                        fontSize: 10,
+                        fontWeight: 700,
+                        color: "#5c9ae0",
+                        background: "rgba(92,154,224,.12)",
+                        padding: "2px 8px",
+                        borderRadius: 99,
+                        border: "1px solid rgba(92,154,224,.2)",
+                      }}
+                    >
+                      {papers.length}
+                    </span>
+                  )}
+                </p>
+                {papers.length > 3 && (
+                  <div style={{ position: "relative" }}>
+                    <Search
+                      size={12}
+                      style={{
+                        position: "absolute",
+                        left: 10,
+                        top: "50%",
+                        transform: "translateY(-50%)",
+                        color: "var(--text-faint)",
+                        pointerEvents: "none",
+                      }}
+                    />
+                    <input
+                      type="text"
+                      placeholder="Search papers…"
+                      value={paperSearch}
+                      onChange={(e) => setPaperSearch(e.target.value)}
+                      style={{
+                        paddingLeft: 30,
+                        paddingRight: 12,
+                        paddingTop: 7,
+                        paddingBottom: 7,
+                        background: "#181818",
+                        border: "1px solid #1e1e1e",
+                        borderRadius: 8,
+                        fontSize: 12,
+                        color: "var(--text-primary)",
+                        fontFamily: "var(--font-ui)",
+                        outline: "none",
+                        width: 180,
+                      }}
+                      onFocus={(e) =>
+                        ((e.currentTarget as HTMLElement).style.borderColor =
+                          "#2a2a2a")
+                      }
+                      onBlur={(e) =>
+                        ((e.currentTarget as HTMLElement).style.borderColor =
+                          "#1e1e1e")
+                      }
+                    />
+                  </div>
+                )}
+              </div>
+
+              {loading ? (
+                <div
+                  style={{ display: "flex", flexDirection: "column", gap: 8 }}
+                >
+                  {[1, 2, 3].map((i) => (
+                    <Shimmer key={i} h={90} />
+                  ))}
+                </div>
+              ) : papers.length === 0 ? (
+                <Empty
+                  icon={BookmarkCheck}
+                  title="No saved papers yet"
+                  desc="Save papers from your research results and they'll appear here for easy access."
+                  href="/search"
+                  cta="Start Researching"
+                />
+              ) : (
+                <>
+                  <div
+                    style={{ display: "flex", flexDirection: "column", gap: 8 }}
+                  >
+                    {papers
+                      .filter(
+                        (p) =>
+                          paperSearch.trim() === "" ||
+                          p.title
+                            .toLowerCase()
+                            .includes(paperSearch.toLowerCase()) ||
+                          p.authors?.some((a) =>
+                            a.toLowerCase().includes(paperSearch.toLowerCase()),
+                          ) ||
+                          (p.journal ?? "")
+                            .toLowerCase()
+                            .includes(paperSearch.toLowerCase()),
+                      )
+                      .map((paper) => {
+                        const savedDate = paper.savedAt
+                          ? new Date(paper.savedAt).toLocaleDateString(
+                              "en-IN",
+                              {
+                                day: "2-digit",
+                                month: "short",
+                                year: "numeric",
+                              },
+                            )
+                          : null;
+                        return (
+                          <div
+                            key={paper.paperId}
+                            style={{
+                              padding: "14px 16px",
+                              background: "#181818",
+                              border: "1px solid #1e1e1e",
+                              borderRadius: 12,
+                              transition: "border-color .14s, background .14s",
+                            }}
+                            onMouseEnter={(e) => {
+                              (
+                                e.currentTarget as HTMLElement
+                              ).style.borderColor = "#2a2a2a";
+                              (
+                                e.currentTarget as HTMLElement
+                              ).style.background = "#1a1a1a";
+                            }}
+                            onMouseLeave={(e) => {
+                              (
+                                e.currentTarget as HTMLElement
+                              ).style.borderColor = "#1e1e1e";
+                              (
+                                e.currentTarget as HTMLElement
+                              ).style.background = "#181818";
+                            }}
+                          >
+                            <div
+                              style={{
+                                display: "flex",
+                                gap: 12,
+                                alignItems: "flex-start",
+                              }}
+                            >
+                              {/* Icon */}
+                              <div
+                                style={{
+                                  width: 36,
+                                  height: 36,
+                                  borderRadius: 10,
+                                  background: "rgba(92,154,224,.1)",
+                                  border: "1px solid rgba(92,154,224,.2)",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  flexShrink: 0,
+                                  marginTop: 1,
+                                }}
+                              >
+                                <BookmarkCheck
+                                  size={15}
+                                  style={{ color: "#5c9ae0" }}
+                                />
+                              </div>
+                              {/* Content */}
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <button
+                                  onClick={() => setSelectedPaper(paper)}
+                                  style={{
+                                    background: "none",
+                                    border: "none",
+                                    cursor: "pointer",
+                                    padding: 0,
+                                    textAlign: "left",
+                                    width: "100%",
+                                  }}
+                                >
+                                  <p
+                                    style={{
+                                      fontSize: 13.5,
+                                      fontWeight: 600,
+                                      color: "var(--text-primary)",
+                                      marginBottom: 4,
+                                      lineHeight: 1.4,
+                                      overflow: "hidden",
+                                      textOverflow: "ellipsis",
+                                      whiteSpace: "nowrap",
+                                    }}
+                                  >
+                                    {paper.title}
+                                  </p>
+                                </button>
+                                <p
+                                  style={{
+                                    fontSize: 11.5,
+                                    color: "var(--text-faint)",
+                                    marginBottom: 6,
+                                    overflow: "hidden",
+                                    textOverflow: "ellipsis",
+                                    whiteSpace: "nowrap",
+                                  }}
+                                >
+                                  {(paper.authors?.slice(0, 3).join(", ") ??
+                                    "") +
+                                    ((paper.authors?.length ?? 0) > 3
+                                      ? " et al."
+                                      : "")}
+                                  {paper.year ? ` · ${paper.year}` : ""}
+                                  {paper.journal ? ` · ${paper.journal}` : ""}
+                                </p>
+                                {paper.abstract && (
+                                  <p
+                                    style={{
+                                      fontSize: 11.5,
+                                      color: "var(--text-faint)",
+                                      lineHeight: 1.55,
+                                      overflow: "hidden",
+                                      display: "-webkit-box",
+                                      WebkitLineClamp: 2,
+                                      WebkitBoxOrient: "vertical" as const,
+                                      marginBottom: 8,
+                                    }}
+                                  >
+                                    {paper.abstract}
+                                  </p>
+                                )}
+                                <div
+                                  style={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: 8,
+                                    flexWrap: "wrap" as const,
+                                  }}
+                                >
+                                  {savedDate && (
+                                    <span
+                                      style={{
+                                        fontSize: 10,
+                                        color: "var(--text-faint)",
+                                        display: "flex",
+                                        alignItems: "center",
+                                        gap: 3,
+                                      }}
+                                    >
+                                      <Clock size={9} /> {savedDate}
+                                    </span>
+                                  )}
+                                  {paper.doi && (
+                                    <span
+                                      style={{
+                                        fontSize: 10,
+                                        fontWeight: 600,
+                                        color: "#5db87a",
+                                        background: "rgba(93,184,122,.08)",
+                                        padding: "1px 7px",
+                                        borderRadius: 5,
+                                        border:
+                                          "1px solid rgba(93,184,122,.15)",
+                                      }}
+                                    >
+                                      DOI
+                                    </span>
+                                  )}
+                                  {paper.url && (
+                                    <span
+                                      style={{
+                                        fontSize: 10,
+                                        fontWeight: 600,
+                                        color: "#ad73e0",
+                                        background: "rgba(173,115,224,.08)",
+                                        padding: "1px 7px",
+                                        borderRadius: 5,
+                                        border:
+                                          "1px solid rgba(173,115,224,.15)",
+                                      }}
+                                    >
+                                      Full Text
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                              {/* Actions */}
+                              <div
+                                style={{
+                                  display: "flex",
+                                  flexDirection: "column" as const,
+                                  gap: 4,
+                                  flexShrink: 0,
+                                }}
+                              >
+                                <button
+                                  onClick={() => setSelectedPaper(paper)}
+                                  title="View details"
+                                  className="icon-btn"
+                                  style={{ color: "#5c9ae0" }}
+                                >
+                                  <ChevronRight size={13} />
+                                </button>
+                                <button
+                                  onClick={() =>
+                                    downloadSavedPaperPDF(
+                                      paper,
+                                      session?.user?.name ?? undefined,
+                                    )
+                                  }
+                                  title="Download PDF"
+                                  className="icon-btn"
+                                >
+                                  <Download size={12} />
+                                </button>
+                                {paper.url && (
+                                  <a
+                                    href={paper.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="icon-btn"
+                                    title="Open paper"
+                                  >
+                                    <ExternalLink size={12} />
+                                  </a>
+                                )}
+                                <button
+                                  onClick={() =>
+                                    void removePaper(paper.paperId)
+                                  }
+                                  title="Remove from library"
+                                  className="icon-btn"
+                                  style={{ color: "var(--red)" }}
+                                >
+                                  <Trash2 size={12} />
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                  </div>
+                  {paperSearch &&
+                    papers.filter(
+                      (p) =>
+                        p.title
+                          .toLowerCase()
+                          .includes(paperSearch.toLowerCase()) ||
+                        p.authors?.some((a) =>
+                          a.toLowerCase().includes(paperSearch.toLowerCase()),
+                        ) ||
+                        (p.journal ?? "")
+                          .toLowerCase()
+                          .includes(paperSearch.toLowerCase()),
+                    ).length === 0 && (
+                      <div
+                        style={{
+                          padding: "28px",
+                          textAlign: "center",
+                          color: "var(--text-faint)",
+                          fontSize: 13,
+                        }}
+                      >
+                        No papers match &ldquo;{paperSearch}&rdquo;
+                      </div>
+                    )}
+                </>
+              )}
             </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* ── Cancel modal ────────────────────────────────────── */}
       {showConfirm && (
