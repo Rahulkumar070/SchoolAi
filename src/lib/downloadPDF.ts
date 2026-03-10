@@ -1,4 +1,4 @@
-import { Paper } from "@/types";
+import { Paper, SavedPaper } from "@/types";
 import { cite } from "./citations";
 
 // Converts markdown to readable HTML for PDF
@@ -320,6 +320,307 @@ export function downloadResearchPDF(
       const a = document.createElement("a");
       a.href = url;
       a.download = `researchly-${query.slice(0, 30).replace(/\s+/g, "-").toLowerCase()}.html`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
+      return;
+    }
+    win.document.write(html);
+    win.document.close();
+  }
+}
+
+// ── Saved Paper PDF Builder ──────────────────────────────────────
+function buildSavedPaperHTML(paper: SavedPaper, userName?: string): string {
+  const now = new Date();
+  const dateStr = now.toLocaleDateString("en-IN", {
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+  });
+  const timeStr = now.toLocaleTimeString("en-IN", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+
+  const authorsStr =
+    paper.authors?.slice(0, 6).join(", ") +
+    ((paper.authors?.length ?? 0) > 6 ? " et al." : "");
+
+  // Build APA citation
+  const yearPart = paper.year ? `(${paper.year}).` : "(n.d.).";
+  const journalPart = paper.journal ? ` <em>${paper.journal}</em>.` : "";
+  const doiPart = paper.doi
+    ? ` https://doi.org/${paper.doi}`
+    : paper.url
+      ? ` ${paper.url}`
+      : "";
+  const apaCitation = `${authorsStr} ${yearPart} ${paper.title}.${journalPart}${doiPart}`;
+
+  const savedDateStr = paper.savedAt
+    ? new Date(paper.savedAt).toLocaleDateString("en-IN", {
+        day: "2-digit",
+        month: "long",
+        year: "numeric",
+      })
+    : dateStr;
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Researchly — ${paper.title.slice(0, 60)}</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: "Georgia", Times, serif;
+      font-size: 11.5pt;
+      color: #1a1a1a;
+      background: #fff;
+      line-height: 1.7;
+    }
+    .page { max-width: 210mm; margin: 0 auto; padding: 18mm 22mm 20mm; }
+    .header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      padding-bottom: 12px;
+      border-bottom: 2.5px solid #e8a045;
+      margin-bottom: 20px;
+    }
+    .logo-wrap { display: flex; align-items: center; gap: 10px; }
+    .logo-box { width: 34px; height: 34px; background: #e8a045; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 17px; }
+    .logo-text { font-family: Georgia, serif; font-size: 17pt; font-weight: bold; color: #111; }
+    .logo-text span { color: #e8a045; }
+    .meta-right { text-align: right; font-size: 8.5pt; color: #888; line-height: 1.7; }
+    .tag {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 99px;
+      font-size: 8pt;
+      font-weight: bold;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      background: #fffbf5;
+      color: #e8a045;
+      border: 1px solid #f0e0cc;
+      margin-bottom: 16px;
+    }
+    .paper-title {
+      font-size: 20pt;
+      font-weight: bold;
+      color: #111;
+      line-height: 1.3;
+      margin-bottom: 12px;
+      font-family: Georgia, serif;
+    }
+    .authors {
+      font-size: 11pt;
+      color: #555;
+      margin-bottom: 8px;
+      line-height: 1.5;
+    }
+    .meta-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 22px;
+    }
+    .chip {
+      padding: 4px 12px;
+      border-radius: 99px;
+      font-size: 9pt;
+      font-weight: 600;
+      background: #f5f5f5;
+      color: #444;
+      border: 1px solid #e8e8e8;
+    }
+    .chip.brand { background: #fffbf5; color: #c47a1a; border-color: #f0e0cc; }
+    .section-title {
+      font-size: 10pt;
+      font-weight: bold;
+      letter-spacing: 0.09em;
+      text-transform: uppercase;
+      color: #e8a045;
+      margin: 26px 0 12px;
+      padding-bottom: 5px;
+      border-bottom: 1px solid #f0e0cc;
+    }
+    .abstract-box {
+      background: #fafafa;
+      border: 1px solid #eee;
+      border-left: 4px solid #e8a045;
+      border-radius: 0 8px 8px 0;
+      padding: 16px 18px;
+      margin-bottom: 24px;
+    }
+    .abstract-text {
+      font-size: 11pt;
+      color: #333;
+      line-height: 1.8;
+    }
+    .apa-box {
+      background: #fffbf5;
+      border: 1px solid #f0e0cc;
+      border-radius: 8px;
+      padding: 14px 18px;
+      font-size: 10.5pt;
+      color: #444;
+      line-height: 1.7;
+    }
+    .meta-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+    .meta-item {
+      padding: 12px 14px;
+      border: 1px solid #eee;
+      border-radius: 8px;
+      background: #fafafa;
+    }
+    .meta-item-label {
+      font-size: 8pt;
+      font-weight: bold;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: #aaa;
+      margin-bottom: 4px;
+    }
+    .meta-item-value {
+      font-size: 11pt;
+      color: #222;
+      font-weight: 600;
+    }
+    .link-box {
+      padding: 12px 16px;
+      border: 1px solid #e8e8e8;
+      border-radius: 8px;
+      font-size: 10pt;
+      color: #555;
+      word-break: break-all;
+    }
+    .footer {
+      margin-top: 28px;
+      padding-top: 10px;
+      border-top: 1px solid #eee;
+      display: flex;
+      justify-content: space-between;
+      font-size: 8.5pt;
+      color: #bbb;
+    }
+    @media screen and (max-width: 600px) {
+      .page { padding: 8mm 6mm; }
+      .header { flex-direction: column; gap: 8px; }
+      .meta-right { text-align: left; }
+      .meta-grid { grid-template-columns: 1fr; }
+    }
+    @media print {
+      body { padding: 0; }
+      .page { padding: 12mm 18mm; }
+      @page { margin: 0; size: A4; }
+    }
+  </style>
+</head>
+<body>
+<div class="page">
+  <div class="header">
+    <div class="logo-wrap">
+      <div class="logo-box">📚</div>
+      <div>
+        <div class="logo-text">Research<span>ly</span></div>
+        <div style="font-size:8pt;color:#aaa;margin-top:1px">AI Research Assistant</div>
+      </div>
+    </div>
+    <div class="meta-right">
+      Exported: ${dateStr} at ${timeStr}<br/>
+      ${userName ? `Researcher: ${userName}<br/>` : ""}
+      Saved: ${savedDateStr}<br/>
+      researchly.in
+    </div>
+  </div>
+
+  <div class="tag">📑 Saved Paper</div>
+
+  <h1 class="paper-title">${paper.title}</h1>
+  <p class="authors">${authorsStr}</p>
+
+  <div class="meta-chips">
+    ${paper.year ? `<span class="chip brand">📅 ${paper.year}</span>` : ""}
+    ${paper.journal ? `<span class="chip">📰 ${paper.journal}</span>` : ""}
+    ${paper.doi ? `<span class="chip">🔗 DOI Available</span>` : ""}
+    ${paper.url ? `<span class="chip">🌐 Full Text</span>` : ""}
+  </div>
+
+  ${
+    paper.abstract
+      ? `
+  <div class="section-title">Abstract</div>
+  <div class="abstract-box">
+    <p class="abstract-text">${paper.abstract}</p>
+  </div>
+  `
+      : ""
+  }
+
+  <div class="section-title">Paper Metadata</div>
+  <div class="meta-grid">
+    ${paper.year ? `<div class="meta-item"><div class="meta-item-label">Publication Year</div><div class="meta-item-value">${paper.year}</div></div>` : ""}
+    ${paper.journal ? `<div class="meta-item"><div class="meta-item-label">Journal / Venue</div><div class="meta-item-value">${paper.journal}</div></div>` : ""}
+    <div class="meta-item"><div class="meta-item-label">Authors</div><div class="meta-item-value" style="font-size:10pt;font-weight:400">${authorsStr}</div></div>
+    <div class="meta-item"><div class="meta-item-label">Saved On</div><div class="meta-item-value">${savedDateStr}</div></div>
+  </div>
+
+  ${
+    paper.doi || paper.url
+      ? `
+  <div class="section-title">Access Links</div>
+  <div class="link-box">
+    ${paper.doi ? `<strong>DOI:</strong> https://doi.org/${paper.doi}<br/>` : ""}
+    ${paper.url && !paper.doi ? `<strong>URL:</strong> ${paper.url}` : ""}
+    ${paper.url && paper.doi ? `<strong>Full Text:</strong> ${paper.url}` : ""}
+  </div>
+  `
+      : ""
+  }
+
+  <div class="section-title">Citation (APA Format)</div>
+  <div class="apa-box">${apaCitation}</div>
+
+  <div class="footer">
+    <span>Generated by Researchly · AI-powered Academic Research</span>
+    <span>researchly.in · ${dateStr}</span>
+  </div>
+</div>
+</body>
+</html>`;
+}
+
+export function downloadSavedPaperPDF(paper: SavedPaper, userName?: string) {
+  const html = buildSavedPaperHTML(paper, userName);
+  const mobile = isMobile();
+
+  if (mobile) {
+    const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `researchly-paper-${paper.title.slice(0, 30).replace(/\s+/g, "-").toLowerCase()}.html`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+  } else {
+    const win = window.open("", "_blank", "width=900,height=750");
+    if (!win) {
+      const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `researchly-paper-${paper.title.slice(0, 30).replace(/\s+/g, "-").toLowerCase()}.html`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
