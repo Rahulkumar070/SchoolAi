@@ -14,7 +14,9 @@
 
 import Anthropic from "@anthropic-ai/sdk";
 import { Paper, ChatMessage } from "@/types";
-import { generateRAGAnswer } from "./rag";
+import { generateRAGAnswer, lastChunkIdToPaperId } from "./rag";
+
+export { lastChunkIdToPaperId } from "./rag";
 
 const ant = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -148,12 +150,12 @@ INDIAN STUDENT CONTEXT
 WRITING RULES
 - Never start with filler phrases like "Great question!" or "Certainly!".
 - Bold **key terms** on first use.
-- Research answers: 600–900 words. Study: 400–600 words. Exam: as many questions as requested.`
+- Research answers: 600–900 words. Study: 400–600 words. Exam: as many questions as requested.`;
 
 // ── Generate answer (RAG-powered when papers exist) ───────────
 export async function generateAnswer(
   query: string,
-  papers: Paper[]
+  papers: Paper[],
 ): Promise<string> {
   if (papers.length > 0) {
     return generateRAGAnswer(query, papers, false) as Promise<string>;
@@ -186,12 +188,16 @@ NEVER say you cannot help.`,
 // IMPROVED: generates 4 follow-ups (was 3)
 export async function generateRelatedQuestions(
   query: string,
-  recentHistory: string[] = []  // last 3 queries from user's session for personalization
+  recentHistory: string[] = [], // last 3 queries from user's session for personalization
 ): Promise<string[]> {
   try {
-    const historyCtx = recentHistory.length > 0
-      ? `\n\nUser's recent research thread (for context — personalize suggestions to fit their focus):\n${recentHistory.slice(0, 3).map((q, i) => `${i + 1}. ${q}`).join("\n")}`
-      : "";
+    const historyCtx =
+      recentHistory.length > 0
+        ? `\n\nUser's recent research thread (for context — personalize suggestions to fit their focus):\n${recentHistory
+            .slice(0, 3)
+            .map((q, i) => `${i + 1}. ${q}`)
+            .join("\n")}`
+        : "";
 
     const r = await ant.messages.create({
       model: "claude-haiku-4-5-20251001",
@@ -216,7 +222,7 @@ Example: ["Question 1?","Question 2?","Question 3?","Question 4?"]`,
       b.text
         .trim()
         .replace(/```json|```/g, "")
-        .trim()
+        .trim(),
     ) as string[];
     return Array.isArray(parsed) ? parsed.slice(0, 4) : [];
   } catch {
@@ -227,7 +233,7 @@ Example: ["Question 1?","Question 2?","Question 3?","Question 4?"]`,
 // ── PDF starter questions (called after upload) ───────────────
 // IMPROVED: 5 questions including a real-world applications question
 export async function generatePDFStarterQuestions(
-  title: string
+  title: string,
 ): Promise<string[]> {
   try {
     const r = await ant.messages.create({
@@ -250,7 +256,7 @@ Return ONLY a JSON array of 5 strings, nothing else. No markdown, no backticks.`
       b.text
         .trim()
         .replace(/```json|```/g, "")
-        .trim()
+        .trim(),
     ) as string[];
     return Array.isArray(parsed) ? parsed.slice(0, 5) : defaultPDFQuestions();
   } catch {
@@ -272,7 +278,7 @@ function defaultPDFQuestions(): string[] {
 // IMPROVED: abstract slice 1200, citation counts in context, no bullet points instruction
 export async function generateReview(
   topic: string,
-  papers: Paper[]
+  papers: Paper[],
 ): Promise<string> {
   const paperCtx = papers
     .slice(0, 15)
@@ -281,7 +287,7 @@ export async function generateReview(
         `[${i + 1}] "${p.title}"
 Authors: ${p.authors.slice(0, 4).join(", ")}${p.authors.length > 4 ? " et al." : ""} | Year: ${p.year ?? "n.d."} | Journal: ${p.journal ?? p.source} | Citations: ${p.citationCount ?? "N/A"}
 Abstract: ${p.abstract.slice(0, 1200)}
-${p.url ? `URL: ${p.url}` : ""}${p.doi ? `\nDOI: https://doi.org/${p.doi}` : ""}`
+${p.url ? `URL: ${p.url}` : ""}${p.doi ? `\nDOI: https://doi.org/${p.doi}` : ""}`,
     )
     .join("\n\n---\n\n");
 
@@ -343,7 +349,7 @@ STRICT RULES:
 export async function chatPDF(
   question: string,
   pdfText: string,
-  history: ChatMessage[]
+  history: ChatMessage[],
 ): Promise<string> {
   const r = await ant.messages.create({
     model: "claude-haiku-4-5-20251001",
