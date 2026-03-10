@@ -3,13 +3,19 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { searchAll } from "@/lib/papers";
 import {
-  chunkPapers,
+  chunkPapersWithSections,
   rankChunks,
   rerankChunks,
-  buildRAGContext,
   enrichWithFullText,
   extractKeywords,
+  buildEvidenceBlocks,
+  formatEvidenceBlocks,
+  guaranteeFoundationalChunks,
+  verifyClaimCitations,
+  badgePapers,
+  STATIC_PAPER_IDS,
 } from "@/lib/rag";
+import { detectIntent, getIntentSystemAddendum } from "@/lib/intent";
 import { connectDB } from "@/lib/mongodb";
 import { UserModel } from "@/models/User";
 import { ConversationModel } from "@/models/Conversation";
@@ -19,6 +25,7 @@ import { checkGuestLimit } from "@/lib/guestLimit";
 import Anthropic from "@anthropic-ai/sdk";
 import mongoose from "mongoose";
 import { generateRelatedQuestions } from "@/lib/ai";
+import { EvidenceBlock } from "@/types";  // ✅ CHANGE #1 — new import [Upgrade #1]
 
 const ant = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -53,483 +60,158 @@ type UserDoc = {
   }[];
 };
 
-async function buildPrompt(query: string, papers: PaperRow[]) {
+// ✅ CHANGE #2 — PromptResult now also returns topChunks and evidenceBlocks
+// so we can run verifyClaimCitations after streaming without re-building
+interface PromptResult {
+  prompt: string;
+  chunkIdToPaperId: Map<string, string>;
+  evidenceBlocks: EvidenceBlock[];   // needed for claim verification
+  intentAddendum: string;            // v7 NEW: intent-specific system instructions
+}
+
+async function buildPrompt(
+  query: string,
+  papers: PaperRow[],
+  intentAddendum: string = "",
+): Promise<PromptResult> {
+  const emptyMap = new Map<string, string>();
+
   if (papers.length > 0) {
-    // v4: extract keywords so chunkPapers annotates density and buildRAGContext
-    // prioritises keyword-matching sentences within each chunk
     const keywords = extractKeywords(query);
 
-    // RAG: chunk + rank + re-rank + build context
-    // v5: rankChunks is now async (uses real embeddings when OPENAI_API_KEY is set)
-    const chunks = chunkPapers(papers as any, keywords);
+    const chunks = await chunkPapersWithSections(papers as any, keywords);
     const bm25Chunks = await rankChunks(query, chunks);
-    const topChunks = await rerankChunks(query, bm25Chunks, 8); // LLM re-rank
-    const ragCtx = buildRAGContext(topChunks, keywords);
-    // Inject hardcoded foundational papers for well-known topics so they always appear in the index
-    // Build guaranteed entries for well-known foundational papers
-    // They are numbered REF-1, REF-2 ... and retrieved papers follow after
-    interface GuaranteedPaperDef {
-      title: string;
-      authors: string;
-      year: number;
-      source: string;
-      url: string;
-    }
-    const GUARANTEED_DEFS: Record<string, GuaranteedPaperDef> = {
-      "attention-transformer": {
-        title: "Attention Is All You Need",
-        authors: "Ashish Vaswani, Noam Shazeer, Niki Parmar et al.",
-        year: 2017,
-        source: "NeurIPS / arXiv",
-        url: "https://arxiv.org/abs/1706.03762",
-      },
-      bert: {
-        title:
-          "BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding",
-        authors: "Jacob Devlin, Ming-Wei Chang, Kenton Lee et al.",
-        year: 2019,
-        source: "NAACL / arXiv",
-        url: "https://arxiv.org/abs/1810.04805",
-      },
-      tinybert: {
-        title: "TinyBERT: Distilling BERT for Natural Language Understanding",
-        authors: "Xiaoqi Jiao, Yichun Yin, Lifeng Shang et al.",
-        year: 2020,
-        source: "EMNLP / arXiv",
-        url: "https://arxiv.org/abs/1909.10351",
-      },
-      roberta: {
-        title: "RoBERTa: A Robustly Optimized BERT Pretraining Approach",
-        authors: "Yinhan Liu, Myle Ott, Naman Goyal et al.",
-        year: 2019,
-        source: "arXiv",
-        url: "https://arxiv.org/abs/1907.11692",
-      },
-      gpt2: {
-        title: "Language Models are Unsupervised Multitask Learners",
-        authors: "Alec Radford, Jeffrey Wu, Rewon Child et al.",
-        year: 2019,
-        source: "OpenAI Blog",
-        url: "https://cdn.openai.com/better-language-models/language_models_are_unsupervised_multitask_learners.pdf",
-      },
-      gpt3: {
-        title: "Language Models are Few-Shot Learners",
-        authors: "Tom Brown, Benjamin Mann, Nick Ryder et al.",
-        year: 2020,
-        source: "NeurIPS / arXiv",
-        url: "https://arxiv.org/abs/2005.14165",
-      },
-      instructgpt: {
-        title:
-          "Training language models to follow instructions with human feedback",
-        authors: "Long Ouyang, Jeffrey Wu, Xu Jiang et al.",
-        year: 2022,
-        source: "NeurIPS / arXiv",
-        url: "https://arxiv.org/abs/2203.02155",
-      },
-      gradient_descent: {
-        title: "An overview of gradient descent optimization algorithms",
-        authors: "Sebastian Ruder",
-        year: 2016,
-        source: "arXiv",
-        url: "https://arxiv.org/abs/1609.04747",
-      },
-      attention: {
-        title: "Attention Is All You Need",
-        authors: "Ashish Vaswani, Noam Shazeer, Niki Parmar et al.",
-        year: 2017,
-        source: "NeurIPS / arXiv",
-        url: "https://arxiv.org/abs/1706.03762",
-      },
-      rag: {
-        title:
-          "Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks",
-        authors: "Patrick Lewis, Ethan Perez, Aleksandra Piktus et al.",
-        year: 2020,
-        source: "NeurIPS / arXiv",
-        url: "https://arxiv.org/abs/2005.11401",
-      },
-    };
-
-    const guaranteedDefs: GuaranteedPaperDef[] = [];
-    if (
-      /attention.*transformer|transformer.*attention|self.?attention|multi.?head|how.*transformer/i.test(
-        query,
-      )
-    ) {
-      guaranteedDefs.push(GUARANTEED_DEFS["attention-transformer"]);
-    }
-    if (
-      /\bbert\b|bidirectional.*transformer|masked.*language.*model/i.test(query)
-    ) {
-      guaranteedDefs.push(GUARANTEED_DEFS["bert"]);
-      guaranteedDefs.push(GUARANTEED_DEFS["tinybert"]);
-      guaranteedDefs.push(GUARANTEED_DEFS["roberta"]);
-    }
-    if (/\brag\b|retrieval.?augmented generation/i.test(query)) {
-      guaranteedDefs.push(GUARANTEED_DEFS["rag"]);
-    }
-    if (
-      /\bgpt\b|generative pre.?trained|few.?shot.*learn|language model.*few.?shot/i.test(
-        query,
-      )
-    ) {
-      guaranteedDefs.push(GUARANTEED_DEFS["gpt3"]);
-      guaranteedDefs.push(GUARANTEED_DEFS["instructgpt"]);
-      guaranteedDefs.push(GUARANTEED_DEFS["attention-transformer"]);
-    }
-    if (/gradient descent|sgd|adam optimizer|backprop/i.test(query)) {
-      guaranteedDefs.push(GUARANTEED_DEFS["gradient_descent"]);
-    }
-    if (
-      /\battention mechanism\b|self.?attention|scaled dot.?product/i.test(query)
-    ) {
-      guaranteedDefs.push(GUARANTEED_DEFS["attention-transformer"]);
-      guaranteedDefs.push(GUARANTEED_DEFS["bert"]);
-    }
-
-    // Guaranteed papers get REF-1, REF-2 ... ; retrieved papers follow as REF-(G+1), REF-(G+2) ...
-    const G = guaranteedDefs.length;
-    const guaranteedEntries = guaranteedDefs.map(
-      (p, i) =>
-        `[REF-${i + 1}]\nTitle: "${p.title}"\nAuthors: ${p.authors}\nYear: ${p.year}\nSource: ${p.source}\nLink: ${p.url}`,
+    const reranked = await rerankChunks(query, bm25Chunks, 8);
+    const topChunks = guaranteeFoundationalChunks(
+      reranked,
+      chunks,
+      papers as any,
     );
 
-    const paperList = [
-      ...guaranteedEntries,
-      ...papers
-        .slice(0, 18)
-        .map(
-          (p, i) =>
-            `[REF-${G + i + 1}]\nTitle: "${p.title}"\nAuthors: ${p.authors.slice(0, 3).join(", ")}${p.authors.length > 3 ? " et al." : ""}\nYear: ${p.year ?? "n.d."}\nSource: ${p.source}\nLink: ${p.doi ? `https://doi.org/${p.doi}` : p.url ? p.url : "Not available"}`,
-        ),
-    ].join("\n\n");
-    return `RESEARCH QUESTION: "${query}"
+    // Build citation-grounded evidence blocks (includes authors, citationCount, doi, inlineCite)
+    const evidenceBlocks = buildEvidenceBlocks(topChunks, papers as any);
+    const formattedEvidence = formatEvidenceBlocks(evidenceBlocks);
+    const chunkIdToPaperId = new Map(
+      evidenceBlocks.map((b) => [b.chunk_id, b.paper_id]),
+    );
 
-## RETRIEVED CONTEXT (top ${topChunks.length} chunks)
-${ragCtx}
+    // v7: append intent-specific instructions (math equations, comparison table, etc.)
+    const intentSection = intentAddendum
+      ? `\n\n${intentAddendum}`
+      : "";
 
-## PAPER INDEX (use these for citation cards — metadata is pre-verified)
-${paperList}
+    const prompt = `You are Researchly, a citation-grounded research assistant.
+You must answer the user using ONLY the retrieved evidence blocks provided below.
+Do not use prior knowledge, world knowledge, or unstated assumptions.
+GROUNDING RULES
+1. Every factual sentence must end with one or more citations in this exact format: [CITATION:chunk_id]
+2. Only cite chunk IDs that appear in the EVIDENCE BLOCKS section.
+3. Do not cite a paper unless at least one cited chunk belongs to that paper.
+4. If a claim is supported by multiple chunks, cite all of them.
+5. If the evidence is insufficient, say exactly: "I cannot support that from the retrieved papers."
+6. If sources conflict, state the conflict explicitly and cite both sides.
+7. Do not invent authors, years, venues, URLs, DOI values, or paper titles.
+8. Do not output a citation for stylistic or general statements unless they contain a factual claim.
+9. Prefer direct evidence from the most relevant chunks over broad summary language.
+10. Never output a claim first and search for a citation later; form each sentence from evidence.
+CITATION FORMAT
+- Use the inline_cite field for the FIRST mention of a paper:
+  "Vaswani et al. (2017) [CITATION:c01]"
+- For subsequent mentions of the same paper: just [CITATION:cXX]
+OUTPUT RULES
+- Write in 4 to 6 short sections with clear headings.
+- After every factual sentence, append citation tags like [CITATION:c12][CITATION:c19].
+- Do not use any citation tag that is not present in the evidence.
+- At the end, output a section titled "## Cited Papers" listing only papers that were actually cited.
+- For each cited paper, include:
+  - paper_id
+  - title
+  - year
+  - url
+  - cited_chunk_ids
+- Do not include papers that were retrieved but not cited.
+- If no evidence supports the answer, output only: "I cannot support that from the retrieved papers."
+EVIDENCE BLOCKS
+Each block has:
+- chunk_id
+- paper_id
+- title
+- authors
+- year
+- venue
+- citations       (citation count — e.g. 80,000)
+- doi             (DOI string or "Not available")
+- url
+- section         (which part of the paper: abstract/introduction/methods/results/conclusion)
+- inline_cite     (pre-formatted "Author et al. (Year)" — use this for first mention)
+- text
+${formattedEvidence}
+USER QUESTION
+${query}${intentSection}`;
 
-CITATION INSTRUCTION:
-CITATION PLACEMENT — follow this exactly:
-- Overview (end of paragraph): [REF-1] once only
-- Key Concepts: ONE [REF-N] on the single most important bullet only. Do NOT cite any other bullet.
-- Technical Details: ONE [REF-N] after the comparison table only
-- Key Takeaways: ONE [REF-N] on the first takeaway only
-- All other sections (Architecture, Limitations, What To Search Next): ZERO citations
-- Total across the whole answer: maximum 4 [REF-N] markers
-- REF-1 is the foundational paper — use it MAX 2 TIMES across the whole answer
-- DO NOT write plain-text citations like "Devlin et al." — only [REF-N]
-- DO NOT repeat the same [REF-N] more than twice
-
-MANDATORY SECTION CHECKLIST — respond with ALL 7 in order:
-1. ## Overview
-2. ## Key Concepts
-3. ## System Architecture
-4. ## Technical Details or Comparison
-5. ## Limitations
-6. ## Key Takeaways
-7. ## What To Search Next
-CRITICAL: Do NOT skip ## Limitations (section 5). Do NOT merge sections. Do NOT number sections yourself.`;
+    return { prompt, chunkIdToPaperId, evidenceBlocks, intentAddendum };
   }
-  return `QUESTION: "${query}"\n\nNo academic papers found.\n\nClassify as Study Help / Exam Practice / General Academic / Non-Academic.\nIf non-academic: politely redirect. For study: thorough explanation + ## What To Search Next. For exam (JEE/NEET/UPSC/GATE): generate original questions with detailed answers. NEVER say you cannot help.`;
+
+  const prompt = `QUESTION: "${query}"\n\nNo academic papers found.\n\nClassify as Study Help / Exam Practice / General Academic / Non-Academic.\nIf non-academic: politely redirect. For study: thorough explanation + ## What To Search Next. For exam (JEE/NEET/UPSC/GATE): generate original questions with detailed answers. NEVER say you cannot help.${intentAddendum ? "\n\n" + intentAddendum : ""}`;
+  return { prompt, chunkIdToPaperId: emptyMap, evidenceBlocks: [], intentAddendum };
 }
 
-// ── Guaranteed paper objects for frontend citation resolution ─────────
-function getGuaranteedPaperObjects(query: string) {
-  const all = [
-    {
-      id: "vaswani2017",
-      title: "Attention Is All You Need",
-      authors: [
-        "Ashish Vaswani",
-        "Noam Shazeer",
-        "Niki Parmar",
-        "Jakob Uszkoreit",
-      ],
-      year: 2017,
-      abstract:
-        "We propose a new network architecture, the Transformer, based solely on attention mechanisms.",
-      source: "NeurIPS / arXiv",
-      doi: "10.48550/arXiv.1706.03762",
-      url: "https://arxiv.org/abs/1706.03762",
-      citationCount: 120000,
-      _refKey: "REF-FOUND-1",
-    },
-    {
-      id: "devlin2019",
-      title:
-        "BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding",
-      authors: [
-        "Jacob Devlin",
-        "Ming-Wei Chang",
-        "Kenton Lee",
-        "Kristina Toutanova",
-      ],
-      year: 2019,
-      abstract:
-        "BERT is designed to pre-train deep bidirectional representations from unlabeled text.",
-      source: "NAACL / arXiv",
-      url: "https://arxiv.org/abs/1810.04805",
-      citationCount: 90000,
-      _refKey: "REF-FOUND-2",
-    },
-    {
-      id: "lewis2020",
-      title: "Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks",
-      authors: ["Patrick Lewis", "Ethan Perez", "Aleksandra Piktus"],
-      year: 2020,
-      source: "NeurIPS / arXiv",
-      url: "https://arxiv.org/abs/2005.11401",
-      citationCount: 12000,
-      _refKey: "REF-FOUND-3",
-    },
-  ];
-
-  const matched: typeof all = [];
-  if (
-    /attention.*transformer|transformer.*attention|self.?attention|multi.?head|how.*transformer/i.test(
-      query,
-    )
-  ) {
-    matched.push(all[0]);
-  }
-  if (/\bbert\b|bidirectional.*transformer|masked.*language/i.test(query)) {
-    matched.push(all[1]);
-    matched.push({
-      id: "liu2019",
-      title: "RoBERTa: A Robustly Optimized BERT Pretraining Approach",
-      authors: [
-        "Yinhan Liu",
-        "Myle Ott",
-        "Naman Goyal",
-        "Jingfei Du",
-        "Mandar Joshi",
-      ],
-      year: 2019,
-      abstract:
-        "RoBERTa replicates, simplifies, and better tunes BERT. It removes NSP and trains with larger batches over more data.",
-      source: "arXiv",
-      url: "https://arxiv.org/abs/1907.11692",
-      citationCount: 25000,
-      _refKey: "REF-FOUND-roberta",
-    });
-    matched.push({
-      id: "jiao2020",
-      title: "TinyBERT: Distilling BERT for Natural Language Understanding",
-      authors: [
-        "Xiaoqi Jiao",
-        "Yichun Yin",
-        "Lifeng Shang",
-        "Xin Jiang",
-        "Xuan Chen",
-      ],
-      year: 2020,
-      abstract:
-        "TinyBERT is a compressed BERT model using two-stage knowledge distillation, achieving 96.8% of BERT performance with 7.5x fewer parameters.",
-      source: "EMNLP / arXiv",
-      url: "https://arxiv.org/abs/1909.10351",
-      citationCount: 3000,
-      _refKey: "REF-FOUND-tinybert",
-    });
-  }
-  if (/\brag\b|retrieval.?augmented/i.test(query)) {
-    matched.push(all[2]);
-  }
-  if (
-    /\bgpt\b|generative pre.?trained|few.?shot.*learn|language model.*few.?shot/i.test(
-      query,
-    )
-  ) {
-    matched.push(
-      {
-        id: "brown2020",
-        title: "Language Models are Few-Shot Learners",
-        authors: [
-          "Tom Brown",
-          "Benjamin Mann",
-          "Nick Ryder",
-          "Melanie Subbiah",
-        ],
-        year: 2020,
-        source: "NeurIPS / arXiv",
-        url: "https://arxiv.org/abs/2005.14165",
-        citationCount: 35000,
-        _refKey: "REF-FOUND-gpt3",
-      },
-      {
-        id: "ouyang2022",
-        title:
-          "Training language models to follow instructions with human feedback",
-        authors: ["Long Ouyang", "Jeffrey Wu", "Xu Jiang", "Diogo Almeida"],
-        year: 2022,
-        source: "NeurIPS / arXiv",
-        url: "https://arxiv.org/abs/2203.02155",
-        citationCount: 12000,
-        _refKey: "REF-FOUND-instructgpt",
-      },
-      {
-        id: "vaswani2017gpt",
-        title: "Attention Is All You Need",
-        authors: [
-          "Ashish Vaswani",
-          "Noam Shazeer",
-          "Niki Parmar",
-          "Jakob Uszkoreit",
-        ],
-        year: 2017,
-        source: "NeurIPS / arXiv",
-        url: "https://arxiv.org/abs/1706.03762",
-        citationCount: 120000,
-        _refKey: "REF-FOUND-vaswani-gpt",
-      },
-    );
-  }
-  if (/gradient descent|sgd|adam optimizer|backprop/i.test(query)) {
-    matched.push({
-      id: "ruder2016",
-      title: "An overview of gradient descent optimization algorithms",
-      authors: ["Sebastian Ruder"],
-      year: 2016,
-      source: "arXiv",
-      url: "https://arxiv.org/abs/1609.04747",
-      citationCount: 14000,
-      _refKey: "REF-FOUND-ruder",
-    });
-  }
-  if (
-    /\battention mechanism\b|self.?attention|scaled dot.?product/i.test(query)
-  ) {
-    matched.push(
-      {
-        id: "vaswani2017attn",
-        title: "Attention Is All You Need",
-        authors: [
-          "Ashish Vaswani",
-          "Noam Shazeer",
-          "Niki Parmar",
-          "Jakob Uszkoreit",
-        ],
-        year: 2017,
-        source: "NeurIPS / arXiv",
-        url: "https://arxiv.org/abs/1706.03762",
-        citationCount: 120000,
-        _refKey: "REF-FOUND-vaswani-attn",
-      },
-      {
-        id: "devlin2019attn",
-        title:
-          "BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding",
-        authors: [
-          "Jacob Devlin",
-          "Ming-Wei Chang",
-          "Kenton Lee",
-          "Kristina Toutanova",
-        ],
-        year: 2019,
-        source: "NAACL / arXiv",
-        url: "https://arxiv.org/abs/1810.04805",
-        citationCount: 90000,
-        _refKey: "REF-FOUND-bert-attn",
-      },
-    );
-  }
-  return matched;
-}
-
-const SYSTEM = `You are Researchly, an expert academic research assistant for Indian students and researchers.
+const SYSTEM = `You are Researchly, a citation-grounded academic research assistant for Indian students and researchers.
 You ONLY help with academic, research, and study topics.
+You must answer using ONLY the retrieved evidence blocks in the user message.
 
-RULE 1 — MANDATORY RESPONSE STRUCTURE
-Every research answer MUST use these exact 7 sections in this exact order:
+GROUNDING RULES
+1. Every factual sentence must end with [CITATION:chunk_id] — use the exact chunk_id from the evidence blocks.
+2. Only cite chunk IDs present in the EVIDENCE BLOCKS section of the user message.
+3. Never cite a paper unless a cited chunk belongs to that paper.
+4. If a claim is supported by multiple chunks, cite all of them: [CITATION:c01][CITATION:c03]
+5. If evidence is insufficient, write: "I cannot support that from the retrieved papers."
+6. Never invent authors, years, venues, URLs, DOI values, or paper titles.
+
+CITATION FORMAT
+- Use inline_cite field from the evidence block for the FIRST mention of each paper.
+  Example: "The Transformer uses only attention mechanisms. Vaswani et al. (2017) [CITATION:c01]"
+- For subsequent mentions of the same paper: just [CITATION:cXX]
+
+MANDATORY RESPONSE STRUCTURE — output ALL 7 sections in order:
 1. ## Overview
 2. ## Key Concepts
-3. ## System Architecture  (include ASCII diagram)
-4. ## Technical Details or Comparison  (include comparison table)
+3. ## System Architecture  (include ASCII diagram for any AI system or pipeline)
+4. ## Technical Details or Comparison  (include comparison table when comparing 2+ models)
 5. ## Limitations
 6. ## Key Takeaways
-7. ## What To Search Next
+7. ## What To Search Next  (3 query suggestions, no citations needed here)
 
-CRITICAL: Write ALL 7 sections in exact order. After "## Technical Details or Comparison", your VERY NEXT section MUST be "## Limitations" — never skip it, never merge it with another section. Then write "## Key Takeaways". Then write "## What To Search Next". Never number sections yourself.
-
-RULE 2 — CITATIONS (SELECTIVE, NOT AFTER EVERY SENTENCE)
-Cite 3–5 papers total across the whole answer. Use DIFFERENT papers where possible.
-
-STRICT PER-SECTION CITATION LIMITS — these are hard maximums, not targets:
-- ## Overview: exactly 1 citation, at the END of the paragraph. No more.
-- ## Key Concepts: exactly 1 citation total across ALL bullets. Pick the single most important bullet only.
-- ## System Architecture: 0 citations (diagrams need no citation)
-- ## Technical Details or Comparison: exactly 1 citation, after the comparison table
+CITATION PLACEMENT — hard limits per section:
+- ## Overview: max 2 citations
+- ## Key Concepts: max 3 citations
+- ## System Architecture: 0 citations
+- ## Technical Details or Comparison: max 3 citations
 - ## Limitations: 0 citations
-- ## Key Takeaways: exactly 1 citation on the first takeaway only
+- ## Key Takeaways: max 2 citations on first two takeaways only
 - ## What To Search Next: 0 citations
+- TOTAL: maximum 8 [CITATION:*] markers across the whole answer
 
-TOTAL across the whole answer: maximum 4 citations. Never more.
+CITATION SAFETY RULES:
+- ONLY cite chunk_ids listed in the EVIDENCE BLOCKS section.
+- Never repeat the same chunk_id more than 2 times.
+- Never write plain-text citations like "Devlin et al." — use [CITATION:chunk_id] only.
+- Never append a bibliography or references list at the end.
 
-Where NOT to place citations:
-- Do NOT cite more than once per section — even if you think two bullets deserve it
-- Do NOT cite after every bullet — most bullets need NO citation
-- Do NOT repeat the same [REF-N] more than 2 times total across the whole answer
-- Do NOT cite in Limitations or Architecture sections
-- Do NOT cite obvious general facts
+After ## What To Search Next, output a "## Cited Papers" section in YAML format:
+## Cited Papers
+- paper_id: <paper_id>
+  title: <title>
+  year: <year>
+  url: <url>
+  cited_chunk_ids: [<chunk_id>, ...]
 
-Good example (BERT query) — 4 citations total, spread across sections:
-Overview (end): "...adapts to specific downstream tasks like classification, QA, or NER. [REF-1]"
-Key Concepts: "MLM forces true bidirectionality — BERT predicts masked tokens using both left and right context. [REF-1]"
-Technical Details: "RoBERTa removes NSP and trains on 10× more data, outperforming BERT on GLUE. [REF-2]"
-Key Takeaways: "TinyBERT achieves 96.8% of BERT's performance with 7.5× fewer parameters. [REF-3]"
-
-Rules:
-- NEVER write "(From general knowledge)" in any form — use [REF-N] or omit the citation entirely.
-- NEVER write plain-text citations like "Devlin et al., 2019" or "Liu et al., 2019".
-- NEVER add annotation lines like "Related Work: ...", "Key Benchmark: ...", "Foundational Paper: ...", "Note: ...".
-- NEVER write a bare URL on its own line.
-- NEVER EVER append a references list or bibliography at the end of the answer. This is the most critical rule. Do NOT write [1] Author... [2] Author... at the end. STOP before writing any reference list.
-- Use ONLY [REF-N] format from the PAPER INDEX.
-- Maximum 2 uses of any single [REF-N] across the entire answer.
-- Your answer MUST end after the "## What To Search Next" section. Write the 3 search suggestions, then STOP COMPLETELY. Do not write anything after the last search suggestion. No references. No bibliography. No [1] [2] [3] list. Just stop.
-
-RULE 3 — HANDLING MISSING CONTEXT
-If retrieved papers do not support a specific claim:
-1. Use your training knowledge to answer — but do NOT label it. Just write the fact.
-2. Use REF-1 for any claim about the core topic (REF-1 is always the foundational paper).
-3. NEVER fabricate paper titles, authors, or URLs.
-4. NEVER cite an irrelevant paper just to fill the citation requirement.
-5. NEVER write "(From general knowledge)" in any form — it is forbidden.
-
-RULE 4 — ASCII DIAGRAMS (MANDATORY for any AI system or pipeline discussion)
-
-RULE 5 — COMPARISON TABLES when comparing 2+ models:
-| Model | Time Complexity | Memory | Strengths | Limitations |
-
-RULE 6 — No overconfident claims. Provide context and scope.
-
-RULE 7 — Focus on key innovations, mechanisms, limitations, applications.
-
-RULE 10 — CITATION QUALITY AND PAPER PRIORITIZATION
-Priority order when selecting which papers to cite:
-  1. FOUNDATIONAL — the original paper that introduced the method.
-  2. MAJOR FOLLOW-UP — papers that significantly improved the method.
-  3. BENCHMARK / EVALUATION — papers that directly test or compare the method.
-
-CITATION FILTERING — only include a paper if it:
-  ✓ Introduces the method
-  ✓ Significantly improves the method
-  ✓ Benchmarks or evaluates the method directly
-
-DO NOT cite:
-  ✗ General surveys if a foundational paper exists.
-  ✗ Papers that only mention the concept tangentially.
-
-CITATION LIMITS: 3–5 most relevant papers per answer. Foundational papers always cited first.
+Include ONLY papers actually cited in the answer body. Then STOP completely.
 
 WRITING RULES
 - Never start with filler phrases.
 - Bold **key terms** on first use.
-- Research: 600–900 words. Study: 400–600 words.
-- End with ## What To Search Next (3 suggestions).`;
+- Research answers: 600–900 words. Study: 400–600 words.`;
 
 export async function POST(req: NextRequest) {
   try {
@@ -553,7 +235,6 @@ export async function POST(req: NextRequest) {
       const now = new Date();
       u = (await UserModel.findOne(
         { email: session.user.email },
-        // Fetch rate-limiting fields + last 3 queries for personalized suggestions
         {
           _id: 1,
           plan: 1,
@@ -561,7 +242,7 @@ export async function POST(req: NextRequest) {
           searchDateReset: 1,
           searchesThisMonth: 1,
           searchMonthReset: 1,
-          searchHistory: { $slice: 3 }, // last 3 queries for personalization
+          searchHistory: { $slice: 3 },
         },
       )) as UserDoc | null;
       if (!u) {
@@ -633,7 +314,6 @@ export async function POST(req: NextRequest) {
 
     if (u && session?.user?.email) {
       if (existingConvId && mongoose.isValidObjectId(existingConvId)) {
-        // Verify ownership then reuse
         const existing = await ConversationModel.findOne({
           _id: existingConvId,
           userId: u._id,
@@ -644,7 +324,6 @@ export async function POST(req: NextRequest) {
       }
 
       if (!conversationId) {
-        // Create a new conversation — title = first 60 chars of query
         const title = q.length > 60 ? q.slice(0, 57) + "…" : q;
         const conv = await ConversationModel.create({ userId: u._id, title });
         conversationId = conv._id.toString();
@@ -653,91 +332,93 @@ export async function POST(req: NextRequest) {
     }
 
     // ── Papers ────────────────────────────────────────────────
+    // v7 NEW: Detect query intent FIRST — drives retrieval strategy + system prompt
+    const intentResult = await detectIntent(q).catch(() => null);
+    const intentAddendum = intentResult
+      ? getIntentSystemAddendum(intentResult)
+      : "";
+
     const cached = await getCachedResult(q);
     let papers: PaperRow[];
     let fromCache: boolean;
 
-    // Route-level junk filter — runs on BOTH cached and fresh results
-    // Query-aware: only blocks papers that are off-topic for the SPECIFIC query being asked
     const routeJunkFilter = (p: PaperRow, query: string): boolean => {
-      const isTransformerArchQ =
-        /transformer|attention mechanism|self.?attention/i.test(query);
-      if (!isTransformerArchQ) return true; // non-transformer queries: no filtering here
+      const t = p.title ?? "";
+      const abs = p.abstract ?? "";
 
-      // Detect if query is specifically about a domain (those queries SHOULD see domain papers)
-      const isFPGAQ =
-        /FPGA|hardware accelerat|field.?programmable|chip design/i.test(query);
-      const isTimeSeriesQ = /time series|forecasting|LTSF/i.test(query);
-      const isMedicalQ =
-        /medical imaging|segmentation|radiology|clinical|tumor/i.test(query);
-      const isGraphQ = /graph neural|GNN|graph transformer/i.test(query);
-      const isPhysicsQ = /physics simulation|harmonic oscillator/i.test(query);
-      const isVisionQ =
-        /computer vision|image classification|ViT.*how|vision transformer.*how/i.test(
+      // ── Hard title blocks (always dropped) ──────────────────
+      const HARD_BLOCKS = [
+        /simple harmonic oscillator|harmonic oscillator.*physics/i,
+        /UNETR|medical image segmentation|organ segmentation/i,
+        /delirium|surgical|intraoperative|postoperative/i,
+        /FPGA.*transformer|transformer.*FPGA|FTRANS/i,
+        /how to represent part.?whole hierarchies/i,
+        /implicit reasoning.*shortcut/i,
+        /malware.*detect|intrusion detect/i,
+        /supply.?chain.*optim|inventory.*optim/i,
+      ];
+      if (HARD_BLOCKS.some((re) => re.test(t))) return false;
+
+      // ── Domain-aware filter for NLP queries ──────────────────
+      const isNLPQuery =
+        /\b(transformer|attention|bert|gpt|llm|language model|rnn|lstm|seq2seq|nlp|natural language|embedding|rag)\b/i.test(
           query,
         );
-      const isMultilingualQ = /multilingual|cross.?lingual/i.test(query);
 
-      const t = p.title ?? "";
-      const blocked =
-        // Physics/math apps — block unless physics query
-        (!isPhysicsQ &&
-          (/simple harmonic oscillator|harmonic oscillator/i.test(t) ||
-            /transformers.*do.*physics|do.*physics.*investigating/i.test(t))) ||
-        // Medical apps — block unless medical query
-        (!isMedicalQ &&
-          (/UNETR|medical image segmentation|3d.*segmentation/i.test(t) ||
-            /tumor|organ segmentation|brain.*transformer/i.test(t) ||
-            /delirium|surgical|intraoperative|postoperative/i.test(t) ||
-            /medical.*transformer|clinical.*transformer/i.test(t))) ||
-        // Graph apps — block unless graph query
-        (!isGraphQ && /graph transformer|spectral attention.*graph/i.test(t)) ||
-        // Time-series apps — block unless time-series query
-        (!isTimeSeriesQ &&
-          /time series forecasting.*transformer|transformers.*effective.*time series|LTSF/i.test(
-            t,
-          )) ||
-        // FPGA/hardware apps — block unless hardware query
-        (!isFPGAQ &&
-          /FPGA.*transformer|transformer.*FPGA|FTRANS|energy.?efficient.*transformer.*accelerat/i.test(
-            t,
-          )) ||
-        // Vision niche comparisons — block unless specifically vision query
-        (!isVisionQ &&
-          (/how do vision transformers work|do vision transformers see like|going deeper with image transformer/i.test(
-            t,
-          ) ||
-            /intriguing properties.*vision transformer/i.test(t) ||
-            /comparing.*vision transformer.*convolutional|comparing.*vision transformer.*CNN/i.test(
-              t,
-            ) ||
-            /vision transformer.*CNN.*literature review|ViT.*CNN.*review/i.test(
-              t,
-            ) ||
-            /survey of visual transformer|visual transformer.*survey/i.test(
-              t,
-            ) ||
-            /survey.*vision transformer|vision transformer.*survey/i.test(
-              t,
-            ))) ||
-        // Multilingual bias — block unless multilingual query
-        (!isMultilingualQ &&
-          /do llamas work in english|latent language.*multilingual/i.test(t)) ||
-        // Always block regardless of query (truly irrelevant to any transformer question)
-        /how to represent part.?whole hierarchies/i.test(t) ||
-        /implicit reasoning.*shortcut|reasoning.*through shortcut/i.test(t) ||
-        /video transformer|image captioning.*transformer/i.test(t) ||
-        // Block domain-specific transformer surveys on generic transformer queries
-        (!isVisionQ &&
-          /survey.*transformer|transformer.*survey/i.test(t) &&
-          (p.citationCount ?? 0) < 5000) ||
-        // Low-citation clickbait surveys
-        (/rise of transformer|redefining.*landscape|landscape of.*intelligence/i.test(
-          t,
-        ) &&
-          (p.citationCount ?? 0) < 100);
+      if (isNLPQuery) {
+        // Only block CV/security papers if the query is not explicitly about that domain
+        const isVisionQuery =
+          /computer vision|image classif|ViT|vision transformer.*how|object detect/i.test(query);
+        const isMedicalQuery =
+          /medical imaging|radiology|clinical|tumor|cancer/i.test(query);
+        const isFPGAQuery =
+          /FPGA|hardware accelerat|chip design/i.test(query);
+        const isTimeSeriesQuery =
+          /time series|forecasting|LTSF/i.test(query);
+        const isSecurityQuery =
+          /malware|intrusion|cybersecurity|network security/i.test(query);
+        const isGraphQuery = /graph neural|GNN|graph transformer/i.test(query);
 
-      return !blocked;
+        const paperText = `${t} ${abs}`;
+
+        if (
+          !isVisionQuery &&
+          /\b(image classif|object detect|visual.*model|vision transformer|ViT|pixel|bounding box|segmentation.*image)\b/i.test(t)
+        )
+          return false;
+
+        if (
+          !isMedicalQuery &&
+          /\b(clinical|patient|diagnosis|tumor|cancer|radiology|mri|ct scan|organ|surgical)\b/i.test(t)
+        )
+          return false;
+
+        if (
+          !isFPGAQuery &&
+          /\b(FPGA|hardware accelerat|energy.?efficient.*hardware|asic|chip)\b/i.test(t)
+        )
+          return false;
+
+        if (
+          !isTimeSeriesQuery &&
+          /\b(time series.*transformer|LTSF|temporal forecast)\b/i.test(t)
+        )
+          return false;
+
+        if (
+          !isSecurityQuery &&
+          /\b(malware|intrusion detect|cyberattack|ransomware|botnet)\b/i.test(paperText)
+        )
+          return false;
+
+        if (
+          !isGraphQuery &&
+          /\b(graph neural|spectral.*graph|GCN|graph convolution)\b/i.test(t)
+        )
+          return false;
+      }
+
+      return true;
     };
 
     if (cached) {
@@ -747,7 +428,6 @@ export async function POST(req: NextRequest) {
       fromCache = true;
     } else {
       const rawPapers = (await searchAll(q)) as PaperRow[];
-      // Enrich top 3 open-access papers with full-text URL hints
       const enriched = (await enrichWithFullText(
         rawPapers as any,
         3,
@@ -767,47 +447,25 @@ export async function POST(req: NextRequest) {
             encoder.encode(`data: ${JSON.stringify(obj)}\n\n`),
           );
 
-        // Tell the client which conversation this belongs to immediately
         send({ type: "meta", conversationId, isNewConversation });
 
-        // Send papers so sources panel opens instantly
-        // Merge guaranteed foundational papers, deduplicating against retrieved papers
-        const guaranteedPaperObjects = getGuaranteedPaperObjects(q);
-        const retrievedTitles = new Set(
-          papers.map((p) =>
-            p.title
-              .toLowerCase()
-              .replace(/[^a-z0-9]/g, "")
-              .slice(0, 50),
-          ),
-        );
-        const dedupedGuaranteed = guaranteedPaperObjects.filter((gp) => {
-          const key = gp.title
-            .toLowerCase()
-            .replace(/[^a-z0-9]/g, "")
-            .slice(0, 50);
-          return !retrievedTitles.has(key);
-        });
-        // Guaranteed papers go FIRST so REF-1 = guaranteed[0], REF-2 = guaranteed[1], etc.
-        // matching the buildPrompt numbering scheme
-        const allPapers = [...dedupedGuaranteed, ...papers];
+        const allPapers = [...papers];
+
+        // ── Build prompt + chunk map ──────────────────────────
+        // evidenceBlocks is now returned so we can use it for claim verification
+        const { prompt: builtPrompt, chunkIdToPaperId, evidenceBlocks, intentAddendum: resolvedAddendum } =
+          await buildPrompt(q, papers, intentAddendum);
+
+        // v7 NEW: dynamic system prompt — append intent-specific rules
+        const dynamicSystem = resolvedAddendum
+          ? SYSTEM + "\n\n" + resolvedAddendum
+          : SYSTEM;
 
         // ── Stream the answer ─────────────────────────────────
         if (fromCache && cached) {
-          // Clean cached answer before streaming (may have been saved with bib/dupes)
-          let cachedAnswer = cached.answer;
-          cachedAnswer = cachedAnswer.replace(
-            /(\n\[1\]|\n+(?:references|bibliography|works cited))[\s\S]*$/i,
+          let cachedAnswer = cached.answer.replace(
+            /\n+##\s*Cited Papers[\s\S]*$/i,
             "",
-          );
-          const seenCacheRefs = new Set<string>();
-          cachedAnswer = cachedAnswer.replace(
-            /\[REF-(?:FOUND-)?\d+\]/g,
-            (m: string) => {
-              if (seenCacheRefs.has(m)) return "";
-              seenCacheRefs.add(m);
-              return m;
-            },
           );
           const words = cachedAnswer.split(" ");
           for (let i = 0; i < words.length; i += 4) {
@@ -822,10 +480,10 @@ export async function POST(req: NextRequest) {
           const streamResp = await ant.messages.stream({
             model: "claude-sonnet-4-6",
             max_tokens: 4000,
-            system: SYSTEM,
-            messages: [{ role: "user", content: await buildPrompt(q, papers) }],
+            system: dynamicSystem,
+            messages: [{ role: "user", content: builtPrompt }],
           });
-          let bibliographyStarted = false;
+          let citedPapersStarted = false;
           for await (const event of streamResp) {
             if (
               event.type === "content_block_delta" &&
@@ -833,19 +491,20 @@ export async function POST(req: NextRequest) {
             ) {
               const chunk = event.delta.text;
 
-              if (bibliographyStarted) continue;
-
-              // Check tentative (BEFORE adding to fullAnswer) so bib chunk never reaches the client
               const tentative = fullAnswer + chunk;
-              const bibMatch = tentative.match(
-                /\[1\](?:\s*[A-Z][a-z]|OpenAlex|Semantic|arXiv|\d)/,
-              );
-              if (bibMatch) {
-                bibliographyStarted = true;
-                fullAnswer = tentative.replace(/\s*\[1\][\s\S]*$/, "");
+              if (
+                !citedPapersStarted &&
+                /\n##\s*Cited Papers/i.test(tentative)
+              ) {
+                citedPapersStarted = true;
+                fullAnswer = tentative.replace(
+                  /\n+##\s*Cited Papers[\s\S]*$/i,
+                  "",
+                );
                 send({ type: "answer_replace", text: fullAnswer });
                 continue;
               }
+              if (citedPapersStarted) continue;
 
               fullAnswer += chunk;
               send({ type: "text", text: chunk });
@@ -853,32 +512,29 @@ export async function POST(req: NextRequest) {
           }
         }
 
-        // Strip bibliography block from fullAnswer before any further processing
+        // Strip any leaked ## Cited Papers block
         const rawAnswer = fullAnswer;
-        fullAnswer = fullAnswer.replace(
-          /(\n\[1\]|\n+(?:references|bibliography|works cited))[\s\S]*$/i,
-          "",
-        );
+        fullAnswer = fullAnswer.replace(/\n+##\s*Cited Papers[\s\S]*$/i, "");
 
-        // SERVER-SIDE: deduplicate
-        // This fixes double-badge regardless of frontend version
-        const seenServerRefs = new Set<string>();
-        fullAnswer = fullAnswer.replace(/\[REF-(?:FOUND-)?\d+\]/g, (match) => {
-          if (seenServerRefs.has(match)) return "";
-          seenServerRefs.add(match);
+        // SERVER-SIDE: deduplicate [CITATION:chunk_id] markers
+        const seenCitations = new Set<string>();
+        fullAnswer = fullAnswer.replace(/\[CITATION:[a-z0-9]+\]/g, (match) => {
+          if (seenCitations.has(match)) return "";
+          seenCitations.add(match);
           return match;
         });
 
-        // SERVER-SIDE: per-section citation cap — strip extra [REF-N] beyond section limit
+        // SERVER-SIDE: per-section citation cap
         const SERVER_SECTION_LIMITS: Record<string, number> = {
-          "key concepts": 1,
-          overview: 1,
+          "key concepts": 3,
+          overview: 2,
           "system architecture": 0,
-          "technical details": 1,
-          "technical details or comparison": 1,
+          "technical details": 3,
+          "technical details or comparison": 3,
           limitations: 0,
-          "key takeaways": 1,
+          "key takeaways": 2,
           "what to search next": 0,
+          "cited papers": 0,
         };
         fullAnswer = fullAnswer.replace(
           /^##\s+(.+)$([\s\S]*?)(?=^##|\s*$)/gm,
@@ -887,7 +543,7 @@ export async function POST(req: NextRequest) {
             if (limit === undefined) return block;
             let count = 0;
             const cappedBody = body.replace(
-              /\[REF-(?:FOUND-)?\d+\]/g,
+              /\[CITATION:[a-z0-9]+\]/g,
               (m: string) => {
                 count++;
                 return count <= limit ? m : "";
@@ -897,7 +553,17 @@ export async function POST(req: NextRequest) {
           },
         );
 
-        // Save CLEAN answer to cache (after all server-side cleanup)
+        // ✅ CHANGE #4 — Claim-to-citation verification pass [Upgrade #2]
+        // Runs Claude Haiku to score each citation 0-10 and removes weak ones (<6)
+        if (evidenceBlocks.length > 0) {
+          const { verified_answer } = await verifyClaimCitations(
+            fullAnswer,
+            evidenceBlocks,
+          ).catch(() => ({ verified_answer: fullAnswer, removed_citations: 0, flagged_citations: 0, verification_log: "" }));
+          fullAnswer = verified_answer;
+        }
+
+        // Save CLEAN answer to cache
         void saveToCache(q, fullAnswer, papers);
 
         // If answer was modified, send correction to frontend
@@ -905,19 +571,31 @@ export async function POST(req: NextRequest) {
           send({ type: "answer_replace", text: fullAnswer });
         }
 
-        // Send only papers that were actually cited in the answer (REF-N markers)
-        const citedIndices = new Set<number>();
-        const refMatches = fullAnswer.matchAll(/\[REF-(\d+)\]/g);
-        for (const m of refMatches) {
-          citedIndices.add(parseInt(m[1], 10) - 1); // convert to 0-based
+        // Extract cited papers from [CITATION:cXX] markers using chunk map
+        const citedPaperIds = new Set<string>();
+        for (const [, chunkId] of fullAnswer.matchAll(
+          /\[CITATION:([a-z0-9]+)\]/g,
+        )) {
+          const paperId = chunkIdToPaperId.get(chunkId);
+          if (paperId) citedPaperIds.add(paperId);
         }
-        const citedPapers =
-          citedIndices.size > 0
-            ? allPapers.filter((_, i) => citedIndices.has(i))
-            : allPapers.slice(0, 6); // fallback: first 6 if no REF markers found
-        send({ type: "papers", papers: citedPapers });
 
-        // Generate personalized related questions using user's search history
+        for (const [, paperId] of chunkIdToPaperId) {
+          if (STATIC_PAPER_IDS.has(paperId)) {
+            citedPaperIds.add(paperId);
+          }
+        }
+
+        const citedPapers =
+          citedPaperIds.size > 0
+            ? allPapers.filter((p) => citedPaperIds.has(p.id))
+            : allPapers.slice(0, 6);
+
+        // ✅ CHANGE #5 — Attach credibility badges before sending to client [Upgrade #10]
+        const badgedCitedPapers = badgePapers(citedPapers as any);
+        send({ type: "papers", papers: badgedCitedPapers });
+
+        // Generate personalized related questions
         const recentHistory = (u?.searchHistory ?? [])
           .slice(0, 3)
           .map((h: { query: string }) => h.query)
@@ -939,7 +617,6 @@ export async function POST(req: NextRequest) {
           const now = new Date();
           const plan = u.plan ?? "free";
 
-          // 1. Save user message
           await MessageModel.create({
             conversationId,
             userId: u._id,
@@ -948,7 +625,6 @@ export async function POST(req: NextRequest) {
             papers: [],
           });
 
-          // 2. Save assistant message (with papers)
           await MessageModel.create({
             conversationId,
             userId: u._id,
@@ -957,12 +633,10 @@ export async function POST(req: NextRequest) {
             papers,
           });
 
-          // 3. Touch conversation updatedAt
           await ConversationModel.findByIdAndUpdate(conversationId, {
             updatedAt: now,
           });
 
-          // 4. Update rate-limit counters on User
           const counterUpdate: Record<string, unknown> = {};
           if (plan === "free") {
             counterUpdate.searchesToday = (u.searchesToday ?? 0) + 1;
@@ -972,7 +646,6 @@ export async function POST(req: NextRequest) {
             counterUpdate.searchMonthReset = now;
           }
 
-          // 5. Save to searchHistory — save only the cited papers (3-5), not all retrieved papers
           await UserModel.findByIdAndUpdate(u._id, {
             $set: counterUpdate,
             $push: {
