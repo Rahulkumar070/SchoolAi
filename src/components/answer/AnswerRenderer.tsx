@@ -590,11 +590,11 @@ function SectionCard({
             style={{
               margin: 0,
               fontSize: 13,
-              fontWeight: 600,
-              color: "rgba(255,255,255,0.75)",
-              letterSpacing: "0.06em",
+              fontWeight: 500,
+              color: "rgba(232,227,220,0.75)",
+              letterSpacing: "0.04em",
               textTransform: "uppercase",
-              fontFamily: "var(--font-ui)",
+              fontFamily: "var(--font-display)",
             }}
           >
             {title}
@@ -804,12 +804,12 @@ function buildMdComponents(onSection: (title: string) => void) {
     h3: ({ children }: any) => (
       <h3
         style={{
-          fontSize: 14,
-          fontWeight: 700,
+          fontSize: 15,
+          fontWeight: 600,
           color: "var(--text-primary)",
           margin: "1.4em 0 0.5em",
           letterSpacing: "-0.01em",
-          fontFamily: "var(--font-ui)",
+          fontFamily: "var(--font-display)",
         }}
       >
         {children}
@@ -821,9 +821,11 @@ function buildMdComponents(onSection: (title: string) => void) {
         style={{
           marginBottom: "1em",
           lineHeight: 1.9,
-          fontSize: 15,
-          color: "rgba(255,255,255,0.68)",
-          letterSpacing: "0.01em",
+          fontSize: 15.5,
+          color: "rgba(232,227,220,0.82)",
+          letterSpacing: "0.005em",
+          fontFamily: "var(--font-display)",
+          fontWeight: 400,
         }}
       >
         {children}
@@ -879,13 +881,15 @@ function buildMdComponents(onSection: (title: string) => void) {
       <li
         style={{
           marginBottom: "0.7em",
-          fontSize: 14.5,
-          color: "rgba(255,255,255,0.7)",
-          lineHeight: 1.8,
+          fontSize: 15,
+          color: "rgba(232,227,220,0.78)",
+          lineHeight: 1.85,
           display: "flex",
           alignItems: "flex-start",
           gap: 12,
           paddingLeft: 2,
+          fontFamily: "var(--font-display)",
+          fontWeight: 400,
         }}
       >
         <span
@@ -1771,7 +1775,7 @@ export default function AnswerRenderer({
         maxWidth: 800,
         margin: "0 auto",
         padding: "0 0 40px",
-        fontFamily: "var(--font-ui)",
+        fontFamily: "var(--font-display)",
       }}
     >
       {/* TL;DR summary card — shown only after streaming completes */}
