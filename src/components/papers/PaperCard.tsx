@@ -123,18 +123,35 @@ export default function PaperCard({
       toast.error("Sign in to save");
       return;
     }
+    if (saving) return;
+
+    // ── Optimistic update: flip UI instantly, don't wait for API ──
+    const wasSaved = saved;
+    setSaved(!wasSaved);
     setSaving(true);
+
     try {
-      const r = await fetch("/api/papers", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(paper),
-      });
-      const d = (await r.json()) as { saved: boolean };
-      setSaved(d.saved);
-      toast.success(d.saved ? "Saved to library" : "Removed");
+      if (!wasSaved) {
+        // SAVE — POST with paper data
+        await fetch("/api/papers", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(paper),
+        });
+        toast.success("Saved to library");
+      } else {
+        // REMOVE — DELETE with just the ID (much faster)
+        await fetch("/api/papers", {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: paper.id }),
+        });
+        toast.success("Removed from library");
+      }
     } catch {
-      toast.error("Failed");
+      // Revert optimistic update on failure
+      setSaved(wasSaved);
+      toast.error("Something went wrong, try again");
     } finally {
       setSaving(false);
     }
