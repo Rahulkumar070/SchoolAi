@@ -1461,16 +1461,20 @@ function DashContent() {
   }, [status]);
 
   const removePaper = async (id: string): Promise<void> => {
+    // ── Optimistic update: remove from UI instantly ──
+    const snapshot = papers;
+    setPapers((p) => p.filter((x) => x.paperId !== id));
     try {
       await fetch("/api/papers", {
-        method: "POST",
+        method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id }),
       });
-      setPapers((p) => p.filter((x) => x.paperId !== id));
       toast.success("Removed from library");
     } catch {
-      toast.error("Failed to remove");
+      // Revert on failure
+      setPapers(snapshot);
+      toast.error("Failed to remove, try again");
     }
   };
 
