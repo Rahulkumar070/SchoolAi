@@ -329,7 +329,7 @@ button, input, textarea, select { font-family: inherit; }
   max-width: 760px; width: 100%; margin: 0 auto;
   padding: 0 32px; box-sizing: border-box;
 }
-@media (max-width: 768px) { .messages-inner { padding: 0 18px; max-width: 100%; } }
+@media (max-width: 768px) { .messages-inner { padding: 0 20px; max-width: 100%; } }
 
 .msg-turn { margin-bottom: 36px; animation: msgFadeIn 0.3s ease-out; }
 .msg-user-row { display: flex; justify-content: flex-end; margin-bottom: 20px; }
@@ -341,7 +341,7 @@ button, input, textarea, select { font-family: inherit; }
 }
 .msg-ai-row { display: flex; gap: 0; align-items: flex-start; }
 .msg-ai-avatar { display: none; }
-.msg-ai-content { flex: 1; min-width: 0; }
+.msg-ai-content { flex: 1; min-width: 0; overflow: hidden; }
 
 /* Answer prose */
 .answer-prose { font-size: 15px; line-height: 1.9; color: rgba(232,227,220,0.82); font-weight: 400; font-family: var(--font-display); }
@@ -592,6 +592,8 @@ html, body {
   overflow-x: hidden !important;
   word-break: break-word;
   overflow-wrap: break-word;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
 }
 
 /* Scale down answer text on mobile */
@@ -618,7 +620,7 @@ html, body {
 
   /* Fix messages inner padding */
   .messages-inner {
-    padding: 0 14px !important;
+    padding: 0 20px !important;
   }
 }
 
@@ -629,6 +631,23 @@ html, body {
     line-height: 1.7 !important;
   }
   .messages-inner {
-    padding: 0 12px !important;
+    padding: 0 16px !important;
+  }
+}
+
+/* Section cards and pre-section content — add breathing room on mobile */
+@media (max-width: 768px) {
+  /* Ensure the answer container itself has side padding */
+  .msg-ai-content > div,
+  .msg-ai-row > div {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+
+  /* Section cards inner padding */
+  .msg-ai-content [style*="border-radius: 14"],
+  .msg-ai-content [style*="borderRadius: 14"] {
+    padding-left: 14px !important;
+    padding-right: 14px !important;
   }
 }

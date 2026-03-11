@@ -451,6 +451,7 @@ function ChatPage() {
       {/* Messages */}
       <div className="chat-col">
         <div className="messages-wrap">
+          <div className="messages-inner">
           {loadingConv ? (
             <>
               <MsgShimmer />
@@ -459,39 +460,26 @@ function ChatPage() {
           ) : (
             <>
               {messages.map((msg) => (
-                <div key={msg._id} style={{ marginBottom: 36 }}>
+                <div key={msg._id} className="msg-turn">
                   {msg.role === "user" ? (
-                    <div className="msg-row user">
-                      <div className="msg-bubble">{msg.content}</div>
+                    <div className="msg-user-row">
+                      <div className="msg-user-bubble">{msg.content}</div>
                     </div>
                   ) : (
-                    <div className="msg-row">
-                      <div className="msg-avatar">
-                        <BookOpen size={12} style={{ color: "var(--brand)" }} />
-                      </div>
+                    <div className="msg-ai-row">
                       <div className="msg-ai-content">
                         <AnswerRenderer
                           content={msg.content}
                           papers={msg.papers ?? []}
                         />
-                        <div
-                          style={{
-                            display: "flex",
-                            gap: 6,
-                            marginTop: 14,
-                            flexWrap: "wrap",
-                            alignItems: "center",
-                            borderTop: "1px solid var(--border)",
-                            paddingTop: 12,
-                          }}
-                        >
+                        <div className="action-bar">
                           {msg.papers.length > 0 && (
                             <button
                               onClick={() => {
                                 setPanelMsg(msg);
                                 setPanelTab("sources");
                               }}
-                              className="sources-chip"
+                              className="chip"
                             >
                               <Layers size={11} /> {msg.papers.length} sources
                             </button>
@@ -511,11 +499,7 @@ function ChatPage() {
                                 session?.user?.name ?? undefined,
                               )
                             }
-                            className="sources-chip"
-                            style={{
-                              color: "var(--brand)",
-                              borderColor: "var(--brand-border)",
-                            }}
+                            className="chip accent"
                           >
                             <FileDown size={11} /> PDF
                           </button>
@@ -526,7 +510,7 @@ function ChatPage() {
                                   messages[messages.indexOf(msg) - 1];
                                 if (userMsg) void doSend(userMsg.content);
                               }}
-                              className="sources-chip"
+                              className="chip"
                               title="Search again"
                             >
                               <RotateCcw size={11} /> Re-run
@@ -541,11 +525,8 @@ function ChatPage() {
 
               {/* Streaming message */}
               {isStreaming && (
-                <div style={{ marginBottom: 36 }}>
-                  <div className="msg-row">
-                    <div className="msg-avatar">
-                      <BookOpen size={12} style={{ color: "var(--brand)" }} />
-                    </div>
+                <div className="msg-turn">
+                  <div className="msg-ai-row">
                     <div className="msg-ai-content">
                       {streamingContent ? (
                         <>
@@ -570,9 +551,6 @@ function ChatPage() {
               {/* Errors */}
               {limitError && !sending && (
                 <div className="msg-row">
-                  <div className="msg-avatar">
-                    <Lock size={12} style={{ color: "var(--red)" }} />
-                  </div>
                   <div style={{ flex: 1 }}>
                     <div
                       style={{
@@ -644,6 +622,7 @@ function ChatPage() {
             </>
           )}
           <div ref={endRef} style={{ height: 16 }} />
+          </div>{/* end messages-inner */}
         </div>
       </div>
 
