@@ -668,9 +668,6 @@ function SearchApp() {
 
                   {/* AI response */}
                   <div className="msg-ai-row">
-                    <div className="msg-ai-avatar">
-                      <BookOpen size={11} color="#c9b99a" />
-                    </div>
                     <div className="msg-ai-content">
                       {turn.streaming && !turn.answer && turn.status && (
                         <StatusPill text={turn.status} />

@@ -1776,7 +1776,7 @@ export default function AnswerRenderer({
         width: "100%",
         maxWidth: 800,
         margin: "0 auto",
-        padding: "0 0 40px",
+        padding: "0 4px 40px",
         fontFamily: "var(--font-display)",
         overflowX: "hidden",
         wordBreak: "break-word",
