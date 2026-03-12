@@ -651,3 +651,595 @@ html, body {
     padding-right: 14px !important;
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   COMPREHENSIVE RESPONSIVE SYSTEM — All Devices
+   Breakpoints:
+     xs:  < 480px   (small phones)
+     sm:  480–768px (large phones / small landscape)
+     md:  768–1024px (tablets)
+     lg:  > 1024px  (desktop)
+═══════════════════════════════════════════════════════════════ */
+
+/* ── Welcome page: allow scroll when content is tall ── */
+.welcome {
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  padding: 40px 24px 160px;
+  justify-content: flex-start;
+  align-items: center;
+}
+
+/* Larger screens: vertically center if enough room */
+@media (min-height: 700px) and (min-width: 769px) {
+  .welcome { justify-content: center; padding-top: 48px; }
+}
+
+/* ── Chat-wrap: must allow welcome content to scroll ── */
+.chat-wrap {
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Messages area: its own scroll context */
+.messages-wrap {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ── Trending papers grid ── */
+.trending-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  width: 100%;
+}
+@media (max-width: 900px) {
+  .trending-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 520px) {
+  .trending-grid { grid-template-columns: 1fr 1fr; gap: 6px; }
+}
+@media (max-width: 380px) {
+  .trending-grid { grid-template-columns: 1fr; }
+}
+
+/* ── Research timeline: horizontal scroll ── */
+.timeline-scroll {
+  display: flex;
+  align-items: center;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 6px;
+  gap: 0;
+  /* Hide scrollbar but keep scroll */
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.timeline-scroll::-webkit-scrollbar { display: none; }
+
+/* ── Section labels ── */
+.section-header-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+/* ── Welcome greeting responsive font ── */
+@media (max-width: 768px) {
+  .welcome-greeting {
+    font-size: clamp(26px, 7vw, 36px) !important;
+    margin-bottom: 28px !important;
+    line-height: 1.2 !important;
+  }
+  .welcome {
+    padding: 28px 16px 160px;
+  }
+}
+@media (max-width: 480px) {
+  .welcome-greeting {
+    font-size: clamp(22px, 8vw, 30px) !important;
+    margin-bottom: 20px !important;
+  }
+  .welcome { padding: 20px 14px 170px; }
+}
+
+/* ── Suggestion grid: responsive ── */
+.suggestion-grid {
+  grid-template-columns: repeat(2, 1fr);
+  max-width: 100%;
+}
+@media (max-width: 600px) {
+  .suggestion-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+  }
+  .suggestion-card {
+    padding: 10px 12px !important;
+    font-size: 12px !important;
+  }
+}
+@media (max-width: 380px) {
+  .suggestion-grid { grid-template-columns: 1fr; }
+}
+
+/* ── Input bar: responsive ── */
+@media (max-width: 768px) {
+  .input-wrap {
+    padding: 8px 14px 20px !important;
+    max-width: 100%;
+  }
+  .input-box {
+    padding: 11px 14px 9px !important;
+    border-radius: 16px !important;
+  }
+  .input-textarea {
+    font-size: 16px !important; /* Prevent iOS zoom */
+    min-height: 24px !important;
+  }
+  .input-hint { font-size: 10px !important; margin-top: 6px !important; }
+}
+@media (max-width: 480px) {
+  .input-wrap { padding: 6px 12px 16px !important; }
+  .input-textarea { font-size: 16px !important; }
+}
+
+/* ── Counter bar: compact on mobile ── */
+@media (max-width: 480px) {
+  .counter-bar {
+    padding: 5px 14px !important;
+    font-size: 11px !important;
+  }
+}
+
+/* ── Right panel: responsive ── */
+@media (max-width: 1280px) {
+  .right-panel { width: 290px; }
+}
+@media (max-width: 1100px) {
+  .right-panel { width: 260px; }
+}
+
+/* ── Messages inner: responsive padding ── */
+@media (max-width: 1024px) {
+  .messages-inner { padding: 0 24px; }
+}
+@media (max-width: 768px) {
+  .messages-inner { padding: 0 16px; }
+}
+@media (max-width: 480px) {
+  .messages-inner { padding: 0 12px; }
+}
+
+/* ── Message bubbles: mobile ── */
+@media (max-width: 768px) {
+  .msg-user-bubble {
+    max-width: 88% !important;
+    font-size: 14px !important;
+    padding: 11px 15px !important;
+  }
+}
+@media (max-width: 480px) {
+  .msg-user-bubble {
+    max-width: 94% !important;
+    font-size: 13.5px !important;
+    padding: 10px 13px !important;
+  }
+}
+
+/* ── Action bar chips: wrap on mobile ── */
+@media (max-width: 480px) {
+  .action-bar { gap: 4px !important; }
+  .chip { font-size: 11px !important; padding: 4px 9px !important; }
+}
+
+/* ── Trending section cards: mobile ── */
+@media (max-width: 768px) {
+  .trending-paper-card {
+    padding: 8px 10px !important;
+  }
+  .trending-paper-card p:first-of-type {
+    font-size: 11px !important;
+  }
+}
+
+/* ── Timeline items: smaller on mobile ── */
+@media (max-width: 600px) {
+  .timeline-item {
+    min-width: 68px !important;
+    padding: 6px 8px !important;
+  }
+  .timeline-item p { font-size: 9px !important; }
+  .timeline-item p:nth-child(2) { font-size: 10px !important; }
+}
+
+/* ── Smart suggestions popup: mobile ── */
+@media (max-width: 600px) {
+  .smart-suggestions-popup {
+    left: -8px !important;
+    right: -8px !important;
+    width: auto !important;
+  }
+}
+
+/* ── Page wrap: responsive ── */
+@media (max-width: 768px) {
+  .page-wrap { padding: 24px 18px 40px !important; }
+  .page-title { font-size: 20px !important; }
+  .page-sub { font-size: 13px !important; margin-bottom: 20px !important; }
+}
+
+/* ── Auth card: responsive ── */
+@media (max-width: 480px) {
+  .auth-card { padding: 28px 20px !important; border-radius: 16px !important; }
+  .auth-logo { font-size: 20px !important; }
+}
+
+/* ── Lock card: responsive ── */
+@media (max-width: 480px) {
+  .lock-card { padding: 24px 20px !important; }
+}
+
+/* ── Limit card: responsive ── */
+@media (max-width: 480px) {
+  .limit-card { padding: 16px 16px !important; }
+  .limit-card h3 { font-size: 13px !important; }
+  .limit-card p { font-size: 12px !important; margin-bottom: 12px !important; }
+}
+
+/* ── Paper items: responsive ── */
+@media (max-width: 480px) {
+  .paper-item { padding: 10px 11px !important; }
+}
+
+/* ── Sidebar footer: responsive ── */
+@media (max-width: 480px) {
+  .sidebar-footer { padding: 8px 10px !important; }
+}
+
+/* ── Mobile bar: safe area ── */
+.mobile-bar {
+  padding-top: max(0px, env(safe-area-inset-top));
+}
+
+/* Input wrap: safe area for iPhone notch */
+.input-wrap {
+  padding-bottom: max(22px, calc(16px + env(safe-area-inset-bottom)));
+}
+@media (max-width: 768px) {
+  .input-wrap {
+    padding-bottom: max(20px, calc(14px + env(safe-area-inset-bottom)));
+  }
+}
+
+/* ── Answer renderer: responsive ── */
+@media (max-width: 768px) {
+  /* Section header text */
+  [style*="fontSize: 13"][style*="textTransform: uppercase"] {
+    font-size: 11px !important;
+  }
+  /* TL;DR card */
+  [style*="fontSize: 14.5"] { font-size: 13.5px !important; }
+  /* Inline citation row */
+  [style*="maxWidth: 280"] { max-width: 180px !important; }
+  /* Code blocks */
+  pre { font-size: 11.5px !important; padding: 12px 14px !important; }
+}
+
+/* ── Prevent iOS text size adjust ── */
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+/* ── Touch targets: minimum 44px for all interactive ── */
+@media (max-width: 768px) {
+  .send-btn { width: 38px !important; height: 38px !important; }
+  .input-attach-btn { width: 32px !important; height: 32px !important; }
+  .waveform-btn { min-width: 32px !important; min-height: 32px !important; }
+  .icon-btn { width: 36px !important; height: 36px !important; }
+}
+
+/* ── Tablet layout tweaks ── */
+@media (min-width: 768px) and (max-width: 1024px) {
+  .welcome { padding: 32px 32px 160px; }
+  .welcome-greeting { font-size: clamp(28px, 4vw, 42px) !important; }
+  .messages-inner { padding: 0 28px; max-width: 100%; }
+  .input-wrap { padding: 12px 28px 24px; }
+}
+
+/* ── Ensure smooth scrolling everywhere ── */
+* { -webkit-overflow-scrolling: touch; }
+
+/* ══════════════════════════════════════════════════════════════════
+   DEFINITIVE RESPONSIVE FIX — Resolves all 3 device issues
+   
+   Bug 1 — Tablet black screen: Breakpoint collision at exactly 768px
+   Bug 2 — Desktop title cut off: justify-content:center overflows top
+   Bug 3 — iPad Pro empty space: flex:1 welcome with short content
+   ══════════════════════════════════════════════════════════════════ */
+
+/* ── STEP 1: Fix the 768px breakpoint collision ──────────────────
+   Tailwind md = min-width: 768px  (shows desktop sidebar)
+   Our rule    = max-width: 768px  (switches to column layout)
+   At exactly 768px BOTH apply → sidebar gets 100vh height in
+   column layout → pushes main content off-screen → BLACK SCREEN
+   Fix: move mobile column layout to max-width: 767px             */
+
+@media (max-width: 768px) {
+  /* Undo column layout at exactly 768px — keep row */
+  .shell { flex-direction: row !important; }
+  .mobile-bar { display: none !important; }
+}
+
+@media (max-width: 767px) {
+  /* True mobile: use column layout */
+  .shell { flex-direction: column !important; }
+  .mobile-bar { display: flex !important; }
+}
+
+/* ── STEP 2: Desktop sidebar wrapper sizing ──────────────────────
+   Use height: 100% so sidebar fills the row, not 100vh which
+   would overflow in any column-adjacent context               */
+.sidebar-desktop-wrapper {
+  height: 100%;
+  align-items: stretch;
+}
+
+.sidebar-inner {
+  height: 100% !important;
+  min-height: 0;
+}
+
+/* ── STEP 3: Fix the core layout height chain ────────────────────
+   Every ancestor must constrain height for flex:1 children
+   to work. min-height:0 is critical for flex children.       */
+.shell {
+  height: 100vh !important;
+  max-height: 100vh;
+}
+
+.main {
+  height: 100vh;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.main-content {
+  flex: 1;
+  min-height: 0;  /* CRITICAL — without this flex:1 children ignore overflow */
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── STEP 4: Fix chat-wrap — proper scroll architecture ──────────
+   chat-wrap is the column flex container.
+   It must NOT scroll itself — children handle scrolling.     */
+.chat-wrap {
+  flex: 1 !important;
+  min-height: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+  position: relative !important;
+}
+
+/* ── STEP 5: Fix welcome — handle BOTH too-tall and too-short ────
+   Too-tall: content bigger than container → needs scroll
+   Too-short (iPad): content shorter → needs centering, not gap
+   
+   Solution: overflow-y:auto to enable scroll when needed.
+   Use padding + auto margins to center when there's space.
+   NO justify-content:center — it overflows top AND bottom.   */
+.welcome {
+  flex: 1 !important;
+  min-height: 0 !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  -webkit-overflow-scrolling: touch !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  /* Top spacing + bottom padding big enough for input */
+  padding: 0 24px 160px !important;
+}
+
+/* Center content vertically when there's room using auto margins */
+.welcome > * {
+  margin-top: auto;
+  margin-bottom: auto;
+}
+
+/* But reset auto margin for siblings after first child (heading) */
+.welcome > * ~ * {
+  margin-top: 0;
+  margin-bottom: 0;
+}
+
+/* First child (the plan badge or greeting) gets top centering push */
+.welcome > *:first-child {
+  margin-top: auto;
+}
+
+/* Last child gets bottom push */
+.welcome > *:last-child {
+  margin-bottom: auto;
+}
+
+/* ── STEP 6: Fix input-wrap positioning ──────────────────────────
+   position:sticky only works if parent/ancestor scrolls.
+   parent chat-wrap has overflow:hidden → sticky is broken.
+   Fix: make input-wrap position:absolute, pinned to bottom.
+   welcome gets padding-bottom to not hide content.           */
+.input-wrap {
+  position: absolute !important;
+  bottom: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  padding: 14px 32px 22px !important;
+  background: linear-gradient(to top, var(--bg) 72%, transparent) !important;
+  z-index: 20 !important;
+  box-sizing: border-box !important;
+  max-width: none !important; /* override old max-width */
+  margin: 0 !important;
+}
+
+/* Center the input box inside the absolute wrapper */
+.input-wrap > .input-box,
+.input-wrap > div:first-child {
+  max-width: 760px;
+  margin: 0 auto;
+}
+
+.input-wrap > p.input-hint {
+  max-width: 760px;
+  margin: 9px auto 0;
+}
+
+/* Messages wrap also needs absolute input accommodation */
+.messages-wrap {
+  flex: 1 !important;
+  min-height: 0 !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  padding: 24px 0 150px !important; /* bottom padding for absolute input */
+}
+
+/* ── STEP 7: Counter bar — prevent it from clipping welcome ─────*/
+.counter-bar {
+  position: relative !important;
+  z-index: 5;
+  flex-shrink: 0 !important;
+}
+
+/* ── STEP 8: Mobile overrides (< 768px) ─────────────────────────*/
+@media (max-width: 767px) {
+  .shell {
+    height: 100dvh !important; /* dynamic viewport height - better for mobile */
+  }
+  .main {
+    height: 100%;
+  }
+  .welcome {
+    padding: 0 16px 160px !important;
+  }
+  .input-wrap {
+    padding: 8px 14px calc(16px + env(safe-area-inset-bottom)) !important;
+  }
+  .messages-wrap {
+    padding: 16px 0 140px !important;
+  }
+  .messages-inner {
+    padding: 0 14px !important;
+  }
+}
+
+/* ── STEP 9: Tablet (768px - 1024px) ────────────────────────────*/
+@media (min-width: 768px) and (max-width: 1024px) {
+  .welcome {
+    padding: 0 28px 160px !important;
+  }
+  .input-wrap {
+    padding: 12px 28px 22px !important;
+  }
+  .messages-inner {
+    padding: 0 24px !important;
+    max-width: 100% !important;
+  }
+  .welcome-greeting {
+    font-size: clamp(28px, 4vw, 40px) !important;
+  }
+}
+
+/* ── STEP 10: Small phone (< 480px) ────────────────────────────*/
+@media (max-width: 479px) {
+  .welcome {
+    padding: 0 14px 160px !important;
+  }
+  .welcome-greeting {
+    font-size: clamp(22px, 8vw, 30px) !important;
+    margin-bottom: 20px !important;
+  }
+  .input-wrap {
+    padding: 6px 12px calc(14px + env(safe-area-inset-bottom)) !important;
+  }
+  .input-textarea {
+    font-size: 16px !important; /* Prevent iOS zoom */
+  }
+  .suggestion-card {
+    padding: 10px 13px !important;
+    font-size: 12px !important;
+  }
+}
+
+/* ── STEP 11: Desktop content max-width ─────────────────────────*/
+@media (min-width: 1025px) {
+  .welcome {
+    padding: 0 32px 160px !important;
+  }
+}
+
+
+/* ── WELCOME INNER WRAPPER ─────────────────────────────────────
+   This wrapper centers content vertically when there's space
+   (small content on large screen) but allows natural flow when 
+   content is tall (needs scrolling on short screens).
+   The welcome div scrolls; this inner div sizes to content.    */
+.welcome-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  max-width: 680px;
+  /* Push content to vertical center using auto top/bottom padding */
+  padding-top: max(40px, 5vh);
+  padding-bottom: 24px;
+  box-sizing: border-box;
+  /* Let it grow naturally — no flex:1 here */
+}
+
+/* On short screens (<650px height), reduce top padding so
+   content isn't pushed off-screen */
+@media (max-height: 650px) {
+  .welcome-inner { padding-top: 20px !important; }
+}
+
+/* Very tall screens — add more breathing room */
+@media (min-height: 900px) {
+  .welcome-inner { padding-top: max(60px, 8vh); }
+}
+
+/* Mobile horizontal padding */
+@media (max-width: 767px) {
+  .welcome-inner {
+    padding-top: max(24px, 3vh) !important;
+    padding-bottom: 20px !important;
+    max-width: 100% !important;
+  }
+}
+
+/* Tablet */
+@media (min-width: 768px) and (max-width: 1024px) {
+  .welcome-inner {
+    max-width: 680px;
+    padding-top: max(32px, 4vh);
+  }
+}
+
+/* ── INPUT WRAP INNER — centers content when position:absolute ── */
+.input-wrap-inner {
+  max-width: 760px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+@media (max-width: 767px) {
+  .input-wrap-inner { max-width: 100%; }
+}

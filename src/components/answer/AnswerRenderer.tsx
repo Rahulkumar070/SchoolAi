@@ -1185,47 +1185,126 @@ function buildRefMap(papers: Paper[]): Map<string, Paper> {
 }
 
 // Inline badge: small numbered superscript rendered where [REF-N] appears in text
-function CitationBadge({ num, label }: { num: number; label: string }) {
+function CitationBadge({ num, label, paper }: { num: number; label: string; paper?: Paper }) {
+  const [hovered, setHovered] = React.useState(false);
+
   return (
-    <sup
-      title={label}
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        justifyContent: "center",
-        minWidth: 15,
-        height: 15,
-        padding: "0 4px",
-        marginLeft: 1,
-        marginRight: 1,
-        borderRadius: 3,
-        background: "rgba(139,92,246,0.15)",
-        border: "1px solid rgba(139,92,246,0.3)",
-        color: "#a78bfa",
-        fontSize: 9,
-        fontWeight: 700,
-        fontFamily: "var(--font-ui)",
-        cursor: "default",
-        verticalAlign: "super",
-        lineHeight: 1,
-        letterSpacing: 0,
-        transition: "background 0.15s, border-color 0.15s",
-      }}
-      onMouseEnter={(e) => {
-        (e.currentTarget as HTMLElement).style.background =
-          "rgba(139,92,246,0.28)";
-        (e.currentTarget as HTMLElement).style.borderColor =
-          "rgba(139,92,246,0.55)";
-      }}
-      onMouseLeave={(e) => {
-        (e.currentTarget as HTMLElement).style.background =
-          "rgba(139,92,246,0.15)";
-        (e.currentTarget as HTMLElement).style.borderColor =
-          "rgba(139,92,246,0.3)";
-      }}
-    >
-      {num}
-    </sup>
+    <span style={{ position: "relative", display: "inline-flex", alignItems: "center" }}>
+      <sup
+        title={label}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          minWidth: 15,
+          height: 15,
+          padding: "0 4px",
+          marginLeft: 1,
+          marginRight: 1,
+          borderRadius: 3,
+          background: hovered ? "rgba(139,92,246,0.28)" : "rgba(139,92,246,0.15)",
+          border: `1px solid ${hovered ? "rgba(139,92,246,0.55)" : "rgba(139,92,246,0.3)"}`,
+          color: "#a78bfa",
+          fontSize: 9,
+          fontWeight: 700,
+          fontFamily: "var(--font-ui)",
+          cursor: "default",
+          verticalAlign: "super",
+          lineHeight: 1,
+          letterSpacing: 0,
+          transition: "background 0.15s, border-color 0.15s",
+        }}
+      >
+        {num}
+      </sup>
+
+      {/* Hover popup preview */}
+      {hovered && paper && (
+        <span
+          style={{
+            position: "absolute",
+            bottom: "calc(100% + 8px)",
+            left: "50%",
+            transform: "translateX(-50%)",
+            zIndex: 100,
+            width: 280,
+            background: "var(--surface)",
+            border: "1px solid rgba(139,92,246,0.3)",
+            borderRadius: 10,
+            padding: "12px 14px",
+            boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
+            pointerEvents: "none",
+          }}
+        >
+          {/* Arrow */}
+          <span
+            style={{
+              position: "absolute",
+              bottom: -6,
+              left: "50%",
+              transform: "translateX(-50%)",
+              width: 10,
+              height: 6,
+              background: "var(--surface)",
+              clipPath: "polygon(0 0, 100% 0, 50% 100%)",
+              borderBottom: "1px solid rgba(139,92,246,0.3)",
+            }}
+          />
+          <p
+            style={{
+              fontSize: 12,
+              fontWeight: 600,
+              color: "rgba(255,255,255,0.9)",
+              lineHeight: 1.4,
+              marginBottom: 6,
+            }}
+          >
+            {paper.title}
+          </p>
+          {paper.authors && paper.authors.length > 0 && (
+            <p style={{ fontSize: 10.5, color: "rgba(255,255,255,0.45)", marginBottom: 4 }}>
+              {paper.authors.slice(0, 3).join(", ")}
+              {paper.authors.length > 3 ? " et al." : ""}
+              {paper.year ? ` · ${paper.year}` : ""}
+            </p>
+          )}
+          {paper.abstract && (
+            <p
+              style={{
+                fontSize: 10.5,
+                color: "rgba(255,255,255,0.55)",
+                lineHeight: 1.55,
+                display: "-webkit-box",
+                WebkitLineClamp: 3,
+                WebkitBoxOrient: "vertical",
+                overflow: "hidden",
+                marginTop: 4,
+              }}
+            >
+              {paper.abstract}
+            </p>
+          )}
+          {(paper.journal ?? paper.source) && (
+            <span
+              style={{
+                display: "inline-block",
+                marginTop: 7,
+                fontSize: 9.5,
+                color: "#a78bfa",
+                background: "rgba(139,92,246,0.12)",
+                border: "1px solid rgba(139,92,246,0.2)",
+                borderRadius: 99,
+                padding: "2px 7px",
+              }}
+            >
+              {paper.journal ?? paper.source}
+            </span>
+          )}
+        </span>
+      )}
+    </span>
   );
 }
 
@@ -1288,6 +1367,7 @@ function resolveRefMarkers(body: string, papers: Paper[]): React.ReactNode[] {
               key={`badge-${pi}-${i}`}
               num={num}
               label={paper.title}
+              paper={paper}
             />,
           );
           // Collect for rendering below paragraph (first cite only per paragraph)
@@ -1698,44 +1778,60 @@ function TldrCard({ summary }: { summary: string }) {
   return (
     <div
       style={{
-        margin: "0 0 16px 0",
-        padding: "12px 16px",
-        background: "rgba(92,154,224,0.06)",
-        border: "1px solid rgba(92,154,224,0.18)",
-        borderRadius: 12,
+        margin: "0 0 20px 0",
+        padding: "14px 18px",
+        background: "linear-gradient(135deg, rgba(92,154,224,0.1) 0%, rgba(92,154,224,0.04) 100%)",
+        border: "1px solid rgba(92,154,224,0.28)",
+        borderRadius: 14,
         display: "flex",
-        gap: 12,
+        gap: 14,
         alignItems: "flex-start",
+        boxShadow: "0 2px 20px rgba(92,154,224,0.08)",
       }}
     >
-      {/* Label pill */}
-      <span
+      {/* Brain icon badge */}
+      <div
         style={{
           flexShrink: 0,
-          fontSize: 9.5,
-          fontWeight: 700,
-          letterSpacing: "0.07em",
-          textTransform: "uppercase",
-          color: "#5c9ae0",
+          width: 34,
+          height: 34,
+          borderRadius: 10,
           background: "rgba(92,154,224,0.15)",
-          border: "1px solid rgba(92,154,224,0.25)",
-          borderRadius: 5,
-          padding: "3px 7px",
-          marginTop: 2,
-          lineHeight: 1.3,
+          border: "1px solid rgba(92,154,224,0.3)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          fontSize: 17,
+          marginTop: 1,
         }}
       >
-        TL;DR
-      </span>
-      {/* Summary text + toggle */}
+        🧠
+      </div>
       <div style={{ flex: 1, minWidth: 0 }}>
+        {/* TL;DR label */}
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 7 }}>
+          <span
+            style={{
+              fontSize: 10,
+              fontWeight: 800,
+              letterSpacing: "0.1em",
+              textTransform: "uppercase",
+              color: "#5c9ae0",
+            }}
+          >
+            TL;DR
+          </span>
+          <div style={{ flex: 1, height: 1, background: "rgba(92,154,224,0.15)" }} />
+        </div>
+        {/* Summary text */}
         <p
           style={{
-            fontSize: 13,
-            color: "rgba(255,255,255,0.75)",
-            lineHeight: 1.6,
+            fontSize: 14.5,
+            color: "rgba(255,255,255,0.88)",
+            lineHeight: 1.7,
             margin: 0,
-            fontStyle: "italic",
+            fontWeight: 400,
+            letterSpacing: "0.008em",
           }}
         >
           {displayText}
@@ -1744,14 +1840,15 @@ function TldrCard({ summary }: { summary: string }) {
           <button
             onClick={() => setExpanded((e) => !e)}
             style={{
-              marginTop: 6,
-              fontSize: 11,
+              marginTop: 7,
+              fontSize: 11.5,
               color: "#5c9ae0",
               background: "none",
               border: "none",
               padding: 0,
               cursor: "pointer",
               opacity: 0.8,
+              fontWeight: 500,
             }}
           >
             {expanded ? "Show less ↑" : "Read more ↓"}
