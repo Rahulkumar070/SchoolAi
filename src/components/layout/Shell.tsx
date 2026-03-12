@@ -58,7 +58,7 @@ export default function Shell({
   return (
     <div className="shell">
       {/* ── Sidebar — desktop ── */}
-      <div className="hidden md:block" style={{ flexShrink: 0 }}>
+      <div className="hidden md:flex sidebar-desktop-wrapper" style={{ flexShrink: 0, height: "100%" }}>
         <Sidebar
           onNewSearch={handleNewSearch}
           activeConversationId={activeConversationId}

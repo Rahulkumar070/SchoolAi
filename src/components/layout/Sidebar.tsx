@@ -21,11 +21,11 @@ import {
 import { useEffect, useState, useCallback } from "react";
 
 const NAV = [
-  { href: "/search", label: "Research Search", icon: Search },
-  { href: "/review", label: "Literature Review", icon: BookOpen },
-  { href: "/upload", label: "PDF Chat", icon: FileText },
-  { href: "/dashboard", label: "My Library", icon: Library },
-  { href: "/pricing", label: "Plans & Billing", icon: CreditCard },
+  { href: "/search", label: "Research Search", icon: Search, color: "#5c9ae0" },
+  { href: "/review", label: "Literature Review", icon: BookOpen, color: "#5db87a" },
+  { href: "/upload", label: "PDF Chat", icon: FileText, color: "#e8a045" },
+  { href: "/dashboard", label: "My Library", icon: Library, color: "#ad73e0" },
+  { href: "/pricing", label: "Plans & Billing", icon: CreditCard, color: "#e05c7a" },
 ];
 
 export interface Conversation {
@@ -136,7 +136,7 @@ export default function Sidebar({
       animate={{ width: collapsed ? 60 : 260 }}
       transition={{ duration: 0.35, ease: [0.4, 0, 0.2, 1] }}
       className="sidebar-inner"
-      style={{ height: "100vh", overflowX: "hidden" }}
+      style={{ height: "100%", minHeight: "100vh", overflowX: "hidden" }}
     >
       {/* Header */}
       <div className="sidebar-header">
@@ -205,7 +205,7 @@ export default function Sidebar({
           </motion.span>
         </motion.button>
 
-        {NAV.map(({ href, label, icon: Icon }, i) => {
+        {NAV.map(({ href, label, icon: Icon, color }, i) => {
           const isActive = path === href;
           return (
             <motion.div
@@ -220,7 +220,29 @@ export default function Sidebar({
                 onClick={onClose}
                 className={`sidebar-nav-btn${isActive ? " active" : ""}`}
               >
-                <Icon size={15} style={{ flexShrink: 0 }} />
+                <span
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    width: 24,
+                    height: 24,
+                    borderRadius: 7,
+                    background: isActive
+                      ? `${color}20`
+                      : `${color}10`,
+                    flexShrink: 0,
+                    transition: "all 0.2s",
+                  }}
+                >
+                  <Icon
+                    size={13}
+                    style={{
+                      color: isActive ? color : `${color}bb`,
+                      transition: "color 0.2s",
+                    }}
+                  />
+                </span>
                 <motion.span
                   animate={{
                     opacity: collapsed ? 0 : 1,

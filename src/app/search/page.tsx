@@ -207,6 +207,416 @@ const SUGGESTIONS = [
   "Long COVID mechanisms and treatments",
 ];
 
+const TRENDING_PAPERS = [
+  {
+    title: "Attention Is All You Need",
+    authors: "Vaswani et al.",
+    year: 2017,
+    citations: "120k",
+    badge: "Foundational" as const,
+    color: "#ad73e0",
+  },
+  {
+    title: "RLHF: Training Language Models to Follow Instructions",
+    authors: "Ouyang et al.",
+    year: 2022,
+    citations: "9.8k",
+    badge: "Highly Cited" as const,
+    color: "#5c9ae0",
+  },
+  {
+    title: "Retrieval-Augmented Generation for NLP",
+    authors: "Lewis et al.",
+    year: 2020,
+    citations: "8.5k",
+    badge: "Breakthrough" as const,
+    color: "#5db87a",
+  },
+  {
+    title: "Scaling Laws for Neural Language Models",
+    authors: "Kaplan et al.",
+    year: 2020,
+    citations: "5.1k",
+    badge: "Foundational" as const,
+    color: "#ad73e0",
+  },
+  {
+    title: "BERT: Pre-training Deep Bidirectional Transformers",
+    authors: "Devlin et al.",
+    year: 2019,
+    citations: "72k",
+    badge: "Highly Cited" as const,
+    color: "#5c9ae0",
+  },
+  {
+    title: "GPT-4 Technical Report",
+    authors: "OpenAI",
+    year: 2023,
+    citations: "15k",
+    badge: "Breakthrough" as const,
+    color: "#5db87a",
+  },
+];
+
+const BADGE_COLORS: Record<string, { bg: string; text: string; border: string }> = {
+  "Foundational": { bg: "rgba(173,115,224,0.12)", text: "#ad73e0", border: "rgba(173,115,224,0.25)" },
+  "Highly Cited": { bg: "rgba(92,154,224,0.12)", text: "#5c9ae0", border: "rgba(92,154,224,0.25)" },
+  "Breakthrough": { bg: "rgba(93,184,122,0.12)", text: "#5db87a", border: "rgba(93,184,122,0.25)" },
+};
+
+const PAPER_TIMELINE = [
+  { year: 2013, title: "Word2Vec", desc: "Semantic word embeddings" },
+  { year: 2014, title: "GAN", desc: "Generative adversarial networks" },
+  { year: 2017, title: "Transformer", desc: "Attention is all you need" },
+  { year: 2019, title: "BERT", desc: "Bidirectional LM pretraining" },
+  { year: 2020, title: "GPT-3", desc: "175B parameter few-shot learner" },
+  { year: 2022, title: "ChatGPT", desc: "RLHF-tuned conversational AI" },
+  { year: 2023, title: "GPT-4", desc: "Multimodal frontier model" },
+];
+
+const SUGGESTION_MAP: Record<string, string[]> = {
+  transform: [
+    "How do transformers work?",
+    "Transformer vs RNN comparison",
+    "Transformer architecture explained",
+    "Vision transformers for image recognition",
+  ],
+  bert: [
+    "What is BERT and how does it work?",
+    "BERT vs GPT architecture differences",
+    "BERT fine-tuning for classification",
+  ],
+  gpt: [
+    "How GPT models are trained with RLHF",
+    "GPT-4 capabilities and limitations",
+    "GPT vs BERT for NLP tasks",
+  ],
+  rlhf: [
+    "RLHF for language model alignment",
+    "How reward models work in RLHF",
+    "Problems with RLHF training",
+  ],
+  neural: [
+    "Neural network architecture survey",
+    "Neural scaling laws explained",
+    "Deep neural network training techniques",
+  ],
+  quantum: [
+    "Quantum computing breakthroughs 2024",
+    "Quantum error correction methods",
+    "Quantum machine learning algorithms",
+  ],
+  cancer: [
+    "Latest cancer immunotherapy research",
+    "Cancer biomarkers for early detection",
+    "CAR-T cell therapy advances",
+  ],
+  covid: [
+    "Long COVID mechanisms and treatment",
+    "COVID-19 neurological effects",
+    "Post-COVID syndrome research",
+  ],
+  climate: [
+    "Climate change mitigation strategies",
+    "Carbon capture technology research",
+    "Climate tipping points analysis",
+  ],
+  drug: [
+    "Drug discovery using AI models",
+    "Drug repurposing computational methods",
+    "Drug resistance mechanisms",
+  ],
+};
+
+function TrendingSection({ onSearch }: { onSearch: (q: string) => void }) {
+  return (
+    <div style={{ width: "100%", maxWidth: 660, margin: "0 auto 0" }}>
+      {/* Trending Papers */}
+      <div style={{ marginBottom: 24 }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            marginBottom: 12,
+          }}
+        >
+          <span
+            style={{
+              fontSize: 9.5,
+              fontWeight: 700,
+              letterSpacing: "0.1em",
+              textTransform: "uppercase",
+              color: "var(--text-faint)",
+            }}
+          >
+            🔥 Trending Papers
+          </span>
+          <div
+            style={{
+              flex: 1,
+              height: 1,
+              background: "rgba(255,255,255,0.05)",
+            }}
+          />
+        </div>
+        <div className="trending-grid">
+          {TRENDING_PAPERS.map((p, i) => {
+            const bc = BADGE_COLORS[p.badge] ?? BADGE_COLORS["Foundational"];
+            return (
+              <motion.button
+                key={i}
+                onClick={() => onSearch(p.title)}
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.4 + i * 0.06 }}
+                className="trending-paper-card"
+                style={{
+                  background: "rgba(255,255,255,0.025)",
+                  border: "1px solid rgba(255,255,255,0.07)",
+                  borderRadius: 10,
+                  padding: "10px 12px",
+                  textAlign: "left",
+                  cursor: "pointer",
+                  transition: "all 0.18s",
+                  width: "100%",
+                }}
+                whileHover={{
+                  background: "rgba(255,255,255,0.05)",
+                  borderColor: "rgba(255,255,255,0.14)",
+                  y: -1,
+                }}
+              >
+                <div style={{ marginBottom: 5 }}>
+                  <span
+                    style={{
+                      fontSize: 9,
+                      fontWeight: 700,
+                      padding: "2px 6px",
+                      borderRadius: 99,
+                      background: bc.bg,
+                      color: bc.text,
+                      border: `1px solid ${bc.border}`,
+                    }}
+                  >
+                    {p.badge}
+                  </span>
+                </div>
+                <p
+                  style={{
+                    fontSize: 11.5,
+                    fontWeight: 600,
+                    color: "rgba(255,255,255,0.82)",
+                    lineHeight: 1.35,
+                    marginBottom: 4,
+                  }}
+                >
+                  {p.title}
+                </p>
+                <p
+                  style={{
+                    fontSize: 10,
+                    color: "var(--text-faint)",
+                    lineHeight: 1.3,
+                  }}
+                >
+                  {p.authors} · {p.year} · {p.citations} citations
+                </p>
+              </motion.button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Research Timeline */}
+      <div>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            marginBottom: 12,
+          }}
+        >
+          <span
+            style={{
+              fontSize: 9.5,
+              fontWeight: 700,
+              letterSpacing: "0.1em",
+              textTransform: "uppercase",
+              color: "var(--text-faint)",
+            }}
+          >
+            ⏳ AI Research Timeline
+          </span>
+          <div
+            style={{
+              flex: 1,
+              height: 1,
+              background: "rgba(255,255,255,0.05)",
+            }}
+          />
+        </div>
+        <div className="timeline-scroll">
+          {PAPER_TIMELINE.map((item, i) => (
+            <motion.div
+              key={i}
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.5 + i * 0.07 }}
+              style={{ display: "flex", alignItems: "center", flexShrink: 0 }}
+            >
+              <motion.button
+                onClick={() => onSearch(`${item.title} paper research`)}
+                className="timeline-item"
+                style={{
+                  background: "rgba(255,255,255,0.025)",
+                  border: "1px solid rgba(255,255,255,0.07)",
+                  borderRadius: 8,
+                  padding: "7px 10px",
+                  cursor: "pointer",
+                  textAlign: "center",
+                  minWidth: 78,
+                }}
+                whileHover={{
+                  background: "rgba(201,185,154,0.1)",
+                  borderColor: "rgba(201,185,154,0.25)",
+                }}
+              >
+                <p
+                  style={{
+                    fontSize: 10.5,
+                    fontWeight: 700,
+                    color: "var(--brand)",
+                    marginBottom: 2,
+                  }}
+                >
+                  {item.year}
+                </p>
+                <p
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 600,
+                    color: "rgba(255,255,255,0.8)",
+                    marginBottom: 2,
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {item.title}
+                </p>
+                <p
+                  style={{
+                    fontSize: 9,
+                    color: "var(--text-faint)",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {item.desc}
+                </p>
+              </motion.button>
+              {i < PAPER_TIMELINE.length - 1 && (
+                <div
+                  style={{
+                    width: 18,
+                    height: 1,
+                    background:
+                      "linear-gradient(90deg, rgba(201,185,154,0.3), rgba(201,185,154,0.1))",
+                    flexShrink: 0,
+                  }}
+                />
+              )}
+            </motion.div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SmartSuggestions({
+  query,
+  onSelect,
+}: {
+  query: string;
+  onSelect: (q: string) => void;
+}) {
+  const q = query.toLowerCase().trim();
+  if (!q || q.length < 3) return null;
+
+  const suggestions: string[] = [];
+  for (const [key, vals] of Object.entries(SUGGESTION_MAP)) {
+    if (q.includes(key) || key.includes(q)) {
+      suggestions.push(...vals);
+    }
+  }
+  const uniq = [...new Set(suggestions)].slice(0, 4);
+  if (!uniq.length) return null;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: -4 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -4 }}
+      className="smart-suggestions-popup"
+      style={{
+        position: "absolute",
+        bottom: "calc(100% + 6px)",
+        left: 0,
+        right: 0,
+        background: "var(--surface)",
+        border: "1px solid rgba(255,255,255,0.12)",
+        borderRadius: 12,
+        overflow: "hidden",
+        zIndex: 50,
+        boxShadow: "0 -8px 32px rgba(0,0,0,0.4)",
+      }}
+    >
+      {uniq.map((s, i) => (
+        <button
+          key={i}
+          onClick={() => onSelect(s)}
+          style={{
+            width: "100%",
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            padding: "9px 14px",
+            background: "transparent",
+            border: "none",
+            borderBottom:
+              i < uniq.length - 1 ? "1px solid rgba(255,255,255,0.05)" : "none",
+            cursor: "pointer",
+            textAlign: "left",
+            transition: "background 0.14s",
+          }}
+          onMouseEnter={(e) =>
+            ((e.currentTarget as HTMLElement).style.background =
+              "rgba(255,255,255,0.04)")
+          }
+          onMouseLeave={(e) =>
+            ((e.currentTarget as HTMLElement).style.background = "transparent")
+          }
+        >
+          <Search size={11} style={{ color: "var(--brand)", flexShrink: 0 }} />
+          <span
+            style={{
+              fontSize: 13,
+              color: "rgba(255,255,255,0.75)",
+              lineHeight: 1.3,
+            }}
+          >
+            {s}
+          </span>
+          <ArrowRight
+            size={10}
+            style={{ color: "#444", flexShrink: 0, marginLeft: "auto" }}
+          />
+        </button>
+      ))}
+    </motion.div>
+  );
+}
+
 function SearchApp() {
   const params = useSearchParams();
   const router = useRouter();
@@ -224,6 +634,8 @@ function SearchApp() {
   const [panelTurn, setPanelTurn] = useState<Turn | null>(null);
   const [panelTab, setPanelTab] = useState<"sources" | "cite">("sources");
   const [conversationId, setConversationId] = useState<string | null>(null);
+
+  const [showSuggestions, setShowSuggestions] = useState(false);
 
   const taRef = useRef<HTMLTextAreaElement>(null);
   const endRef = useRef<HTMLDivElement>(null);
@@ -598,56 +1010,69 @@ function SearchApp() {
             transition={{ delay: 0.35, duration: 0.55, ease: "easeOut" }}
             className="welcome"
           >
-            {session && !isPro && (
-              <motion.div
-                initial={{ opacity: 0, y: -6 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.25, duration: 0.4 }}
-                className="chat-plan-badge"
-                style={{
-                  position: "relative",
-                  top: "auto",
-                  left: "auto",
-                  transform: "none",
-                  margin: "0 auto 24px",
-                  display: "flex",
-                }}
-              >
-                <span>{plan === "student" ? "Student" : "Free"} plan</span>
-                <span style={{ color: "#333" }}>·</span>
-                <button onClick={() => router.push("/pricing")}>Upgrade</button>
-              </motion.div>
-            )}
-            <h1 className="welcome-greeting">
-              What would you like
-              <br />
-              to research?
-            </h1>
-            {!session && (
-              <p
-                style={{
-                  fontSize: 12.5,
-                  color: "#555",
-                  marginBottom: 16,
-                  fontWeight: 300,
-                }}
-              >
-                2 free searches as guest ·{" "}
-                <Link href="/auth/signin" style={{ color: "#c9b99a" }}>
-                  Sign in for 5/day →
-                </Link>
-              </p>
-            )}
-            <div className="suggestion-grid">
-              {SUGGESTIONS.map((s) => (
-                <button
-                  key={s}
-                  className="suggestion-card"
-                  onClick={() => void doSearch(s)}
+            {/* Inner wrapper — centers content vertically when there's room */}
+            <div className="welcome-inner">
+              {session && !isPro && (
+                <motion.div
+                  initial={{ opacity: 0, y: -6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.25, duration: 0.4 }}
+                  className="chat-plan-badge"
+                  style={{
+                    position: "relative",
+                    top: "auto",
+                    left: "auto",
+                    transform: "none",
+                    margin: "0 auto 24px",
+                    display: "flex",
+                  }}
                 >
-                  {s}
-                </button>
-              ))}
+                  <span>{plan === "student" ? "Student" : "Free"} plan</span>
+                  <span style={{ color: "#333" }}>·</span>
+                  <button onClick={() => router.push("/pricing")}>Upgrade</button>
+                </motion.div>
+              )}
+              <h1 className="welcome-greeting">
+                What would you like
+                <br />
+                to research?
+              </h1>
+              {!session && (
+                <p
+                  style={{
+                    fontSize: 12.5,
+                    color: "#555",
+                    marginBottom: 16,
+                    fontWeight: 300,
+                  }}
+                >
+                  2 free searches as guest ·{" "}
+                  <Link href="/auth/signin" style={{ color: "#c9b99a" }}>
+                    Sign in for 5/day →
+                  </Link>
+                </p>
+              )}
+              <div className="suggestion-grid">
+                {SUGGESTIONS.map((s) => (
+                  <button
+                    key={s}
+                    className="suggestion-card"
+                    onClick={() => void doSearch(s)}
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+
+              {/* Research signals section */}
+              <motion.div
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.7, duration: 0.5 }}
+                style={{ marginTop: 36, width: "100%" }}
+              >
+                <TrendingSection onSearch={(q) => void doSearch(q)} />
+              </motion.div>
             </div>
           </motion.div>
         ) : (
@@ -832,7 +1257,19 @@ function SearchApp() {
         {/* Input bar */}
         {/* Input bar */}
         <div className="input-wrap">
-          <div className="input-box">
+          <div className="input-wrap-inner">
+          <div className="input-box" style={{ position: "relative" }}>
+            <AnimatePresence>
+              {showSuggestions && input.length >= 3 && (
+                <SmartSuggestions
+                  query={input}
+                  onSelect={(q) => {
+                    setShowSuggestions(false);
+                    void doSearch(q);
+                  }}
+                />
+              )}
+            </AnimatePresence>
             {/* Hidden file input */}
             <input
               ref={fileInputRef}
@@ -906,13 +1343,17 @@ function SearchApp() {
               onChange={(e) => {
                 setInput(e.target.value);
                 resize();
+                setShowSuggestions(e.target.value.length >= 3);
               }}
               onKeyDown={(e) => {
+                if (e.key === "Escape") { setShowSuggestions(false); return; }
                 if (e.key === "Enter" && !e.shiftKey) {
                   e.preventDefault();
+                  setShowSuggestions(false);
                   void doSearch(input);
                 }
               }}
+              onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
               placeholder={
                 attachedPdf
                   ? `Ask anything about "${attachedPdf.name}"…`
@@ -1003,8 +1444,9 @@ function SearchApp() {
               : ""}
             Semantic Scholar · OpenAlex · arXiv · PubMed
           </p>
-        </div>
-      </div>
+          </div>{/* end input-wrap-inner */}
+        </div>{/* end input-wrap */}
+      </div>{/* end chat-wrap */}
     </Shell>
   );
 }
