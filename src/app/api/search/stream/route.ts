@@ -25,7 +25,7 @@ import { checkGuestLimit } from "@/lib/guestLimit";
 import Anthropic from "@anthropic-ai/sdk";
 import mongoose from "mongoose";
 import { generateRelatedQuestions } from "@/lib/ai";
-import { EvidenceBlock } from "@/types";  // ✅ CHANGE #1 — new import [Upgrade #1]
+import { EvidenceBlock } from "@/types"; // ✅ CHANGE #1 — new import [Upgrade #1]
 
 const ant = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -65,8 +65,8 @@ type UserDoc = {
 interface PromptResult {
   prompt: string;
   chunkIdToPaperId: Map<string, string>;
-  evidenceBlocks: EvidenceBlock[];   // needed for claim verification
-  intentAddendum: string;            // v7 NEW: intent-specific system instructions
+  evidenceBlocks: EvidenceBlock[]; // needed for claim verification
+  intentAddendum: string; // v7 NEW: intent-specific system instructions
 }
 
 async function buildPrompt(
@@ -96,9 +96,7 @@ async function buildPrompt(
     );
 
     // v7: append intent-specific instructions (math equations, comparison table, etc.)
-    const intentSection = intentAddendum
-      ? `\n\n${intentAddendum}`
-      : "";
+    const intentSection = intentAddendum ? `\n\n${intentAddendum}` : "";
 
     const prompt = `You are Researchly, a citation-grounded research assistant.
 You must answer the user using ONLY the retrieved evidence blocks provided below.
@@ -153,7 +151,12 @@ ${query}${intentSection}`;
   }
 
   const prompt = `QUESTION: "${query}"\n\nNo academic papers found.\n\nClassify as Study Help / Exam Practice / General Academic / Non-Academic.\nIf non-academic: politely redirect. For study: thorough explanation + ## What To Search Next. For exam (JEE/NEET/UPSC/GATE): generate original questions with detailed answers. NEVER say you cannot help.${intentAddendum ? "\n\n" + intentAddendum : ""}`;
-  return { prompt, chunkIdToPaperId: emptyMap, evidenceBlocks: [], intentAddendum };
+  return {
+    prompt,
+    chunkIdToPaperId: emptyMap,
+    evidenceBlocks: [],
+    intentAddendum,
+  };
 }
 
 const SYSTEM = `You are Researchly, a citation-grounded academic research assistant for Indian students and researchers.
@@ -184,13 +187,16 @@ MANDATORY RESPONSE STRUCTURE — output ALL 7 sections in order:
 
 CITATION PLACEMENT — hard limits per section:
 - ## Overview: max 2 citations
-- ## Key Concepts: max 3 citations
+- ## Key Concepts: EVERY concept sub-item MUST have at least 1 citation. Max 4 total.
 - ## System Architecture: 0 citations
 - ## Technical Details or Comparison: max 3 citations
 - ## Limitations: 0 citations
 - ## Key Takeaways: max 2 citations on first two takeaways only
 - ## What To Search Next: 0 citations
-- TOTAL: maximum 8 [CITATION:*] markers across the whole answer
+- TOTAL: maximum 10 [CITATION:*] markers across the whole answer
+
+KEY CONCEPTS RULE: For each named concept listed in ## Key Concepts, you MUST append
+a [CITATION:chunk_id] at the end of its description. Do not leave any concept uncited.
 
 CITATION SAFETY RULES:
 - ONLY cite chunk_ids listed in the EVIDENCE BLOCKS section.
@@ -345,6 +351,7 @@ export async function POST(req: NextRequest) {
     const routeJunkFilter = (p: PaperRow, query: string): boolean => {
       const t = p.title ?? "";
       const abs = p.abstract ?? "";
+      const combined = `${t} ${abs.slice(0, 400)}`;
 
       // ── Hard title blocks (always dropped) ──────────────────
       const HARD_BLOCKS = [
@@ -356,64 +363,155 @@ export async function POST(req: NextRequest) {
         /implicit reasoning.*shortcut/i,
         /malware.*detect|intrusion detect/i,
         /supply.?chain.*optim|inventory.*optim/i,
+        // v10
+        /vision language action|grasping foundation model|robotic.*grasp|syngrasp/i,
+        /graph structure learning.*language|LangGSL/i,
+        /scaling vision transformer|contrastive language.?image.*scaling|clip.*scaling law/i,
+        /gradient.?based learning.*document recognition/i,
+        /spatio.?temporal.*graph.*deep learning.*alzheimer/i,
+        /deep.*learning.*model.*alzheimer.*progression.*real.?world/i,
+        // v11 NEW
+        /reproducible scaling.*contrastive|contrastive.*language.*image.*learning.*scaling/i,
+        /federated learning.*open problems|advances.*federated learning/i,
+        /alpha maml|negative adaptation.*meta.?learning|regression network.*meta.?learning/i,
+        /tapnet.*few.?shot|task.?adaptive projection.*few.?shot/i,
+        /transfer learning.*deep reinforcement|survey.*deep reinforcement.*transfer/i,
       ];
       if (HARD_BLOCKS.some((re) => re.test(t))) return false;
 
-      // ── Domain-aware filter for NLP queries ──────────────────
+      // ── Domain-aware filter for NLP / LLM queries ────────────
       const isNLPQuery =
-        /\b(transformer|attention|bert|gpt|llm|language model|rnn|lstm|seq2seq|nlp|natural language|embedding|rag)\b/i.test(
+        /\b(transformer|attention|bert|gpt|llm|language model|rnn|lstm|seq2seq|nlp|natural language|embedding|rag|few.?shot|in.?context|prompt|pre.?train.*language)\b/i.test(
           query,
         );
 
       if (isNLPQuery) {
-        // Only block CV/security papers if the query is not explicitly about that domain
         const isVisionQuery =
-          /computer vision|image classif|ViT|vision transformer.*how|object detect/i.test(query);
+          /computer vision|image classif|ViT|vision transformer.*how|object detect/i.test(
+            query,
+          );
         const isMedicalQuery =
-          /medical imaging|radiology|clinical|tumor|cancer/i.test(query);
-        const isFPGAQuery =
-          /FPGA|hardware accelerat|chip design/i.test(query);
-        const isTimeSeriesQuery =
-          /time series|forecasting|LTSF/i.test(query);
+          /medical|clinical|health|patient|diagnosis|drug/i.test(query);
+        const isFPGAQuery = /FPGA|hardware accelerat|chip design/i.test(query);
+        const isTimeSeriesQuery = /time series|forecasting|LTSF/i.test(query);
         const isSecurityQuery =
           /malware|intrusion|cybersecurity|network security/i.test(query);
         const isGraphQuery = /graph neural|GNN|graph transformer/i.test(query);
+        const isRLQuery =
+          /reinforcement learning|policy gradient|reward function|Q-learning/i.test(
+            query,
+          );
+        const isMetaLearningQuery =
+          /MAML|model.?agnostic meta|meta.?learning/i.test(query);
 
-        const paperText = `${t} ${abs}`;
-
+        // Block CV papers
         if (
           !isVisionQuery &&
-          /\b(image classif|object detect|visual.*model|vision transformer|ViT|pixel|bounding box|segmentation.*image)\b/i.test(t)
+          /\b(image classif|object detect|visual.*model|vision transformer|ViT|pixel|bounding box|segmentation.*image|imagenet|image.*recogni)\b/i.test(
+            t,
+          )
         )
           return false;
 
+        // Block clinical / medical papers — TITLE ONLY
         if (
           !isMedicalQuery &&
-          /\b(clinical|patient|diagnosis|tumor|cancer|radiology|mri|ct scan|organ|surgical)\b/i.test(t)
+          /\b(clinical.*knowledge|medical.*qa|health.*search|medqa|pubmedqa|medical.*licens|multimedqa|ehr.*language|biomedical.*qa|medical.*question answering|radiology.*report|tumor.*classif|cancer.*detect)\b/i.test(
+            t,
+          )
         )
           return false;
 
+        // Block FPGA / hardware
         if (
           !isFPGAQuery &&
-          /\b(FPGA|hardware accelerat|energy.?efficient.*hardware|asic|chip)\b/i.test(t)
+          /\b(FPGA|hardware accelerat|energy.?efficient.*hardware|asic|chip)\b/i.test(
+            t,
+          )
         )
           return false;
 
+        // Block time-series
         if (
           !isTimeSeriesQuery &&
           /\b(time series.*transformer|LTSF|temporal forecast)\b/i.test(t)
         )
           return false;
 
+        // Block security
         if (
           !isSecurityQuery &&
-          /\b(malware|intrusion detect|cyberattack|ransomware|botnet)\b/i.test(paperText)
+          /\b(malware|intrusion detect|cyberattack|ransomware|botnet)\b/i.test(
+            combined,
+          )
         )
           return false;
 
+        // Block non-NLP graph papers
         if (
           !isGraphQuery &&
-          /\b(graph neural|spectral.*graph|GCN|graph convolution)\b/i.test(t)
+          /\b(graph neural|spectral.*graph|GCN|graph convolution|graph structure|node classif|link predict)\b/i.test(
+            t,
+          )
+        )
+          return false;
+
+        // Block robotics / embodied AI
+        if (
+          /\b(robot(?:ic)?|grasping.*model|manipulation.*llm|embodied.*agent|syngrasp|sim.?to.?real)\b/i.test(
+            t,
+          )
+        )
+          return false;
+
+        // Block pure CV scaling / contrastive image-text papers
+        if (
+          /\b(scaling.*vision|contrastive.*image.*text|contrastive.*language.*image|clip.*zero.?shot.*image|imagenet.*top.?1|reproducible.*scaling.*clip)\b/i.test(
+            t,
+          )
+        )
+          return false;
+
+        // Block RL / policy gradient papers unless query is about RL
+        if (
+          !isRLQuery &&
+          /\b(reinforcement learning|policy gradient|reward.*function|Q-learning|markov decision|actor.?critic|deep RL)\b/i.test(
+            t,
+          )
+        )
+          return false;
+
+        // Block vision-focused meta-learning / MAML papers unless query asks for it
+        if (
+          !isMetaLearningQuery &&
+          /\b(MAML|model.?agnostic meta|meta.?learning.*classif|meta.?learn.*image|prototypical network|matching network|tapnet|regression network.*few.?shot)\b/i.test(
+            t,
+          )
+        )
+          return false;
+
+        // Block federated learning papers
+        if (
+          /\b(federated learning|federated optimization|federated.*privacy)\b/i.test(
+            t,
+          )
+        )
+          return false;
+
+        // Block semi-supervised learning surveys (not LLM-specific)
+        if (
+          /\b(semi.?supervised learning.*survey|survey.*semi.?supervised)\b/i.test(
+            t,
+          )
+        )
+          return false;
+
+        // Block pre-2020 papers with low citations — too old for LLM/ICL queries
+        if (
+          p.year &&
+          p.year < 2020 &&
+          (p.citationCount ?? 0) < 500 &&
+          !/\b(bert|gpt|transformer|attention|word2vec|elmo|xlnet)\b/i.test(t)
         )
           return false;
       }
@@ -453,8 +551,12 @@ export async function POST(req: NextRequest) {
 
         // ── Build prompt + chunk map ──────────────────────────
         // evidenceBlocks is now returned so we can use it for claim verification
-        const { prompt: builtPrompt, chunkIdToPaperId, evidenceBlocks, intentAddendum: resolvedAddendum } =
-          await buildPrompt(q, papers, intentAddendum);
+        const {
+          prompt: builtPrompt,
+          chunkIdToPaperId,
+          evidenceBlocks,
+          intentAddendum: resolvedAddendum,
+        } = await buildPrompt(q, papers, intentAddendum);
 
         // v7 NEW: dynamic system prompt — append intent-specific rules
         const dynamicSystem = resolvedAddendum
@@ -526,7 +628,7 @@ export async function POST(req: NextRequest) {
 
         // SERVER-SIDE: per-section citation cap
         const SERVER_SECTION_LIMITS: Record<string, number> = {
-          "key concepts": 3,
+          "key concepts": 4,
           overview: 2,
           "system architecture": 0,
           "technical details": 3,
@@ -559,7 +661,12 @@ export async function POST(req: NextRequest) {
           const { verified_answer } = await verifyClaimCitations(
             fullAnswer,
             evidenceBlocks,
-          ).catch(() => ({ verified_answer: fullAnswer, removed_citations: 0, flagged_citations: 0, verification_log: "" }));
+          ).catch(() => ({
+            verified_answer: fullAnswer,
+            removed_citations: 0,
+            flagged_citations: 0,
+            verification_log: "",
+          }));
           fullAnswer = verified_answer;
         }
 
