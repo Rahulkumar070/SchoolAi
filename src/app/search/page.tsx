@@ -258,10 +258,25 @@ const TRENDING_PAPERS = [
   },
 ];
 
-const BADGE_COLORS: Record<string, { bg: string; text: string; border: string }> = {
-  "Foundational": { bg: "rgba(173,115,224,0.12)", text: "#ad73e0", border: "rgba(173,115,224,0.25)" },
-  "Highly Cited": { bg: "rgba(92,154,224,0.12)", text: "#5c9ae0", border: "rgba(92,154,224,0.25)" },
-  "Breakthrough": { bg: "rgba(93,184,122,0.12)", text: "#5db87a", border: "rgba(93,184,122,0.25)" },
+const BADGE_COLORS: Record<
+  string,
+  { bg: string; text: string; border: string }
+> = {
+  Foundational: {
+    bg: "rgba(173,115,224,0.12)",
+    text: "#ad73e0",
+    border: "rgba(173,115,224,0.25)",
+  },
+  "Highly Cited": {
+    bg: "rgba(92,154,224,0.12)",
+    text: "#5c9ae0",
+    border: "rgba(92,154,224,0.25)",
+  },
+  Breakthrough: {
+    bg: "rgba(93,184,122,0.12)",
+    text: "#5db87a",
+    border: "rgba(93,184,122,0.25)",
+  },
 };
 
 const PAPER_TIMELINE = [
@@ -647,6 +662,7 @@ function SearchApp() {
     text: string;
   } | null>(null);
   const [pdfParsing, setPdfParsing] = useState(false);
+  const [showPdfUpgradeModal, setShowPdfUpgradeModal] = useState(false);
 
   const plan = session?.user?.plan ?? "free";
   const isFree = plan === "free";
@@ -868,17 +884,17 @@ function SearchApp() {
                 setPanelTab("sources");
               } else if (evt.type === "text" && evt.text) {
                 if (!answerLocked) {
-                setTurns((prev) => {
-                  const u = [...prev];
-                  const last = u[u.length - 1];
-                  u[u.length - 1] = {
-                    ...last,
-                    answer: last.answer + evt.text,
-                    status: undefined,
-                  };
-                  return u;
-                });
-                scrollDown();
+                  setTurns((prev) => {
+                    const u = [...prev];
+                    const last = u[u.length - 1];
+                    u[u.length - 1] = {
+                      ...last,
+                      answer: last.answer + evt.text,
+                      status: undefined,
+                    };
+                    return u;
+                  });
+                  scrollDown();
                 }
               } else if (evt.type === "answer_replace" && evt.text) {
                 // Server stripped bibliography — hard replace and lock to prevent further text appending
@@ -1029,7 +1045,9 @@ function SearchApp() {
                 >
                   <span>{plan === "student" ? "Student" : "Free"} plan</span>
                   <span style={{ color: "#333" }}>·</span>
-                  <button onClick={() => router.push("/pricing")}>Upgrade</button>
+                  <button onClick={() => router.push("/pricing")}>
+                    Upgrade
+                  </button>
                 </motion.div>
               )}
               <h1 className="welcome-greeting">
@@ -1258,195 +1276,790 @@ function SearchApp() {
         {/* Input bar */}
         <div className="input-wrap">
           <div className="input-wrap-inner">
-          <div className="input-box" style={{ position: "relative" }}>
-            <AnimatePresence>
-              {showSuggestions && input.length >= 3 && (
-                <SmartSuggestions
-                  query={input}
-                  onSelect={(q) => {
-                    setShowSuggestions(false);
-                    void doSearch(q);
-                  }}
-                />
-              )}
-            </AnimatePresence>
-            {/* Hidden file input */}
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".pdf,application/pdf"
-              style={{ display: "none" }}
-              onChange={(e) => {
-                const f = e.target.files?.[0];
-                if (f) void handlePdfAttach(f);
-              }}
-            />
-
-            {/* PDF attachment badge */}
-            {attachedPdf && (
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 6,
-                  padding: "5px 10px 0",
-                  flexWrap: "wrap",
+            <div className="input-box" style={{ position: "relative" }}>
+              <AnimatePresence>
+                {showSuggestions && input.length >= 3 && (
+                  <SmartSuggestions
+                    query={input}
+                    onSelect={(q) => {
+                      setShowSuggestions(false);
+                      void doSearch(q);
+                    }}
+                  />
+                )}
+              </AnimatePresence>
+              {/* Hidden file input */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".pdf,application/pdf"
+                style={{ display: "none" }}
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) void handlePdfAttach(f);
                 }}
-              >
+              />
+
+              {/* PDF attachment badge */}
+              {attachedPdf && (
                 <div
                   style={{
                     display: "flex",
                     alignItems: "center",
-                    gap: 5,
-                    background: "rgba(201,185,154,0.12)",
-                    border: "1px solid rgba(201,185,154,0.25)",
-                    borderRadius: 6,
-                    padding: "3px 8px",
-                    fontSize: 12,
-                    color: "#c9b99a",
-                    maxWidth: "100%",
+                    gap: 6,
+                    padding: "5px 10px 0",
+                    flexWrap: "wrap",
                   }}
                 >
-                  <FileText size={11} />
-                  <span
+                  <div
                     style={{
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
-                      maxWidth: 200,
-                    }}
-                  >
-                    {attachedPdf.name}
-                  </span>
-                  <button
-                    onClick={() => setAttachedPdf(null)}
-                    style={{
-                      background: "none",
-                      border: "none",
-                      cursor: "pointer",
-                      color: "#666",
-                      padding: 0,
                       display: "flex",
                       alignItems: "center",
+                      gap: 5,
+                      background: "rgba(201,185,154,0.12)",
+                      border: "1px solid rgba(201,185,154,0.25)",
+                      borderRadius: 6,
+                      padding: "3px 8px",
+                      fontSize: 12,
+                      color: "#c9b99a",
+                      maxWidth: "100%",
                     }}
-                    title="Remove PDF"
                   >
-                    <X size={11} />
-                  </button>
+                    <FileText size={11} />
+                    <span
+                      style={{
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                        maxWidth: 200,
+                      }}
+                    >
+                      {attachedPdf.name}
+                    </span>
+                    <button
+                      onClick={() => setAttachedPdf(null)}
+                      style={{
+                        background: "none",
+                        border: "none",
+                        cursor: "pointer",
+                        color: "#666",
+                        padding: 0,
+                        display: "flex",
+                        alignItems: "center",
+                      }}
+                      title="Remove PDF"
+                    >
+                      <X size={11} />
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              <textarea
+                ref={taRef}
+                value={input}
+                onChange={(e) => {
+                  setInput(e.target.value);
+                  resize();
+                  setShowSuggestions(e.target.value.length >= 3);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Escape") {
+                    setShowSuggestions(false);
+                    return;
+                  }
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    setShowSuggestions(false);
+                    void doSearch(input);
+                  }
+                }}
+                onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+                placeholder={
+                  attachedPdf
+                    ? `Ask anything about "${attachedPdf.name}"…`
+                    : "Ask a research question…"
+                }
+                className="input-textarea"
+                rows={1}
+                disabled={loading}
+              />
+
+              <div className="input-bottom-row">
+                {/* Attach button — locked for free/guest users */}
+                <button
+                  className="input-attach-btn"
+                  title={
+                    isFree || !session
+                      ? "PDF uploads available in Student & Pro plans"
+                      : attachedPdf
+                        ? "Replace PDF"
+                        : "Attach PDF"
+                  }
+                  onClick={() => {
+                    if (isFree || !session) {
+                      setShowPdfUpgradeModal(true);
+                    } else {
+                      fileInputRef.current?.click();
+                    }
+                  }}
+                  disabled={pdfParsing}
+                  style={{ position: "relative" }}
+                >
+                  {pdfParsing ? (
+                    <Loader2
+                      size={15}
+                      style={{ animation: "spin 1s linear infinite" }}
+                    />
+                  ) : (
+                    <>
+                      <Plus
+                        size={15}
+                        style={{ color: attachedPdf ? "#c9b99a" : undefined }}
+                      />
+                      {(isFree || !session) && (
+                        <span
+                          style={{
+                            position: "absolute",
+                            top: -4,
+                            right: -4,
+                            width: 13,
+                            height: 13,
+                            borderRadius: "50%",
+                            background: "#1a1a1a",
+                            border: "1px solid #333",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            fontSize: 7,
+                          }}
+                        >
+                          🔒
+                        </span>
+                      )}
+                    </>
+                  )}
+                  {attachedPdf && !isFree && session && (
+                    <span
+                      style={{
+                        position: "absolute",
+                        top: -3,
+                        right: -3,
+                        width: 7,
+                        height: 7,
+                        borderRadius: "50%",
+                        background: "#c9b99a",
+                      }}
+                    />
+                  )}
+                </button>
+
+                {/* Voice button */}
+                <button className="waveform-btn" title="Voice">
+                  <WaveformIcon />
+                </button>
+
+                {/* Send button */}
+                <button
+                  onClick={() =>
+                    void doSearch(
+                      input ||
+                        (attachedPdf
+                          ? `Summarize this document: ${attachedPdf.name}`
+                          : ""),
+                    )
+                  }
+                  disabled={loading || (!input.trim() && !attachedPdf)}
+                  className="send-btn"
+                  title="Send"
+                >
+                  {loading ? (
+                    <span className="spinner" />
+                  ) : (
+                    <svg
+                      width="13"
+                      height="13"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke={input.trim() || attachedPdf ? "#141414" : "#555"}
+                      strokeWidth="2.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M12 19V5M5 12l7-7 7 7" />
+                    </svg>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            <p className="input-hint">
+              {session && !isPro
+                ? `${isFree ? `${searchesToday}/5 today` : `${searchesThisMonth}/500 this month`} · `
+                : ""}
+              Semantic Scholar · OpenAlex · arXiv · PubMed
+            </p>
+          </div>
+          {/* end input-wrap-inner */}
+        </div>
+        {/* end input-wrap */}
+      </div>
+      {/* end chat-wrap */}
+
+      {/* ── PDF Upgrade Modal — fully responsive ─────────────── */}
+      <style>{`
+        .pdf-modal-overlay {
+          position: fixed;
+          inset: 0;
+          background: rgba(0,0,0,0.82);
+          backdrop-filter: blur(10px);
+          -webkit-backdrop-filter: blur(10px);
+          z-index: 9999;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 16px;
+          /* allow scroll on very small screens */
+          overflow-y: auto;
+        }
+        .pdf-modal-card {
+          background: #0e0e0e;
+          border: 1px solid #252525;
+          border-radius: 20px;
+          width: 100%;
+          max-width: 480px;
+          /* sit at top on tiny screens so close btn is reachable */
+          margin: auto;
+          box-shadow:
+            0 0 0 1px rgba(255,255,255,0.04),
+            0 32px 80px rgba(0,0,0,0.9);
+          position: relative;
+          overflow: hidden;
+        }
+        .pdf-modal-header {
+          display: flex;
+          align-items: flex-start;
+          justify-content: space-between;
+          gap: 12px;
+          padding: 22px 22px 0;
+        }
+        .pdf-modal-body {
+          padding: 0 22px;
+        }
+        .pdf-modal-plans {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 10px;
+          margin-top: 14px;
+        }
+        .pdf-modal-footer {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 8px;
+          padding: 14px 22px 20px;
+          flex-wrap: wrap;
+        }
+        /* ── Tablet & small desktop ── */
+        @media (max-width: 520px) {
+          .pdf-modal-overlay { padding: 10px; align-items: flex-start; padding-top: 24px; }
+          .pdf-modal-card { border-radius: 16px; }
+          .pdf-modal-header { padding: 18px 16px 0; }
+          .pdf-modal-body { padding: 0 16px; }
+          .pdf-modal-footer { padding: 12px 16px 18px; }
+        }
+        /* ── Small phones — stack plan cards vertically ── */
+        @media (max-width: 380px) {
+          .pdf-modal-plans { grid-template-columns: 1fr; }
+        }
+        .pdf-close-btn {
+          flex-shrink: 0;
+          width: 34px; height: 34px;
+          border-radius: 10px;
+          background: rgba(255,255,255,0.05);
+          border: 1px solid rgba(255,255,255,0.1);
+          display: flex; align-items: center; justify-content: center;
+          cursor: pointer;
+          color: #555;
+          transition: background 0.15s, color 0.15s, border-color 0.15s;
+        }
+        .pdf-close-btn:hover {
+          background: rgba(255,255,255,0.1);
+          color: #ccc;
+          border-color: rgba(255,255,255,0.2);
+        }
+        .pdf-plan-btn-student {
+          width: 100%; padding: 11px 0;
+          border-radius: 10px; border: none;
+          background: #D4C5A0; color: #0A0A0A;
+          font-weight: 700; font-size: 13px;
+          cursor: pointer; transition: opacity 0.15s;
+          font-family: inherit;
+        }
+        .pdf-plan-btn-student:hover { opacity: 0.88; }
+        .pdf-plan-btn-pro {
+          width: 100%; padding: 11px 0;
+          border-radius: 10px;
+          border: 1px solid rgba(126,168,201,0.35);
+          background: rgba(126,168,201,0.08);
+          color: #7ea8c9;
+          font-weight: 700; font-size: 13px;
+          cursor: pointer; transition: background 0.15s;
+          font-family: inherit;
+        }
+        .pdf-plan-btn-pro:hover { background: rgba(126,168,201,0.14); }
+      `}</style>
+
+      <AnimatePresence>
+        {showPdfUpgradeModal && (
+          <motion.div
+            className="pdf-modal-overlay"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.18 }}
+            onClick={() => setShowPdfUpgradeModal(false)}
+          >
+            <motion.div
+              className="pdf-modal-card"
+              initial={{ opacity: 0, y: 28, scale: 0.96 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 16, scale: 0.97 }}
+              transition={{ duration: 0.26, ease: [0.22, 1, 0.36, 1] }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Rainbow-ish top accent line */}
+              <div
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  height: 2,
+                  background:
+                    "linear-gradient(90deg, transparent, rgba(212,197,160,0.7) 35%, rgba(126,168,201,0.7) 65%, transparent)",
+                  borderRadius: "20px 20px 0 0",
+                }}
+              />
+
+              {/* Soft glow behind header */}
+              <div
+                style={{
+                  position: "absolute",
+                  top: -80,
+                  left: "50%",
+                  transform: "translateX(-50%)",
+                  width: 360,
+                  height: 200,
+                  borderRadius: "50%",
+                  background:
+                    "radial-gradient(ellipse, rgba(212,197,160,0.07) 0%, transparent 70%)",
+                  pointerEvents: "none",
+                }}
+              />
+
+              {/* ── HEADER ── */}
+              <div className="pdf-modal-header">
+                {/* Lock icon + title */}
+                <div style={{ display: "flex", alignItems: "center", gap: 11 }}>
+                  <div
+                    style={{
+                      width: 42,
+                      height: 42,
+                      borderRadius: 12,
+                      flexShrink: 0,
+                      background: "rgba(212,197,160,0.1)",
+                      border: "1px solid rgba(212,197,160,0.22)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: 19,
+                    }}
+                  >
+                    🔒
+                  </div>
+                  <div>
+                    <p
+                      style={{
+                        fontSize: 9.5,
+                        fontWeight: 700,
+                        letterSpacing: "0.11em",
+                        textTransform: "uppercase",
+                        color: "#D4C5A0",
+                        margin: 0,
+                        marginBottom: 3,
+                      }}
+                    >
+                      Premium Feature
+                    </p>
+                    <h2
+                      style={{
+                        margin: 0,
+                        fontSize: 18,
+                        fontWeight: 700,
+                        color: "#fff",
+                        letterSpacing: "-0.02em",
+                        lineHeight: 1.15,
+                      }}
+                    >
+                      Unlock PDF Chat
+                    </h2>
+                  </div>
+                </div>
+
+                {/* ── CLOSE BUTTON — always visible, prominent ── */}
+                <button
+                  className="pdf-close-btn"
+                  onClick={() => setShowPdfUpgradeModal(false)}
+                  title="Close"
+                >
+                  <X size={15} strokeWidth={2.5} />
+                </button>
+              </div>
+
+              {/* ── BODY ── */}
+              <div className="pdf-modal-body">
+                {/* Subtitle */}
+                <p
+                  style={{
+                    fontSize: 13,
+                    color: "#4e4e4e",
+                    margin: "8px 0 0",
+                    fontWeight: 300,
+                    lineHeight: 1.65,
+                  }}
+                >
+                  {!session
+                    ? "Sign in and upgrade to chat with your research papers."
+                    : "Upload PDFs and get instant AI-powered answers with citations."}
+                </p>
+
+                {/* Thin divider */}
+                <div
+                  style={{
+                    height: 1,
+                    background: "#1c1c1c",
+                    margin: "16px 0 14px",
+                  }}
+                />
+
+                {/* Feature pills */}
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                  {[
+                    ["📄", "PDF Chat"],
+                    ["📖", "Literature Reviews"],
+                    ["🔖", "6 Citation Formats"],
+                    ["📚", "Paper Library"],
+                    ["⚡", "500+ Searches"],
+                  ].map(([icon, label]) => (
+                    <span
+                      key={label}
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 4,
+                        padding: "4px 10px",
+                        borderRadius: 99,
+                        background: "rgba(255,255,255,0.04)",
+                        border: "1px solid rgba(255,255,255,0.08)",
+                        fontSize: 11.5,
+                        color: "#777",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      <span style={{ fontSize: 11 }}>{icon}</span>
+                      {label}
+                    </span>
+                  ))}
+                </div>
+
+                {/* ── PLAN CARDS ── */}
+                <div className="pdf-modal-plans">
+                  {/* Student */}
+                  <div
+                    style={{
+                      borderRadius: 14,
+                      border: "1px solid rgba(212,197,160,0.3)",
+                      background: "rgba(212,197,160,0.05)",
+                      padding: "16px 14px",
+                      display: "flex",
+                      flexDirection: "column",
+                      position: "relative",
+                      overflow: "hidden",
+                    }}
+                  >
+                    {/* POPULAR badge */}
+                    <span
+                      style={{
+                        position: "absolute",
+                        top: 9,
+                        right: 9,
+                        fontSize: 8,
+                        fontWeight: 800,
+                        letterSpacing: "0.08em",
+                        textTransform: "uppercase",
+                        color: "#D4C5A0",
+                        background: "rgba(212,197,160,0.13)",
+                        border: "1px solid rgba(212,197,160,0.25)",
+                        borderRadius: 99,
+                        padding: "2px 7px",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      POPULAR
+                    </span>
+
+                    {/* Icon row */}
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 6,
+                        marginBottom: 10,
+                      }}
+                    >
+                      <Sparkles size={13} style={{ color: "#D4C5A0" }} />
+                      <span
+                        style={{
+                          fontSize: 13.5,
+                          fontWeight: 700,
+                          color: "#e8e3dc",
+                        }}
+                      >
+                        Student
+                      </span>
+                    </div>
+
+                    {/* Price */}
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "baseline",
+                        gap: 3,
+                        marginBottom: 12,
+                      }}
+                    >
+                      <span
+                        style={{
+                          fontSize: 30,
+                          fontWeight: 800,
+                          color: "#D4C5A0",
+                          letterSpacing: "-2px",
+                          lineHeight: 1,
+                        }}
+                      >
+                        ₹199
+                      </span>
+                      <span style={{ fontSize: 11, color: "#444" }}>/mo</span>
+                    </div>
+
+                    {/* Features */}
+                    <div
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 7,
+                        marginBottom: 14,
+                        flex: 1,
+                      }}
+                    >
+                      {[
+                        "20 PDFs / month",
+                        "500 searches / mo",
+                        "All 6 citation formats",
+                        "Unlimited library",
+                      ].map((f) => (
+                        <div
+                          key={f}
+                          style={{
+                            display: "flex",
+                            alignItems: "flex-start",
+                            gap: 7,
+                          }}
+                        >
+                          <span
+                            style={{
+                              color: "#D4C5A0",
+                              fontSize: 9,
+                              fontWeight: 900,
+                              marginTop: 3,
+                              flexShrink: 0,
+                            }}
+                          >
+                            ✔
+                          </span>
+                          <span
+                            style={{
+                              fontSize: 12,
+                              color: "#666",
+                              lineHeight: 1.35,
+                            }}
+                          >
+                            {f}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+
+                    <button
+                      className="pdf-plan-btn-student"
+                      onClick={() => {
+                        setShowPdfUpgradeModal(false);
+                        router.push("/pricing");
+                      }}
+                    >
+                      Get Student
+                    </button>
+                  </div>
+
+                  {/* Pro */}
+                  <div
+                    style={{
+                      borderRadius: 14,
+                      border: "1px solid rgba(126,168,201,0.25)",
+                      background: "rgba(126,168,201,0.04)",
+                      padding: "16px 14px",
+                      display: "flex",
+                      flexDirection: "column",
+                    }}
+                  >
+                    {/* Icon row */}
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 6,
+                        marginBottom: 10,
+                      }}
+                    >
+                      <Crown size={13} style={{ color: "#7ea8c9" }} />
+                      <span
+                        style={{
+                          fontSize: 13.5,
+                          fontWeight: 700,
+                          color: "#e8e3dc",
+                        }}
+                      >
+                        Pro
+                      </span>
+                    </div>
+
+                    {/* Price */}
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "baseline",
+                        gap: 3,
+                        marginBottom: 12,
+                      }}
+                    >
+                      <span
+                        style={{
+                          fontSize: 30,
+                          fontWeight: 800,
+                          color: "#7ea8c9",
+                          letterSpacing: "-2px",
+                          lineHeight: 1,
+                        }}
+                      >
+                        ₹499
+                      </span>
+                      <span style={{ fontSize: 11, color: "#444" }}>/mo</span>
+                    </div>
+
+                    {/* Features */}
+                    <div
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 7,
+                        marginBottom: 14,
+                        flex: 1,
+                      }}
+                    >
+                      {[
+                        "Unlimited PDFs",
+                        "Unlimited searches",
+                        "API access (100/day)",
+                        "Team sharing (5 seats)",
+                      ].map((f) => (
+                        <div
+                          key={f}
+                          style={{
+                            display: "flex",
+                            alignItems: "flex-start",
+                            gap: 7,
+                          }}
+                        >
+                          <span
+                            style={{
+                              color: "#7ea8c9",
+                              fontSize: 9,
+                              fontWeight: 900,
+                              marginTop: 3,
+                              flexShrink: 0,
+                            }}
+                          >
+                            ✔
+                          </span>
+                          <span
+                            style={{
+                              fontSize: 12,
+                              color: "#666",
+                              lineHeight: 1.35,
+                            }}
+                          >
+                            {f}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+
+                    <button
+                      className="pdf-plan-btn-pro"
+                      onClick={() => {
+                        setShowPdfUpgradeModal(false);
+                        router.push("/pricing");
+                      }}
+                    >
+                      Get Pro
+                    </button>
+                  </div>
                 </div>
               </div>
-            )}
 
-            <textarea
-              ref={taRef}
-              value={input}
-              onChange={(e) => {
-                setInput(e.target.value);
-                resize();
-                setShowSuggestions(e.target.value.length >= 3);
-              }}
-              onKeyDown={(e) => {
-                if (e.key === "Escape") { setShowSuggestions(false); return; }
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  setShowSuggestions(false);
-                  void doSearch(input);
-                }
-              }}
-              onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
-              placeholder={
-                attachedPdf
-                  ? `Ask anything about "${attachedPdf.name}"…`
-                  : "Ask a research question…"
-              }
-              className="input-textarea"
-              rows={1}
-              disabled={loading}
-            />
-
-            <div className="input-bottom-row">
-              {/* Attach button */}
-              <button
-                className="input-attach-btn"
-                title={attachedPdf ? "Replace PDF" : "Attach PDF"}
-                onClick={() => fileInputRef.current?.click()}
-                disabled={pdfParsing}
-                style={{ position: "relative" }}
-              >
-                {pdfParsing ? (
-                  <Loader2
-                    size={15}
-                    style={{ animation: "spin 1s linear infinite" }}
-                  />
-                ) : (
-                  <Plus
-                    size={15}
-                    style={{ color: attachedPdf ? "#c9b99a" : undefined }}
-                  />
-                )}
-                {attachedPdf && (
-                  <span
-                    style={{
-                      position: "absolute",
-                      top: -3,
-                      right: -3,
-                      width: 7,
-                      height: 7,
-                      borderRadius: "50%",
-                      background: "#c9b99a",
-                    }}
-                  />
-                )}
-              </button>
-
-              {/* Voice button */}
-              <button className="waveform-btn" title="Voice">
-                <WaveformIcon />
-              </button>
-
-              {/* Send button */}
-              <button
-                onClick={() =>
-                  void doSearch(
-                    input ||
-                      (attachedPdf
-                        ? `Summarize this document: ${attachedPdf.name}`
-                        : ""),
-                  )
-                }
-                disabled={loading || (!input.trim() && !attachedPdf)}
-                className="send-btn"
-                title="Send"
-              >
-                {loading ? (
-                  <span className="spinner" />
-                ) : (
-                  <svg
-                    width="13"
-                    height="13"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke={input.trim() || attachedPdf ? "#141414" : "#555"}
-                    strokeWidth="2.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <path d="M12 19V5M5 12l7-7 7 7" />
-                  </svg>
-                )}
-              </button>
-            </div>
-          </div>
-
-          <p className="input-hint">
-            {session && !isPro
-              ? `${isFree ? `${searchesToday}/5 today` : `${searchesThisMonth}/500 this month`} · `
-              : ""}
-            Semantic Scholar · OpenAlex · arXiv · PubMed
-          </p>
-          </div>{/* end input-wrap-inner */}
-        </div>{/* end input-wrap */}
-      </div>{/* end chat-wrap */}
+              {/* ── FOOTER ── */}
+              <div className="pdf-modal-footer">
+                <span style={{ fontSize: 11, color: "#2e2e2e" }}>
+                  Cancel anytime · No hidden fees
+                </span>
+                <button
+                  onClick={() => setShowPdfUpgradeModal(false)}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    color: "#3a3a3a",
+                    fontSize: 12.5,
+                    cursor: "pointer",
+                    fontFamily: "inherit",
+                    fontWeight: 500,
+                    padding: "4px 2px",
+                    transition: "color 0.15s",
+                  }}
+                  onMouseEnter={(e) => {
+                    (e.currentTarget as HTMLElement).style.color = "#666";
+                  }}
+                  onMouseLeave={(e) => {
+                    (e.currentTarget as HTMLElement).style.color = "#3a3a3a";
+                  }}
+                >
+                  Maybe later
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </Shell>
   );
 }
