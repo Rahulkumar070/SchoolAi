@@ -130,7 +130,7 @@ const mdComponents = {
       style={{
         fontFamily: "var(--font-mono)",
         fontSize: 12,
-        background: "#1e1e1e",
+        background: "var(--surface)",
         color: "var(--brand)",
         padding: "2px 5px",
         borderRadius: 4,
@@ -175,19 +175,19 @@ function StatCard({
       style={{
         padding: "18px 18px 16px",
         borderRadius: 14,
-        background: "#181818",
-        border: "1px solid #1e1e1e",
+        background: "var(--bg-raised)",
+        border: "1px solid var(--border)",
         position: "relative",
         overflow: "hidden",
         transition: "border-color .18s, transform .18s",
         cursor: "default",
       }}
       onMouseEnter={(e) => {
-        (e.currentTarget as HTMLElement).style.borderColor = "#2a2a2a";
+        (e.currentTarget as HTMLElement).style.borderColor = "var(--border-hi)";
         (e.currentTarget as HTMLElement).style.transform = "translateY(-2px)";
       }}
       onMouseLeave={(e) => {
-        (e.currentTarget as HTMLElement).style.borderColor = "#1e1e1e";
+        (e.currentTarget as HTMLElement).style.borderColor = "var(--border)";
         (e.currentTarget as HTMLElement).style.transform = "";
       }}
     >
@@ -246,7 +246,7 @@ function StatCard({
         style={{
           fontSize: 26,
           fontWeight: 700,
-          color: "#e8e3dc",
+          color: "var(--text-primary)",
           lineHeight: 1,
           marginBottom: 5,
           letterSpacing: "-1.5px",
@@ -254,7 +254,11 @@ function StatCard({
       >
         {value}
       </p>
-      <p style={{ fontSize: 11.5, color: "#444", fontWeight: 500 }}>{label}</p>
+      <p
+        style={{ fontSize: 11.5, color: "var(--text-muted)", fontWeight: 500 }}
+      >
+        {label}
+      </p>
     </div>
   );
 }
@@ -281,8 +285,8 @@ function ActionCard({
       style={{
         padding: "20px 20px 18px",
         borderRadius: 14,
-        background: "#181818",
-        border: "1px solid #1e1e1e",
+        background: "var(--bg-raised)",
+        border: "1px solid var(--border)",
         textDecoration: "none",
         display: "flex",
         flexDirection: "column",
@@ -299,7 +303,7 @@ function ActionCard({
       }}
       onMouseLeave={(e) => {
         const el = e.currentTarget as HTMLElement;
-        el.style.borderColor = "#1e1e1e";
+        el.style.borderColor = "var(--border)";
         el.style.transform = "";
         el.style.boxShadow = "";
       }}
@@ -346,7 +350,7 @@ function ActionCard({
       <p
         style={{
           fontSize: 12.5,
-          color: "#444",
+          color: "var(--text-muted)",
           lineHeight: 1.55,
           marginBottom: 16,
           flex: 1,
@@ -380,8 +384,8 @@ function ListRow({ iconEl, iconColor, title, meta, badge, onClick }: any) {
         alignItems: "center",
         gap: 12,
         padding: "14px 16px",
-        background: "#181818",
-        border: "1px solid #1e1e1e",
+        background: "var(--bg-raised)",
+        border: "1px solid var(--border)",
         borderRadius: 12,
         cursor: "pointer",
         textAlign: "left",
@@ -389,12 +393,12 @@ function ListRow({ iconEl, iconColor, title, meta, badge, onClick }: any) {
         transition: "border-color .14s, background .14s",
       }}
       onMouseEnter={(e) => {
-        (e.currentTarget as HTMLElement).style.borderColor = "#2a2a2a";
-        (e.currentTarget as HTMLElement).style.background = "#1e1e1e";
+        (e.currentTarget as HTMLElement).style.borderColor = "var(--border-hi)";
+        (e.currentTarget as HTMLElement).style.background = "var(--surface)";
       }}
       onMouseLeave={(e) => {
-        (e.currentTarget as HTMLElement).style.borderColor = "#1e1e1e";
-        (e.currentTarget as HTMLElement).style.background = "#181818";
+        (e.currentTarget as HTMLElement).style.borderColor = "var(--border)";
+        (e.currentTarget as HTMLElement).style.background = "var(--bg-raised)";
       }}
     >
       <div
@@ -434,7 +438,7 @@ function ListRow({ iconEl, iconColor, title, meta, badge, onClick }: any) {
                 fontSize: 10,
                 fontWeight: 600,
                 color: "var(--text-faint)",
-                background: "#1e1e1e",
+                background: "var(--surface)",
                 padding: "1px 7px",
                 borderRadius: 99,
               }}
@@ -479,8 +483,8 @@ function Empty({
       style={{
         padding: "52px 24px",
         textAlign: "center",
-        background: "#181818",
-        border: "1px dashed #2a2a2a",
+        background: "var(--bg-raised)",
+        border: "1px dashed var(--border-mid)",
         borderRadius: 16,
       }}
     >
@@ -489,8 +493,8 @@ function Empty({
           width: 52,
           height: 52,
           borderRadius: 14,
-          background: "#1e1e1e",
-          border: "1px solid #2a2a2a",
+          background: "var(--surface)",
+          border: "1px solid var(--border-mid)",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
@@ -569,8 +573,8 @@ function DetailView({
             alignItems: "center",
             gap: 6,
             padding: "7px 14px",
-            background: "#181818",
-            border: "1px solid #1e1e1e",
+            background: "var(--bg-raised)",
+            border: "1px solid var(--border)",
             borderRadius: 9,
             cursor: "pointer",
             fontSize: 12.5,
@@ -667,8 +671,8 @@ function DetailView({
                       key={i}
                       style={{
                         padding: "12px 14px",
-                        background: "#181818",
-                        border: "1px solid #1e1e1e",
+                        background: "var(--bg-raised)",
+                        border: "1px solid var(--border)",
                         borderRadius: 10,
                         display: "flex",
                         gap: 10,
@@ -739,8 +743,8 @@ function DetailView({
                 style={{
                   padding: "10px 18px",
                   borderRadius: 10,
-                  border: "1px solid #252525",
-                  color: "#888",
+                  border: "1px solid var(--border-mid)",
+                  color: "var(--text-muted)",
                   background: "transparent",
                   fontSize: 13,
                   fontWeight: 600,
@@ -822,8 +826,8 @@ function DetailView({
             style={{
               textAlign: "center",
               padding: "48px 20px",
-              background: "#181818",
-              border: "1px solid #1e1e1e",
+              background: "var(--bg-raised)",
+              border: "1px solid var(--border)",
               borderRadius: 14,
             }}
           >
@@ -942,8 +946,8 @@ function SavedPaperDetail({
             alignItems: "center",
             gap: 6,
             padding: "7px 14px",
-            background: "#181818",
-            border: "1px solid #1e1e1e",
+            background: "var(--bg-raised)",
+            border: "1px solid var(--border)",
             borderRadius: 9,
             cursor: "pointer",
             fontSize: 12.5,
@@ -1057,9 +1061,9 @@ function SavedPaperDetail({
                   fontWeight: 600,
                   padding: "3px 10px",
                   borderRadius: 99,
-                  background: "rgba(255,255,255,.04)",
+                  background: "var(--surface)",
                   color: "var(--text-secondary)",
-                  border: "1px solid #2a2a2a",
+                  border: "1px solid var(--border-mid)",
                 }}
               >
                 📰 {paper.journal}
@@ -1115,8 +1119,8 @@ function SavedPaperDetail({
             <div
               style={{
                 padding: "16px 18px",
-                background: "#181818",
-                border: "1px solid #1e1e1e",
+                background: "var(--bg-raised)",
+                border: "1px solid var(--border)",
                 borderLeft: "3px solid #5c9ae0",
                 borderRadius: "0 10px 10px 0",
               }}
@@ -1150,8 +1154,8 @@ function SavedPaperDetail({
           <div
             style={{
               padding: "14px 16px",
-              background: "#181818",
-              border: "1px solid #1e1e1e",
+              background: "var(--bg-raised)",
+              border: "1px solid var(--border)",
               borderRadius: 10,
               position: "relative" as const,
             }}
@@ -1180,8 +1184,8 @@ function SavedPaperDetail({
                 fontSize: 10.5,
                 fontWeight: 600,
                 color: "var(--text-faint)",
-                background: "#1e1e1e",
-                border: "1px solid #2a2a2a",
+                background: "var(--surface)",
+                border: "1px solid var(--border-mid)",
                 borderRadius: 6,
                 cursor: "pointer",
                 fontFamily: "var(--font-ui)",
@@ -1220,8 +1224,8 @@ function SavedPaperDetail({
                   rel="noopener noreferrer"
                   style={{
                     padding: "12px 16px",
-                    background: "#181818",
-                    border: "1px solid #1e1e1e",
+                    background: "var(--bg-raised)",
+                    border: "1px solid var(--border)",
                     borderRadius: 10,
                     display: "flex",
                     alignItems: "center",
@@ -1231,11 +1235,11 @@ function SavedPaperDetail({
                   }}
                   onMouseEnter={(e) =>
                     ((e.currentTarget as HTMLElement).style.borderColor =
-                      "#2a2a2a")
+                      "var(--border-hi)")
                   }
                   onMouseLeave={(e) =>
                     ((e.currentTarget as HTMLElement).style.borderColor =
-                      "#1e1e1e")
+                      "var(--border)")
                   }
                 >
                   <span
@@ -1276,8 +1280,8 @@ function SavedPaperDetail({
                   rel="noopener noreferrer"
                   style={{
                     padding: "12px 16px",
-                    background: "#181818",
-                    border: "1px solid #1e1e1e",
+                    background: "var(--bg-raised)",
+                    border: "1px solid var(--border)",
                     borderRadius: 10,
                     display: "flex",
                     alignItems: "center",
@@ -1287,11 +1291,11 @@ function SavedPaperDetail({
                   }}
                   onMouseEnter={(e) =>
                     ((e.currentTarget as HTMLElement).style.borderColor =
-                      "#2a2a2a")
+                      "var(--border-hi)")
                   }
                   onMouseLeave={(e) =>
                     ((e.currentTarget as HTMLElement).style.borderColor =
-                      "#1e1e1e")
+                      "var(--border)")
                   }
                 >
                   <span
@@ -1335,8 +1339,8 @@ function SavedPaperDetail({
             style={{
               padding: "10px 18px",
               borderRadius: 10,
-              border: "1px solid #252525",
-              color: "#888",
+              border: "1px solid var(--border-mid)",
+              color: "var(--text-muted)",
               background: "transparent",
               fontSize: 13,
               fontWeight: 600,
@@ -1353,8 +1357,10 @@ function SavedPaperDetail({
               (e.currentTarget as HTMLElement).style.color = "var(--brand)";
             }}
             onMouseLeave={(e) => {
-              (e.currentTarget as HTMLElement).style.borderColor = "#252525";
-              (e.currentTarget as HTMLElement).style.color = "#888";
+              (e.currentTarget as HTMLElement).style.borderColor =
+                "var(--border-mid)";
+              (e.currentTarget as HTMLElement).style.color =
+                "var(--text-muted)";
             }}
           >
             <Download size={13} /> Export PDF
@@ -1563,6 +1569,16 @@ function DashContent() {
 
   return (
     <Shell>
+      <style>{`
+        [data-theme="light"] .shimmer-line {
+          background: linear-gradient(90deg,#ececec 25%,#ddd 50%,#ececec 75%) !important;
+          background-size: 400% 100% !important;
+        }
+        [data-theme="light"] .icon-btn { color: var(--text-muted) !important; }
+        [data-theme="light"] .icon-btn:hover { background: var(--surface) !important; color: var(--text-primary) !important; }
+        [data-theme="light"] .btn { border-color: var(--border-mid) !important; color: var(--text-secondary) !important; }
+        [data-theme="light"] .btn:hover { border-color: var(--brand) !important; color: var(--brand) !important; }
+      `}</style>
       {/* Show paper detail view if a paper is selected */}
       {selectedPaper ? (
         <SavedPaperDetail
@@ -1609,7 +1625,7 @@ function DashContent() {
                     fontFamily: "var(--font-display)",
                     fontSize: isMobile ? 22 : 28,
                     fontWeight: 400,
-                    color: "#e8e3dc",
+                    color: "var(--text-primary)",
                     letterSpacing: "-.04em",
                     lineHeight: 1.1,
                   }}
@@ -1664,8 +1680,8 @@ function DashContent() {
                 style={{
                   padding: "18px 20px",
                   borderRadius: 16,
-                  background: "#181818",
-                  border: "1px solid #1e1e1e",
+                  background: "var(--bg-raised)",
+                  border: "1px solid var(--border)",
                   display: "flex",
                   alignItems: "center",
                   gap: 14,
@@ -1727,7 +1743,7 @@ function DashContent() {
                       height: 18,
                       borderRadius: "50%",
                       background: planMeta.gradient,
-                      border: "2.5px solid #141414",
+                      border: "2.5px solid var(--bg)",
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
@@ -1792,7 +1808,7 @@ function DashContent() {
                         color: "var(--text-faint)",
                         padding: "4px 10px",
                         borderRadius: 7,
-                        border: "1px solid #1e1e1e",
+                        border: "1px solid var(--border)",
                         textDecoration: "none",
                         textAlign: "center",
                         transition: "color .14s, border-color .14s",
@@ -1807,7 +1823,7 @@ function DashContent() {
                         (e.currentTarget as HTMLElement).style.color =
                           "var(--text-faint)";
                         (e.currentTarget as HTMLElement).style.borderColor =
-                          "#1e1e1e";
+                          "var(--surface)";
                       }}
                     >
                       Change
@@ -1837,7 +1853,7 @@ function DashContent() {
                 style={{
                   padding: "18px 20px",
                   borderRadius: 16,
-                  border: "1px solid #1e1e1e",
+                  border: "1px solid var(--border)",
                   background: atLimit
                     ? "rgba(224,92,92,.04)"
                     : isPaid
@@ -1950,7 +1966,7 @@ function DashContent() {
                     <div
                       style={{
                         height: 5,
-                        background: "#1e1e1e",
+                        background: "var(--surface)",
                         borderRadius: 99,
                         overflow: "hidden",
                         marginBottom: 8,
@@ -1985,7 +2001,7 @@ function DashContent() {
                       fontSize: 12,
                       color: "var(--text-faint)",
                       background: "transparent",
-                      border: "1px solid #1e1e1e",
+                      border: "1px solid var(--border)",
                       borderRadius: 7,
                       padding: "6px 12px",
                       cursor: "pointer",
@@ -2145,8 +2161,8 @@ function DashContent() {
                         paddingRight: 12,
                         paddingTop: 7,
                         paddingBottom: 7,
-                        background: "#181818",
-                        border: "1px solid #1e1e1e",
+                        background: "var(--bg-raised)",
+                        border: "1px solid var(--border)",
                         borderRadius: 8,
                         fontSize: 12,
                         color: "var(--text-primary)",
@@ -2156,11 +2172,11 @@ function DashContent() {
                       }}
                       onFocus={(e) =>
                         ((e.currentTarget as HTMLElement).style.borderColor =
-                          "#2a2a2a")
+                          "var(--border-hi)")
                       }
                       onBlur={(e) =>
                         ((e.currentTarget as HTMLElement).style.borderColor =
-                          "#1e1e1e")
+                          "var(--border)")
                       }
                     />
                   </div>
@@ -2218,26 +2234,26 @@ function DashContent() {
                             key={paper.paperId}
                             style={{
                               padding: "14px 16px",
-                              background: "#181818",
-                              border: "1px solid #1e1e1e",
+                              background: "var(--bg-raised)",
+                              border: "1px solid var(--border)",
                               borderRadius: 12,
                               transition: "border-color .14s, background .14s",
                             }}
                             onMouseEnter={(e) => {
                               (
                                 e.currentTarget as HTMLElement
-                              ).style.borderColor = "#2a2a2a";
+                              ).style.borderColor = "var(--border-hi)";
                               (
                                 e.currentTarget as HTMLElement
-                              ).style.background = "#1a1a1a";
+                              ).style.background = "var(--bg-raised)";
                             }}
                             onMouseLeave={(e) => {
                               (
                                 e.currentTarget as HTMLElement
-                              ).style.borderColor = "#1e1e1e";
+                              ).style.borderColor = "var(--border)";
                               (
                                 e.currentTarget as HTMLElement
-                              ).style.background = "#181818";
+                              ).style.background = "var(--bg-raised)";
                             }}
                           >
                             <div
@@ -2491,8 +2507,8 @@ function DashContent() {
               maxWidth: 380,
               width: "100%",
               padding: 28,
-              background: "#1a1a1a",
-              border: "1px solid #252525",
+              background: "var(--bg-raised)",
+              border: "1px solid var(--border-mid)",
               borderRadius: 18,
               boxShadow: "0 32px 80px rgba(0,0,0,.8)",
             }}
@@ -2545,7 +2561,7 @@ function DashContent() {
                 style={{
                   padding: "10px 18px",
                   borderRadius: 10,
-                  border: "1px solid #2a2a2a",
+                  border: "1px solid var(--border-mid)",
                   color: "var(--text-secondary)",
                   background: "transparent",
                   fontSize: 13,

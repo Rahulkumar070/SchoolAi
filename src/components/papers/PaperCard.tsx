@@ -348,8 +348,8 @@ export default function PaperCard({
                   style={{
                     marginTop: 6,
                     padding: "10px 12px",
-                    background: "rgba(255,255,255,0.03)",
-                    border: "1px solid rgba(255,255,255,0.07)",
+                    background: "var(--bg-raised)",
+                    border: "1px solid var(--border)",
                     borderLeft: "2px solid var(--brand)",
                     borderRadius: "0 6px 6px 0",
                     fontSize: 11,
@@ -395,9 +395,11 @@ export default function PaperCard({
               gap: 4,
               padding: "5px 9px",
               borderRadius: 7,
-              border: saved ? "1px solid var(--brand)" : "1px solid #2a2a2a",
-              background: saved ? "var(--brand-dim)" : "#1a1a1a",
-              color: saved ? "var(--brand)" : "#888",
+              border: saved
+                ? "1px solid var(--brand)"
+                : "1px solid var(--border-mid)",
+              background: saved ? "var(--brand-dim)" : "var(--bg-raised)",
+              color: saved ? "var(--brand)" : "var(--text-muted)",
               fontSize: 11,
               fontWeight: 700,
               cursor: saving ? "default" : "pointer",
@@ -417,9 +419,12 @@ export default function PaperCard({
             }}
             onMouseLeave={(e) => {
               if (!saved) {
-                (e.currentTarget as HTMLElement).style.borderColor = "#2a2a2a";
-                (e.currentTarget as HTMLElement).style.color = "#888";
-                (e.currentTarget as HTMLElement).style.background = "#1a1a1a";
+                (e.currentTarget as HTMLElement).style.borderColor =
+                  "var(--border-mid)";
+                (e.currentTarget as HTMLElement).style.color =
+                  "var(--text-muted)";
+                (e.currentTarget as HTMLElement).style.background =
+                  "var(--bg-raised)";
               }
             }}
           >

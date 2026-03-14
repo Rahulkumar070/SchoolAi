@@ -62,8 +62,8 @@ export function PaperCitationCard({ paper }: { paper: Paper }) {
       style={{
         margin: "1.1rem 0",
         padding: "16px 20px",
-        background: "rgba(255,255,255,0.03)",
-        border: "1px solid rgba(255,255,255,0.08)",
+        background: "var(--bg-raised)",
+        border: "1px solid var(--border)",
         borderRadius: 12,
         display: "flex",
         gap: 16,
@@ -71,16 +71,12 @@ export function PaperCitationCard({ paper }: { paper: Paper }) {
         transition: "border-color 0.2s, background 0.2s",
       }}
       onMouseEnter={(e) => {
-        (e.currentTarget as HTMLElement).style.background =
-          "rgba(255,255,255,0.05)";
-        (e.currentTarget as HTMLElement).style.borderColor =
-          "rgba(255,255,255,0.14)";
+        (e.currentTarget as HTMLElement).style.background = "var(--surface)";
+        (e.currentTarget as HTMLElement).style.borderColor = "var(--border-hi)";
       }}
       onMouseLeave={(e) => {
-        (e.currentTarget as HTMLElement).style.background =
-          "rgba(255,255,255,0.03)";
-        (e.currentTarget as HTMLElement).style.borderColor =
-          "rgba(255,255,255,0.08)";
+        (e.currentTarget as HTMLElement).style.background = "var(--bg-raised)";
+        (e.currentTarget as HTMLElement).style.borderColor = "var(--border)";
       }}
     >
       <div
@@ -88,8 +84,8 @@ export function PaperCitationCard({ paper }: { paper: Paper }) {
           width: 34,
           height: 34,
           borderRadius: 8,
-          background: "rgba(255,255,255,0.06)",
-          border: "1px solid rgba(255,255,255,0.1)",
+          background: "var(--surface)",
+          border: "1px solid var(--border-mid)",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
@@ -97,14 +93,14 @@ export function PaperCitationCard({ paper }: { paper: Paper }) {
           marginTop: 1,
         }}
       >
-        <BookOpen size={14} style={{ color: "rgba(255,255,255,0.5)" }} />
+        <BookOpen size={14} style={{ color: "var(--text-muted)" }} />
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <p
           style={{
             fontSize: 13.5,
             fontWeight: 600,
-            color: "rgba(255,255,255,0.92)",
+            color: "var(--text-primary)",
             lineHeight: 1.45,
             marginBottom: 6,
             letterSpacing: "-0.01em",
@@ -125,7 +121,7 @@ export function PaperCitationCard({ paper }: { paper: Paper }) {
             <span
               style={{
                 fontSize: 11.5,
-                color: "rgba(255,255,255,0.45)",
+                color: "var(--text-muted)",
                 fontWeight: 400,
               }}
             >
@@ -133,15 +129,13 @@ export function PaperCitationCard({ paper }: { paper: Paper }) {
             </span>
           )}
           {authorsDisplay && paper.year && (
-            <span style={{ fontSize: 11, color: "rgba(255,255,255,0.2)" }}>
-              ·
-            </span>
+            <span style={{ fontSize: 11, color: "var(--border-hi)" }}>·</span>
           )}
           {paper.year && (
             <span
               style={{
                 fontSize: 11.5,
-                color: "rgba(255,255,255,0.55)",
+                color: "var(--text-secondary)",
                 fontWeight: 500,
               }}
             >
@@ -150,17 +144,15 @@ export function PaperCitationCard({ paper }: { paper: Paper }) {
           )}
           {source && (
             <>
-              <span style={{ fontSize: 11, color: "rgba(255,255,255,0.2)" }}>
-                ·
-              </span>
+              <span style={{ fontSize: 11, color: "var(--border-hi)" }}>·</span>
               <span
                 style={{
                   fontSize: 10.5,
-                  color: "rgba(255,255,255,0.38)",
-                  background: "rgba(255,255,255,0.06)",
+                  color: "var(--text-muted)",
+                  background: "var(--surface)",
                   padding: "2px 8px",
                   borderRadius: 99,
-                  border: "1px solid rgba(255,255,255,0.08)",
+                  border: "1px solid var(--border)",
                   letterSpacing: "0.02em",
                 }}
               >
@@ -330,8 +322,8 @@ function CodeBlock({
           alignItems: "center",
           justifyContent: "space-between",
           padding: "8px 14px",
-          borderBottom: "1px solid rgba(255,255,255,0.05)",
-          background: "rgba(255,255,255,0.03)",
+          borderBottom: "1px solid var(--border)",
+          background: "var(--bg-raised)",
         }}
       >
         <span
@@ -448,72 +440,72 @@ const SECTION_META: Record<
   { color: string; bg: string; border: string; icon: string; accent: string }
 > = {
   overview: {
-    color: "rgba(255,255,255,0.85)",
+    color: "var(--text-primary)",
     bg: "transparent",
-    border: "rgba(255,255,255,0.07)",
+    border: "var(--border)",
     icon: "01",
     accent: "#5c9ae0",
   },
   "key concepts": {
-    color: "rgba(255,255,255,0.85)",
+    color: "var(--text-primary)",
     bg: "transparent",
-    border: "rgba(255,255,255,0.07)",
+    border: "var(--border)",
     icon: "02",
     accent: "#ad73e0",
   },
   "system architecture": {
-    color: "rgba(255,255,255,0.85)",
+    color: "var(--text-primary)",
     bg: "transparent",
-    border: "rgba(255,255,255,0.07)",
+    border: "var(--border)",
     icon: "03",
     accent: "#e8a045",
   },
   "technical details": {
-    color: "rgba(255,255,255,0.85)",
+    color: "var(--text-primary)",
     bg: "transparent",
-    border: "rgba(255,255,255,0.07)",
+    border: "var(--border)",
     icon: "04",
     accent: "#5db87a",
   },
   "technical details or comparison": {
-    color: "rgba(255,255,255,0.85)",
+    color: "var(--text-primary)",
     bg: "transparent",
-    border: "rgba(255,255,255,0.07)",
+    border: "var(--border)",
     icon: "04",
     accent: "#5db87a",
   },
   "key research papers": {
-    color: "rgba(255,255,255,0.85)",
+    color: "var(--text-primary)",
     bg: "transparent",
-    border: "rgba(255,255,255,0.07)",
+    border: "var(--border)",
     icon: "05",
     accent: "#e8a045",
   },
   limitations: {
-    color: "rgba(255,255,255,0.85)",
+    color: "var(--text-primary)",
     bg: "transparent",
-    border: "rgba(255,255,255,0.07)",
+    border: "var(--border)",
     icon: "05",
     accent: "#e05c5c",
   },
   "key takeaways": {
-    color: "rgba(255,255,255,0.85)",
+    color: "var(--text-primary)",
     bg: "transparent",
-    border: "rgba(255,255,255,0.07)",
+    border: "var(--border)",
     icon: "06",
     accent: "#5db87a",
   },
   "what to search next": {
-    color: "rgba(255,255,255,0.85)",
+    color: "var(--text-primary)",
     bg: "transparent",
-    border: "rgba(255,255,255,0.07)",
+    border: "var(--border)",
     icon: "07",
     accent: "#5c9ae0",
   },
   "quick revision points": {
-    color: "rgba(255,255,255,0.85)",
+    color: "var(--text-primary)",
     bg: "transparent",
-    border: "rgba(255,255,255,0.07)",
+    border: "var(--border)",
     icon: "08",
     accent: "#ad73e0",
   },
@@ -523,11 +515,11 @@ function getSectionMeta(title: string) {
   const key = title.toLowerCase().trim();
   return (
     SECTION_META[key] ?? {
-      color: "rgba(255,255,255,0.85)",
+      color: "var(--text-primary)",
       bg: "transparent",
-      border: "rgba(255,255,255,0.07)",
+      border: "var(--border)",
       icon: "—",
-      accent: "rgba(255,255,255,0.3)",
+      accent: "var(--text-muted)",
     }
   );
 }
@@ -547,7 +539,7 @@ function SectionCard({
       style={{
         margin: "0 0 6px",
         borderRadius: 0,
-        borderBottom: `1px solid rgba(255,255,255,0.06)`,
+        borderBottom: `1px solid var(--border)`,
         background: "transparent",
         overflow: "hidden",
       }}
@@ -591,7 +583,7 @@ function SectionCard({
               margin: 0,
               fontSize: 13,
               fontWeight: 500,
-              color: "rgba(232,227,220,0.75)",
+              color: "var(--text-muted)",
               letterSpacing: "0.04em",
               textTransform: "uppercase",
               fontFamily: "var(--font-display)",
@@ -600,7 +592,7 @@ function SectionCard({
             {title}
           </h2>
         </div>
-        <div style={{ color: "rgba(255,255,255,0.25)", flexShrink: 0 }}>
+        <div style={{ color: "var(--text-faint)", flexShrink: 0 }}>
           {collapsed ? <ChevronDown size={13} /> : <ChevronUp size={13} />}
         </div>
       </button>
@@ -822,7 +814,7 @@ function buildMdComponents(onSection: (title: string) => void) {
           marginBottom: "1em",
           lineHeight: 1.9,
           fontSize: 15,
-          color: "rgba(232,227,220,0.82)",
+          color: "var(--text-secondary)",
           letterSpacing: "0.005em",
           fontFamily: "var(--font-display)",
           fontWeight: 400,
@@ -839,7 +831,7 @@ function buildMdComponents(onSection: (title: string) => void) {
         style={{
           color: "var(--text-primary)",
           fontWeight: 650,
-          background: "rgba(255,255,255,0.04)",
+          background: "var(--surface)",
           padding: "1px 4px",
           borderRadius: 4,
         }}
@@ -884,7 +876,7 @@ function buildMdComponents(onSection: (title: string) => void) {
         style={{
           marginBottom: "0.7em",
           fontSize: 14.5,
-          color: "rgba(232,227,220,0.78)",
+          color: "var(--text-secondary)",
           lineHeight: 1.85,
           display: "flex",
           alignItems: "flex-start",
@@ -899,7 +891,7 @@ function buildMdComponents(onSection: (title: string) => void) {
             width: 5,
             height: 5,
             borderRadius: "50%",
-            background: "rgba(255,255,255,0.2)",
+            background: "var(--border-hi)",
             flexShrink: 0,
             marginTop: 9,
           }}
@@ -1020,8 +1012,7 @@ function buildMdComponents(onSection: (title: string) => void) {
           transition: "background .12s",
         }}
         onMouseEnter={(e) => {
-          (e.currentTarget as HTMLElement).style.background =
-            "rgba(255,255,255,0.02)";
+          (e.currentTarget as HTMLElement).style.background = "var(--surface)";
         }}
         onMouseLeave={(e) => {
           (e.currentTarget as HTMLElement).style.background = "transparent";
@@ -1185,11 +1176,25 @@ function buildRefMap(papers: Paper[]): Map<string, Paper> {
 }
 
 // Inline badge: small numbered superscript rendered where [REF-N] appears in text
-function CitationBadge({ num, label, paper }: { num: number; label: string; paper?: Paper }) {
+function CitationBadge({
+  num,
+  label,
+  paper,
+}: {
+  num: number;
+  label: string;
+  paper?: Paper;
+}) {
   const [hovered, setHovered] = React.useState(false);
 
   return (
-    <span style={{ position: "relative", display: "inline-flex", alignItems: "center" }}>
+    <span
+      style={{
+        position: "relative",
+        display: "inline-flex",
+        alignItems: "center",
+      }}
+    >
       <sup
         title={label}
         onMouseEnter={() => setHovered(true)}
@@ -1204,7 +1209,9 @@ function CitationBadge({ num, label, paper }: { num: number; label: string; pape
           marginLeft: 1,
           marginRight: 1,
           borderRadius: 3,
-          background: hovered ? "rgba(139,92,246,0.28)" : "rgba(139,92,246,0.15)",
+          background: hovered
+            ? "rgba(139,92,246,0.28)"
+            : "rgba(139,92,246,0.15)",
           border: `1px solid ${hovered ? "rgba(139,92,246,0.55)" : "rgba(139,92,246,0.3)"}`,
           color: "#a78bfa",
           fontSize: 9,
@@ -1256,7 +1263,7 @@ function CitationBadge({ num, label, paper }: { num: number; label: string; pape
             style={{
               fontSize: 12,
               fontWeight: 600,
-              color: "rgba(255,255,255,0.9)",
+              color: "var(--text-primary)",
               lineHeight: 1.4,
               marginBottom: 6,
             }}
@@ -1264,7 +1271,13 @@ function CitationBadge({ num, label, paper }: { num: number; label: string; pape
             {paper.title}
           </p>
           {paper.authors && paper.authors.length > 0 && (
-            <p style={{ fontSize: 10.5, color: "rgba(255,255,255,0.45)", marginBottom: 4 }}>
+            <p
+              style={{
+                fontSize: 10.5,
+                color: "var(--text-muted)",
+                marginBottom: 4,
+              }}
+            >
               {paper.authors.slice(0, 3).join(", ")}
               {paper.authors.length > 3 ? " et al." : ""}
               {paper.year ? ` · ${paper.year}` : ""}
@@ -1274,7 +1287,7 @@ function CitationBadge({ num, label, paper }: { num: number; label: string; pape
             <p
               style={{
                 fontSize: 10.5,
-                color: "rgba(255,255,255,0.55)",
+                color: "var(--text-secondary)",
                 lineHeight: 1.55,
                 display: "-webkit-box",
                 WebkitLineClamp: 3,
@@ -1493,7 +1506,7 @@ function InlineCitationRow({ paper, num }: { paper: Paper; num: number }) {
           style={{
             fontSize: 12,
             fontWeight: 600,
-            color: "rgba(255,255,255,0.82)",
+            color: "var(--text-secondary)",
             lineHeight: 1.3,
             whiteSpace: "nowrap",
             overflow: "hidden",
@@ -1507,7 +1520,7 @@ function InlineCitationRow({ paper, num }: { paper: Paper; num: number }) {
           <span
             style={{
               fontSize: 10.5,
-              color: "rgba(255,255,255,0.35)",
+              color: "var(--text-muted)",
               whiteSpace: "nowrap",
             }}
           >
@@ -1532,11 +1545,11 @@ function InlineCitationRow({ paper, num }: { paper: Paper; num: number }) {
           <span
             style={{
               fontSize: 10,
-              color: "rgba(255,255,255,0.28)",
-              background: "rgba(255,255,255,0.04)",
+              color: "var(--text-faint)",
+              background: "var(--surface)",
               padding: "1px 6px",
               borderRadius: 99,
-              border: "1px solid rgba(255,255,255,0.06)",
+              border: "1px solid var(--border)",
               whiteSpace: "nowrap",
             }}
           >
@@ -1780,7 +1793,8 @@ function TldrCard({ summary }: { summary: string }) {
       style={{
         margin: "0 0 20px 0",
         padding: "14px 18px",
-        background: "linear-gradient(135deg, rgba(92,154,224,0.1) 0%, rgba(92,154,224,0.04) 100%)",
+        background:
+          "linear-gradient(135deg, rgba(92,154,224,0.1) 0%, rgba(92,154,224,0.04) 100%)",
         border: "1px solid rgba(92,154,224,0.28)",
         borderRadius: 14,
         display: "flex",
@@ -1809,7 +1823,14 @@ function TldrCard({ summary }: { summary: string }) {
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
         {/* TL;DR label */}
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 7 }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            marginBottom: 7,
+          }}
+        >
           <span
             style={{
               fontSize: 10,
@@ -1821,13 +1842,15 @@ function TldrCard({ summary }: { summary: string }) {
           >
             TL;DR
           </span>
-          <div style={{ flex: 1, height: 1, background: "rgba(92,154,224,0.15)" }} />
+          <div
+            style={{ flex: 1, height: 1, background: "rgba(92,154,224,0.15)" }}
+          />
         </div>
         {/* Summary text */}
         <p
           style={{
             fontSize: 14.5,
-            color: "rgba(255,255,255,0.88)",
+            color: "var(--text-primary)",
             lineHeight: 1.7,
             margin: 0,
             fontWeight: 400,
