@@ -1094,13 +1094,7 @@ function SearchApp() {
     }
 
     /* AI response */
-    .sr-ai-row { display: flex; gap: 12px; align-items: flex-start; }
-    .sr-ai-avatar {
-      width: 24px; height: 24px; border-radius: 50%;
-      background: #1a1a1a; border: 1px solid #252525;
-      display: flex; align-items: center; justify-content: center;
-      flex-shrink: 0; margin-top: 2px; font-size: 10px; color: #555;
-    }
+    .sr-ai-row { display: flex; align-items: flex-start; }
     .sr-ai-body { flex: 1; min-width: 0; }
 
     /* Action bar */
@@ -1563,7 +1557,6 @@ function SearchApp() {
 
                   {/* AI response */}
                   <div className="sr-ai-row">
-                    <div className="sr-ai-avatar">✦</div>
                     <div className="sr-ai-body">
                       {turn.streaming && !turn.answer && turn.status && (
                         <div className="sr-status">
