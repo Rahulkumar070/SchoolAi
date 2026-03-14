@@ -947,11 +947,13 @@ function SearchApp() {
     /* Heading — bold, centered, matches image 2 */
     .sr-heading {
       font-size: clamp(1.4rem, 3vw, 1.85rem);
-      font-weight: 600; color: #e0dbd4;
-      text-align: center; line-height: 1.25;
-      letter-spacing: -0.02em;
+      font-weight: 500; color: var(--text-primary);
+      text-align: center; line-height: 1.3;
+      letter-spacing: -0.03em;
       margin-bottom: 28px;
       max-width: 540px;
+      font-family: "Georgia", "Times New Roman", ui-serif, serif;
+      font-style: italic;
     }
 
     /* ── Pill wrapper ── */
@@ -1094,7 +1096,13 @@ function SearchApp() {
     }
 
     /* AI response */
-    .sr-ai-row { display: flex; align-items: flex-start; }
+    .sr-ai-row { display: flex; gap: 12px; align-items: flex-start; }
+    .sr-ai-avatar {
+      width: 24px; height: 24px; border-radius: 50%;
+      background: #1a1a1a; border: 1px solid #252525;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; margin-top: 2px; font-size: 10px; color: #555;
+    }
     .sr-ai-body { flex: 1; min-width: 0; }
 
     /* Action bar */
@@ -1357,7 +1365,7 @@ function SearchApp() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4, delay: 0.12 }}
             >
-              What's on the research agenda today?
+              Where should we start?
             </motion.h2>
 
             {/* Pill input */}
@@ -1557,6 +1565,7 @@ function SearchApp() {
 
                   {/* AI response */}
                   <div className="sr-ai-row">
+                    <div className="sr-ai-avatar">✦</div>
                     <div className="sr-ai-body">
                       {turn.streaming && !turn.answer && turn.status && (
                         <div className="sr-status">
