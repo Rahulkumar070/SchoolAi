@@ -22,6 +22,7 @@ import {
   Moon,
   Sun,
   AlignLeft,
+  Shield,
 } from "lucide-react";
 import { useEffect, useState, useCallback } from "react";
 
@@ -83,6 +84,12 @@ export default function Sidebar({
   const [dark, setDark] = useState(true);
   const [collapsed, setCollapsed] = useState(false);
 
+  // ── Broadcasts / notifications ──
+  const [broadcasts, setBroadcasts] = useState<
+    { _id: string; title: string; message: string; type: string }[]
+  >([]);
+  const [bellOpen, setBellOpen] = useState(false);
+
   const plan = session?.user?.plan ?? "free";
   const isFree = plan === "free";
   const isStudent = plan === "student";
@@ -119,6 +126,35 @@ export default function Sidebar({
   }, [fetchSidebar]);
 
   const grouped = groupConversations(conversations);
+
+  /* ── Fetch broadcasts ── */
+  useEffect(() => {
+    if (!session?.user?.email) return;
+    fetch("/api/admin/broadcast")
+      .then((r) => r.json())
+      .then(
+        (d: {
+          broadcasts?: {
+            _id: string;
+            title: string;
+            message: string;
+            type: string;
+          }[];
+        }) => {
+          setBroadcasts(d.broadcasts ?? []);
+        },
+      )
+      .catch(() => {});
+  }, [session?.user?.email]);
+
+  const dismissBroadcast = (id: string) => {
+    setBroadcasts((prev) => prev.filter((b) => b._id !== id));
+    fetch("/api/admin/broadcast", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id }),
+    }).catch(() => {});
+  };
 
   /* ── Propagate theme to <html> so Shell + all pages respond ── */
   useEffect(() => {
@@ -671,9 +707,180 @@ export default function Sidebar({
           {/* Bottom icon row: bell, settings, help, dark/light toggle */}
           {!effectiveCollapsed && (
             <div className="sb-footer-icons">
-              <button className="sb-icon-btn" title="Notifications">
-                <Bell size={14} />
-              </button>
+              {/* ── Bell / Notifications ── */}
+              <div style={{ position: "relative" }}>
+                <button
+                  className="sb-icon-btn"
+                  title="Notifications"
+                  onClick={() => setBellOpen((o) => !o)}
+                  style={{ position: "relative" }}
+                >
+                  <Bell size={14} />
+                  {broadcasts.length > 0 && (
+                    <span
+                      style={{
+                        position: "absolute",
+                        top: 2,
+                        right: 2,
+                        width: 7,
+                        height: 7,
+                        borderRadius: "50%",
+                        background: "#e05c5c",
+                        border: "1.5px solid " + t.bg,
+                        pointerEvents: "none",
+                      }}
+                    />
+                  )}
+                </button>
+
+                {/* Dropdown */}
+                {bellOpen && (
+                  <div
+                    style={{
+                      position: "absolute",
+                      bottom: "calc(100% + 8px)",
+                      left: 0,
+                      width: 280,
+                      background: t.bg,
+                      border: `1px solid ${t.border}`,
+                      borderRadius: 12,
+                      boxShadow: "0 8px 32px rgba(0,0,0,0.4)",
+                      zIndex: 200,
+                      overflow: "hidden",
+                    }}
+                  >
+                    <div
+                      style={{
+                        padding: "10px 14px 8px",
+                        borderBottom: `1px solid ${t.border}`,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                      }}
+                    >
+                      <span
+                        style={{
+                          fontSize: 12,
+                          fontWeight: 700,
+                          color: t.navTextAct,
+                          letterSpacing: "0.04em",
+                          textTransform: "uppercase" as const,
+                        }}
+                      >
+                        Notifications{" "}
+                        {broadcasts.length > 0 && `(${broadcasts.length})`}
+                      </span>
+                      <button
+                        onClick={() => setBellOpen(false)}
+                        style={{
+                          background: "none",
+                          border: "none",
+                          cursor: "pointer",
+                          color: t.navText,
+                          padding: 2,
+                          display: "flex",
+                        }}
+                      >
+                        ✕
+                      </button>
+                    </div>
+
+                    {broadcasts.length === 0 ? (
+                      <div
+                        style={{ padding: "24px 14px", textAlign: "center" }}
+                      >
+                        <Bell
+                          size={20}
+                          style={{
+                            color: t.sectionLabel,
+                            display: "block",
+                            margin: "0 auto 8px",
+                            opacity: 0.4,
+                          }}
+                        />
+                        <p
+                          style={{ fontSize: 12, color: t.navText, margin: 0 }}
+                        >
+                          No new notifications
+                        </p>
+                      </div>
+                    ) : (
+                      broadcasts.map((b) => {
+                        const typeColor: Record<string, string> = {
+                          info: "#5c9ae0",
+                          success: "#5db87a",
+                          warning: "#e8a045",
+                        };
+                        const col = typeColor[b.type] ?? "#5c9ae0";
+                        return (
+                          <div
+                            key={b._id}
+                            style={{
+                              padding: "12px 14px",
+                              borderBottom: `1px solid ${t.border}`,
+                              position: "relative",
+                            }}
+                          >
+                            <div
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 7,
+                                marginBottom: 5,
+                              }}
+                            >
+                              <span
+                                style={{
+                                  width: 7,
+                                  height: 7,
+                                  borderRadius: "50%",
+                                  background: col,
+                                  flexShrink: 0,
+                                }}
+                              />
+                              <span
+                                style={{
+                                  fontSize: 12.5,
+                                  fontWeight: 600,
+                                  color: t.navTextAct,
+                                  flex: 1,
+                                }}
+                              >
+                                {b.title}
+                              </span>
+                              <button
+                                onClick={() => dismissBroadcast(b._id)}
+                                style={{
+                                  background: "none",
+                                  border: "none",
+                                  cursor: "pointer",
+                                  color: t.navText,
+                                  padding: 2,
+                                  display: "flex",
+                                  flexShrink: 0,
+                                }}
+                              >
+                                ✕
+                              </button>
+                            </div>
+                            <p
+                              style={{
+                                fontSize: 12,
+                                color: t.navText,
+                                margin: 0,
+                                lineHeight: 1.5,
+                                paddingLeft: 14,
+                              }}
+                            >
+                              {b.message}
+                            </p>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                )}
+              </div>
               <button
                 className="sb-icon-btn"
                 title="Settings"
@@ -688,6 +895,20 @@ export default function Sidebar({
               >
                 <HelpCircle size={14} />
               </button>
+
+              {/* Admin panel — only visible to admin */}
+              {session?.user?.email ===
+                (process.env.NEXT_PUBLIC_ADMIN_EMAIL ??
+                  "rk035199@gmail.com") && (
+                <button
+                  className="sb-icon-btn"
+                  title="Admin Panel"
+                  onClick={() => router.push("/admin")}
+                  style={{ color: "var(--brand)" }}
+                >
+                  <Shield size={14} />
+                </button>
+              )}
 
               {/* Dark / Light toggle */}
               <div className="sb-mode-toggle">
