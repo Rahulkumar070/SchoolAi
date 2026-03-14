@@ -168,7 +168,10 @@ export default function Sidebar({
     iconBtnHov: dark ? "#bbb" : "#222",
   };
 
-  const W = collapsed ? 60 : 256;
+  // On mobile (onClose present), never use collapsed icon-rail — always full width
+  const isMobile = !!onClose;
+  const effectiveCollapsed = isMobile ? false : collapsed;
+  const W = effectiveCollapsed ? 60 : 256;
 
   return (
     <>
@@ -443,7 +446,7 @@ export default function Sidebar({
       >
         {/* ── TOP: Logo + Brand + Collapse toggle ── */}
         <div className="sb-top">
-          {collapsed ? (
+          {effectiveCollapsed ? (
             /* When collapsed — single prominent open button */
             <button
               className="sb-collapse-btn"
@@ -460,8 +463,11 @@ export default function Sidebar({
               <span className="sb-brand">Researchly</span>
               <button
                 className="sb-collapse-btn"
-                onClick={() => setCollapsed(true)}
-                title="Collapse sidebar"
+                onClick={() => {
+                  if (isMobile) onClose?.();
+                  else setCollapsed(true);
+                }}
+                title={isMobile ? "Close sidebar" : "Collapse sidebar"}
               >
                 <AlignLeft size={15} />
               </button>
@@ -482,7 +488,7 @@ export default function Sidebar({
             <span className="sb-new-icon">
               <Plus size={13} color={dark ? "#aaa" : "#666"} />
             </span>
-            {!collapsed && "New Research"}
+            {!effectiveCollapsed && "New Research"}
           </button>
 
           {/* Nav links */}
@@ -494,12 +500,12 @@ export default function Sidebar({
                 href={href}
                 onClick={onClose}
                 className={`sb-nav-item${isActive ? " active" : ""}`}
-                title={collapsed ? label : undefined}
+                title={effectiveCollapsed ? label : undefined}
               >
                 <span className="sb-nav-icon">
                   <Icon size={15} color={isActive ? t.navTextAct : t.navText} />
                 </span>
-                {!collapsed && label}
+                {!effectiveCollapsed && label}
               </Link>
             );
           })}
@@ -508,7 +514,7 @@ export default function Sidebar({
         <div className="sb-divider" />
 
         {/* ── CHATS SECTION ── */}
-        {!collapsed && (
+        {!effectiveCollapsed && (
           <>
             {session && grouped.length > 0 ? (
               <div className="sb-section">
@@ -568,12 +574,12 @@ export default function Sidebar({
           </>
         )}
 
-        {collapsed && <div style={{ flex: 1 }} />}
+        {effectiveCollapsed && <div style={{ flex: 1 }} />}
 
         {/* ── FOOTER ── */}
         <div className="sb-footer">
           {/* User menu popup */}
-          {userMenuOpen && !collapsed && (
+          {userMenuOpen && !effectiveCollapsed && (
             <div className="sb-user-menu">
               {session ? (
                 <>
@@ -613,8 +619,12 @@ export default function Sidebar({
           {/* User row */}
           <div
             className="sb-footer-user"
-            onClick={() => !collapsed && setUserMenuOpen((o) => !o)}
-            title={collapsed ? (session?.user?.name ?? "Account") : undefined}
+            onClick={() => !effectiveCollapsed && setUserMenuOpen((o) => !o)}
+            title={
+              effectiveCollapsed
+                ? (session?.user?.name ?? "Account")
+                : undefined
+            }
           >
             <div className="sb-avatar">
               {session?.user?.image ? (
@@ -636,7 +646,7 @@ export default function Sidebar({
               )}
             </div>
 
-            {!collapsed && (
+            {!effectiveCollapsed && (
               <>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div className="sb-footer-name">
@@ -659,7 +669,7 @@ export default function Sidebar({
           </div>
 
           {/* Bottom icon row: bell, settings, help, dark/light toggle */}
-          {!collapsed && (
+          {!effectiveCollapsed && (
             <div className="sb-footer-icons">
               <button className="sb-icon-btn" title="Notifications">
                 <Bell size={14} />
