@@ -572,60 +572,13 @@ function SmartSuggestions({
       initial={{ opacity: 0, y: -4 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -4 }}
-      className="smart-suggestions-popup"
-      style={{
-        position: "absolute",
-        bottom: "calc(100% + 6px)",
-        left: 0,
-        right: 0,
-        background: "var(--surface)",
-        border: "1px solid rgba(255,255,255,0.12)",
-        borderRadius: 12,
-        overflow: "hidden",
-        zIndex: 50,
-        boxShadow: "0 -8px 32px rgba(0,0,0,0.4)",
-      }}
+      className="sr-suggestions-popup"
     >
       {uniq.map((s, i) => (
-        <button
-          key={i}
-          onClick={() => onSelect(s)}
-          style={{
-            width: "100%",
-            display: "flex",
-            alignItems: "center",
-            gap: 10,
-            padding: "9px 14px",
-            background: "transparent",
-            border: "none",
-            borderBottom:
-              i < uniq.length - 1 ? "1px solid rgba(255,255,255,0.05)" : "none",
-            cursor: "pointer",
-            textAlign: "left",
-            transition: "background 0.14s",
-          }}
-          onMouseEnter={(e) =>
-            ((e.currentTarget as HTMLElement).style.background =
-              "rgba(255,255,255,0.04)")
-          }
-          onMouseLeave={(e) =>
-            ((e.currentTarget as HTMLElement).style.background = "transparent")
-          }
-        >
-          <Search size={11} style={{ color: "var(--brand)", flexShrink: 0 }} />
-          <span
-            style={{
-              fontSize: 13,
-              color: "rgba(255,255,255,0.75)",
-              lineHeight: 1.3,
-            }}
-          >
-            {s}
-          </span>
-          <ArrowRight
-            size={10}
-            style={{ color: "#444", flexShrink: 0, marginLeft: "auto" }}
-          />
+        <button key={i} className="sr-sugg-item" onClick={() => onSelect(s)}>
+          <Search size={11} style={{ color: "#555", flexShrink: 0 }} />
+          <span style={{ flex: 1 }}>{s}</span>
+          <ArrowRight size={10} style={{ color: "#3a3a3a", flexShrink: 0 }} />
         </button>
       ))}
     </motion.div>
@@ -950,6 +903,360 @@ function SearchApp() {
     if (initQ && autoRun) void doSearch(initQ);
   }, []); // eslint-disable-line
 
+  /* ── Search page styles — exact screenshot match ── */
+  const searchPageStyles = `
+    /* ── Base ── */
+    .sr-chat-wrap {
+      display: flex; flex-direction: column;
+      height: 100%; position: relative;
+      background: #0f0f0f;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+
+    /* ── Welcome ── */
+    .sr-welcome {
+      flex: 1; display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      padding: 0 24px 100px;
+      min-height: 0; overflow-y: auto;
+      gap: 0;
+    }
+
+    /* Plan badge — "Free Plan | Upgrade" style from image 2 */
+    .sr-plan-label {
+      display: inline-flex; align-items: center; gap: 0;
+      margin-bottom: 20px;
+      background: #1c1c1c; border: 1px solid #2a2a2a;
+      border-radius: 99px; overflow: hidden;
+      font-size: 12px;
+    }
+    .sr-plan-label-text {
+      padding: 5px 12px; color: #555; white-space: nowrap;
+    }
+    .sr-plan-label-btn {
+      padding: 5px 12px;
+      background: #2a2a2a; color: #ccc;
+      border: none; border-left: 1px solid #333;
+      cursor: pointer; font-family: inherit; font-size: 12px;
+      white-space: nowrap; text-decoration: none;
+      display: inline-flex; align-items: center;
+      transition: background 0.15s, color 0.15s;
+    }
+    .sr-plan-label-btn:hover { background: #333; color: #fff; }
+
+    /* Heading — bold, centered, matches image 2 */
+    .sr-heading {
+      font-size: clamp(1.4rem, 3vw, 1.85rem);
+      font-weight: 600; color: #e0dbd4;
+      text-align: center; line-height: 1.25;
+      letter-spacing: -0.02em;
+      margin-bottom: 28px;
+      max-width: 540px;
+    }
+
+    /* ── Pill wrapper ── */
+    .sr-pill-wrap {
+      width: 100%; max-width: 580px;
+      display: flex; flex-direction: column;
+      align-items: flex-start; gap: 10px;
+    }
+
+    /* The pill — matches image 2 exactly */
+    .sr-pill {
+      width: 100%; display: flex; align-items: center;
+      background: #171717; border: 1px solid #2e2e2e;
+      border-radius: 99px;
+      padding: 5px 5px 5px 6px;
+      gap: 8px; position: relative;
+      transition: border-color 0.18s, box-shadow 0.18s;
+    }
+    .sr-pill:focus-within {
+      border-color: #3a3a3a;
+      box-shadow: 0 0 0 3px rgba(255,255,255,0.03);
+    }
+
+    /* Circle + button — outlined circle like image 2 */
+    .sr-pill-attach {
+      width: 34px; height: 34px; border-radius: 50%;
+      background: transparent; border: 1px solid #333;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; color: #777; flex-shrink: 0; position: relative;
+      transition: border-color 0.15s, color 0.15s, background 0.15s;
+    }
+    .sr-pill-attach:hover { border-color: #555; color: #bbb; background: #1e1e1e; }
+    .sr-pill-attach:disabled { opacity: 0.35; cursor: default; }
+
+    /* lock badge */
+    .sr-pill-lock {
+      position: absolute; top: -3px; right: -3px;
+      width: 13px; height: 13px; border-radius: 50%;
+      background: #0f0f0f; border: 1px solid #2a2a2a;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 7px; pointer-events: none;
+    }
+    .sr-pill-pdf-dot {
+      position: absolute; top: -2px; right: -2px;
+      width: 7px; height: 7px; border-radius: 50%;
+      background: #c9b99a; pointer-events: none;
+    }
+
+    /* Textarea */
+    .sr-pill-input {
+      flex: 1; background: transparent; border: none; outline: none;
+      font-family: inherit; font-size: 14px; color: #bbb;
+      line-height: 1.5; resize: none;
+      min-height: 22px; max-height: 180px;
+      padding: 7px 0;
+    }
+    .sr-pill-input::placeholder { color: #363636; }
+    .sr-pill-input:disabled { opacity: 0.4; }
+
+    /* PDF tag */
+    .sr-pill-pdf-tag {
+      display: inline-flex; align-items: center; gap: 5px;
+      background: rgba(201,185,154,0.07);
+      border: 1px solid rgba(201,185,154,0.18);
+      border-radius: 99px; padding: 3px 8px;
+      font-size: 11.5px; color: #c9b99a;
+      flex-shrink: 0; max-width: 160px;
+    }
+    .sr-pill-pdf-tag span {
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .sr-pill-pdf-remove {
+      background: none; border: none; cursor: pointer; color: #555;
+      padding: 0; display: flex; align-items: center; transition: color 0.12s;
+    }
+    .sr-pill-pdf-remove:hover { color: #aaa; }
+
+    /* Waveform btn */
+    .sr-pill-wave {
+      width: 30px; height: 30px; border-radius: 50%;
+      background: transparent; border: none;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; flex-shrink: 0; color: #383838;
+    }
+
+    /* Send button — white circle with arrow, matches image 2 */
+    .sr-pill-send {
+      width: 34px; height: 34px; border-radius: 50%;
+      background: #fff; border: none;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; flex-shrink: 0;
+      transition: background 0.15s, opacity 0.15s;
+    }
+    .sr-pill-send:disabled {
+      background: #202020; cursor: not-allowed;
+    }
+    .sr-pill-send:not(:disabled):hover { background: #e8e8e8; }
+
+    .sr-pill-spinner {
+      width: 12px; height: 12px; border-radius: 50%;
+      border: 2px solid rgba(0,0,0,0.1);
+      border-top-color: #555;
+      animation: sr-spin 0.7s linear infinite;
+    }
+
+    /* Chips below pill — matches image 2 style */
+    .sr-quick-chips {
+      display: flex; align-items: center;
+      gap: 6px; flex-wrap: wrap;
+    }
+    .sr-qchip {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 6px 13px; border-radius: 99px;
+      background: transparent; border: 1px solid #222;
+      font-family: inherit; font-size: 12px; color: #444;
+      cursor: pointer; white-space: nowrap;
+      transition: border-color 0.14s, color 0.14s;
+    }
+    .sr-qchip:hover { border-color: #3a3a3a; color: #888; }
+
+    /* ── Messages ── */
+    .sr-messages-wrap {
+      flex: 1; overflow-y: auto; padding: 24px 0 0; min-height: 0;
+    }
+    .sr-messages-inner {
+      max-width: 680px; margin: 0 auto; padding: 0 20px 32px;
+    }
+    .sr-turn { margin-bottom: 36px; }
+
+    /* User bubble */
+    .sr-user-row {
+      display: flex; justify-content: flex-end; margin-bottom: 20px;
+    }
+    .sr-user-bubble {
+      background: #1c1c1c; border: 1px solid #272727;
+      border-radius: 20px 20px 5px 20px;
+      padding: 11px 17px; max-width: 75%;
+      font-size: 14px; color: #ccc;
+      line-height: 1.55; word-break: break-word;
+    }
+
+    /* AI response */
+    .sr-ai-row { display: flex; gap: 12px; align-items: flex-start; }
+    .sr-ai-avatar {
+      width: 24px; height: 24px; border-radius: 50%;
+      background: #1a1a1a; border: 1px solid #252525;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; margin-top: 2px; font-size: 10px; color: #555;
+    }
+    .sr-ai-body { flex: 1; min-width: 0; }
+
+    /* Action bar */
+    .sr-action-bar {
+      display: flex; flex-wrap: wrap; align-items: center;
+      gap: 4px; margin-top: 14px; padding-top: 12px;
+      border-top: 1px solid #1c1c1c;
+    }
+    .sr-chip {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 5px 10px; border-radius: 8px;
+      background: transparent; border: 1px solid #1e1e1e;
+      font-family: inherit; font-size: 12px; color: #4a4a4a;
+      cursor: pointer; white-space: nowrap;
+      transition: background 0.12s, color 0.12s, border-color 0.12s;
+    }
+    .sr-chip:hover { background: #181818; color: #999; border-color: #2e2e2e; }
+    .sr-chip-accent { color: #a09070; border-color: rgba(160,144,112,0.18); }
+    .sr-chip-accent:hover { background: rgba(160,144,112,0.06); color: #c9b99a; border-color: rgba(160,144,112,0.3); }
+    .sr-saved-tag { font-size: 11px; color: #2e5a3e; display: flex; align-items: center; gap: 3px; }
+
+    /* Status */
+    .sr-status {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 8px 16px; border-radius: 99px;
+      background: #141414; border: 1px solid #1e1e1e;
+      font-size: 13px; color: #4a4a4a;
+    }
+    @keyframes sr-spin { to { transform: rotate(360deg); } }
+    .sr-spin { animation: sr-spin 1s linear infinite; }
+
+    /* Typing dots */
+    .sr-typing { display: flex; gap: 4px; padding: 8px 4px; }
+    .sr-dot {
+      width: 5px; height: 5px; border-radius: 50%;
+      background: #2e2e2e; animation: sr-bounce 1.2s infinite;
+    }
+    .sr-dot:nth-child(2) { animation-delay: 0.18s; }
+    .sr-dot:nth-child(3) { animation-delay: 0.36s; }
+    @keyframes sr-bounce {
+      0%,60%,100% { transform: translateY(0); }
+      30% { transform: translateY(-4px); }
+    }
+
+    /* Related */
+    .sr-related { margin-top: 16px; }
+    .sr-related-label {
+      font-size: 10px; color: #2e2e2e; font-weight: 600;
+      letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 6px;
+    }
+    .sr-related-btn {
+      display: flex; align-items: center; gap: 8px;
+      width: 100%; padding: 8px 0;
+      background: transparent; border: none;
+      border-bottom: 1px solid #181818;
+      cursor: pointer; text-align: left; font-family: inherit;
+      font-size: 13px; color: #444; transition: color 0.12s;
+    }
+    .sr-related-btn:last-child { border-bottom: none; }
+    .sr-related-btn:hover { color: #999; }
+
+    /* Limit & error */
+    .sr-limit-card {
+      background: #141414; border: 1px solid #202020;
+      border-radius: 14px; padding: 20px 22px; margin: 12px 0;
+    }
+    .sr-limit-card h3 { font-size: 14px; font-weight: 600; color: #bbb; margin-bottom: 6px; }
+    .sr-limit-card p { font-size: 13px; color: #3a3a3a; margin-bottom: 14px; line-height: 1.6; }
+    .sr-limit-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    .sr-btn-solid {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 8px 16px; border-radius: 99px;
+      background: #d4c5a0; color: #111;
+      font-family: inherit; font-size: 13px; font-weight: 600;
+      text-decoration: none; border: none; cursor: pointer; transition: opacity 0.15s;
+    }
+    .sr-btn-solid:hover { opacity: 0.88; }
+    .sr-btn-outline {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 8px 14px; border-radius: 99px;
+      background: transparent; color: #444;
+      border: 1px solid #222; font-family: inherit;
+      font-size: 13px; text-decoration: none;
+      transition: color 0.15s, border-color 0.15s;
+    }
+    .sr-btn-outline:hover { color: #999; border-color: #333; }
+    .sr-error-card {
+      display: flex; gap: 10px; align-items: flex-start;
+      padding: 12px 16px; border-radius: 10px;
+      background: rgba(200,80,80,0.04); border: 1px solid rgba(200,80,80,0.1);
+      margin: 8px 0;
+    }
+
+    /* ── Bottom input bar (chat mode only) ── */
+    .sr-input-wrap {
+      padding: 10px 16px 16px; flex-shrink: 0;
+      background: #0f0f0f; border-top: 1px solid #181818;
+    }
+    .sr-input-wrap-inner { max-width: 680px; margin: 0 auto; }
+
+    /* Suggestions popup */
+    .sr-suggestions-popup {
+      position: absolute; bottom: calc(100% + 8px);
+      left: 0; right: 0; z-index: 50;
+      background: #181818; border: 1px solid #252525;
+      border-radius: 14px; overflow: hidden;
+      box-shadow: 0 -8px 32px rgba(0,0,0,0.7);
+    }
+    .sr-sugg-item {
+      width: 100%; display: flex; align-items: center; gap: 10px;
+      padding: 10px 14px; background: transparent; border: none;
+      border-bottom: 1px solid #1e1e1e;
+      cursor: pointer; text-align: left; font-family: inherit;
+      font-size: 13px; color: #666; transition: background 0.12s, color 0.12s;
+    }
+    .sr-sugg-item:last-child { border-bottom: none; }
+    .sr-sugg-item:hover { background: #1e1e1e; color: #aaa; }
+
+    /* Counter bar */
+    .sr-counter-bar {
+      display: flex; align-items: center; justify-content: center;
+      gap: 8px; padding: 6px 16px;
+      font-size: 11px; color: #2e2e2e;
+      border-bottom: 1px solid #181818; flex-shrink: 0;
+    }
+    .sr-counter-track {
+      width: 50px; height: 2px; background: #1e1e1e;
+      border-radius: 99px; overflow: hidden;
+    }
+    .sr-counter-fill {
+      height: 100%; background: #303030;
+      border-radius: 99px; transition: width 0.3s;
+    }
+    .sr-counter-fill.warn { background: #5a4a1a; }
+    .sr-counter-fill.limit { background: #5a1a1a; }
+    .sr-counter-upgrade {
+      color: #444; text-decoration: none; font-size: 11px; transition: color 0.15s;
+    }
+    .sr-counter-upgrade:hover { color: #888; }
+
+    /* Hint */
+    .sr-hint {
+      text-align: center; font-size: 10.5px; color: #1e1e1e;
+      margin-top: 8px;
+    }
+    .sr-hint a { color: #252525; text-decoration: none; }
+    .sr-hint a:hover { color: #555; }
+
+    /* Responsive */
+    @media (max-width: 520px) {
+      .sr-pill-wrap { max-width: 100%; }
+      .sr-welcome { padding: 0 16px 80px; }
+      .sr-heading { font-size: 1.35rem; }
+    }
+  `;
+
   const RightPanel = panelTurn ? (
     <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
       <div className="panel-header">
@@ -988,18 +1295,15 @@ function SearchApp() {
         panelTurn ? `Sources (${panelTurn.papers.length})` : "Sources"
       }
     >
-      <div className="chat-wrap">
-        <div className="chat-glow" />
+      <style>{searchPageStyles}</style>
 
-        {/* Counter bar */}
+      <div className="sr-chat-wrap">
+        {/* ── Counter bar ── */}
         {session && !isPro && (
-          <div
-            className="counter-bar"
-            style={{ marginTop: turns.length > 0 ? 0 : 0 }}
-          >
-            <div className="counter-fill-wrap">
+          <div className="sr-counter-bar">
+            <div className="sr-counter-track">
               <div
-                className={`counter-fill${counterUsed >= warnAt ? (atLimit ? " limit" : " warn") : ""}`}
+                className={`sr-counter-fill${counterUsed >= warnAt ? (atLimit ? " limit" : " warn") : ""}`}
                 style={{
                   width: `${Math.min((counterUsed / counterMax) * 100, 100)}%`,
                 }}
@@ -1007,287 +1311,68 @@ function SearchApp() {
             </div>
             <span>
               {isFree
-                ? `${searchesToday}/5 today`
+                ? `${searchesToday}/5 searches today`
                 : `${searchesThisMonth}/500 this month`}
             </span>
             {counterUsed >= warnAt && (
-              <Link href="/pricing" className="counter-cta">
-                Upgrade <ArrowRight size={10} />
+              <Link href="/pricing" className="sr-counter-upgrade">
+                Upgrade →
               </Link>
             )}
           </div>
         )}
 
-        {/* Welcome / messages */}
+        {/* ── Welcome screen ── */}
         {turns.length === 0 && !loading ? (
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.35, duration: 0.55, ease: "easeOut" }}
-            className="welcome"
+            className="sr-welcome"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.35 }}
           >
-            {/* Inner wrapper — centers content vertically when there's room */}
-            <div className="welcome-inner">
-              {session && !isPro && (
-                <motion.div
-                  initial={{ opacity: 0, y: -6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.25, duration: 0.4 }}
-                  className="chat-plan-badge"
-                  style={{
-                    position: "relative",
-                    top: "auto",
-                    left: "auto",
-                    transform: "none",
-                    margin: "0 auto 24px",
-                    display: "flex",
-                  }}
+            {/* Plan badge — "Free Plan | Upgrade" pill style from image 2 */}
+            <motion.div
+              className="sr-plan-label"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.1 }}
+            >
+              <span className="sr-plan-label-text">
+                {!session
+                  ? "Guest"
+                  : plan === "student"
+                    ? "Student Plan"
+                    : plan === "pro"
+                      ? "Pro Plan"
+                      : "Free Plan"}
+              </span>
+              {!isPro && (
+                <Link
+                  href={!session ? "/auth/signin" : "/pricing"}
+                  className="sr-plan-label-btn"
                 >
-                  <span>{plan === "student" ? "Student" : "Free"} plan</span>
-                  <span style={{ color: "#333" }}>·</span>
-                  <button onClick={() => router.push("/pricing")}>
-                    Upgrade
-                  </button>
-                </motion.div>
+                  {!session ? "Sign in free" : "Upgrade"}
+                </Link>
               )}
-              <h1 className="welcome-greeting">
-                What would you like
-                <br />
-                to research?
-              </h1>
-              {!session && (
-                <p
-                  style={{
-                    fontSize: 12.5,
-                    color: "#555",
-                    marginBottom: 16,
-                    fontWeight: 300,
-                  }}
-                >
-                  2 free searches as guest ·{" "}
-                  <Link href="/auth/signin" style={{ color: "#c9b99a" }}>
-                    Sign in for 5/day →
-                  </Link>
-                </p>
-              )}
-              <div className="suggestion-grid">
-                {SUGGESTIONS.map((s) => (
-                  <button
-                    key={s}
-                    className="suggestion-card"
-                    onClick={() => void doSearch(s)}
-                  >
-                    {s}
-                  </button>
-                ))}
-              </div>
+            </motion.div>
 
-              {/* Research signals section */}
-              <motion.div
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.7, duration: 0.5 }}
-                style={{ marginTop: 36, width: "100%" }}
-              >
-                <TrendingSection onSearch={(q) => void doSearch(q)} />
-              </motion.div>
-            </div>
-          </motion.div>
-        ) : (
-          <div className="messages-wrap">
-            <div className="messages-inner">
-              {turns.map((turn, i) => (
-                <motion.div
-                  key={i}
-                  className="msg-turn"
-                  initial={{ opacity: 0, y: 12 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.3 }}
-                >
-                  {/* User bubble */}
-                  <div className="msg-user-row">
-                    <div className="msg-user-bubble">{turn.query}</div>
-                  </div>
+            {/* Bold heading — matches image 2 */}
+            <motion.h2
+              className="sr-heading"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, delay: 0.12 }}
+            >
+              What's on the research agenda today?
+            </motion.h2>
 
-                  {/* AI response */}
-                  <div className="msg-ai-row">
-                    <div className="msg-ai-content">
-                      {turn.streaming && !turn.answer && turn.status && (
-                        <StatusPill text={turn.status} />
-                      )}
-
-                      {turn.answer ? (
-                        <>
-                          <AnswerRenderer
-                            content={turn.answer}
-                            papers={turn.papers}
-                            streaming={turn.streaming}
-                          />
-
-                          {!turn.streaming && (
-                            <>
-                              <div className="action-bar">
-                                {turn.papers.length > 0 && (
-                                  <button
-                                    onClick={() => {
-                                      setPanelTurn(turn);
-                                      setPanelTab("sources");
-                                    }}
-                                    className="chip"
-                                  >
-                                    <Layers size={11} /> {turn.papers.length}{" "}
-                                    sources
-                                  </button>
-                                )}
-                                <CopyBtn text={turn.answer} />
-                                <button
-                                  onClick={() =>
-                                    downloadResearchPDF(
-                                      turn.query,
-                                      turn.answer,
-                                      turn.papers,
-                                      session?.user?.name ?? undefined,
-                                    )
-                                  }
-                                  className="chip accent"
-                                >
-                                  <FileDown size={11} /> PDF
-                                </button>
-                                {!atLimit && (
-                                  <button
-                                    onClick={() => void doSearch(turn.query)}
-                                    className="chip"
-                                    title="Re-run"
-                                  >
-                                    <RotateCcw size={11} /> Re-run
-                                  </button>
-                                )}
-                                <div style={{ marginLeft: "auto" }}>
-                                  <FeedbackBtn
-                                    query={turn.query}
-                                    conversationId={conversationId}
-                                    turnIndex={i}
-                                    currentFeedback={turn.feedback}
-                                    onFeedback={handleFeedback}
-                                  />
-                                </div>
-                                {session && (
-                                  <span
-                                    style={{
-                                      fontSize: 10.5,
-                                      color: "#5a8a6a",
-                                      display: "flex",
-                                      alignItems: "center",
-                                      gap: 3,
-                                    }}
-                                  >
-                                    ✓ Saved
-                                  </span>
-                                )}
-                              </div>
-                              <RelatedQuestions
-                                questions={turn.related ?? []}
-                                onSearch={(q) => void doSearch(q)}
-                              />
-                            </>
-                          )}
-                        </>
-                      ) : turn.streaming && !turn.status ? (
-                        <div className="typing-bubble">
-                          <span className="typing-dot" />
-                          <span className="typing-dot" />
-                          <span className="typing-dot" />
-                        </div>
-                      ) : null}
-                    </div>
-                  </div>
-                </motion.div>
-              ))}
-
-              {/* Limit error */}
-              {limitError && !loading && (
-                <div className="limit-card">
-                  <h3>
-                    <Lock
-                      size={14}
-                      style={{
-                        display: "inline",
-                        marginRight: 6,
-                        verticalAlign: -2,
-                      }}
-                    />
-                    {!session
-                      ? "Guest limit reached (2/2)"
-                      : isFree
-                        ? "Daily limit reached (5/5)"
-                        : "Monthly limit reached (500/500)"}
-                  </h3>
-                  <p>
-                    {!session
-                      ? "Sign in free to get 5 searches every day — no credit card needed."
-                      : isFree
-                        ? "Upgrade or come back tomorrow."
-                        : "Upgrade to Pro for unlimited searches."}
-                  </p>
-                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                    {!session ? (
-                      <>
-                        <Link href="/auth/signin" className="btn-accent">
-                          Sign In Free → Get 5/day
-                        </Link>
-                        <Link href="/pricing" className="btn-ghost">
-                          <Sparkles size={12} /> See Plans
-                        </Link>
-                      </>
-                    ) : (
-                      <Link href="/pricing" className="btn-accent">
-                        {isFree ? (
-                          <>
-                            <Sparkles size={12} /> Student ₹199/mo
-                          </>
-                        ) : (
-                          <>
-                            <Crown size={12} /> Pro ₹499/mo
-                          </>
-                        )}
-                      </Link>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* General error */}
-              {errorMsg && !loading && !limitError && (
-                <div className="error-card">
-                  <AlertCircle
-                    size={14}
-                    style={{ color: "#e06060", flexShrink: 0, marginTop: 1 }}
-                  />
-                  <p style={{ fontSize: 13.5, color: "#e06060" }}>{errorMsg}</p>
-                </div>
-              )}
-
-              <div ref={endRef} style={{ height: 16 }} />
-            </div>
-          </div>
-        )}
-
-        {/* Input bar */}
-        {/* Input bar */}
-        <div className="input-wrap">
-          <div className="input-wrap-inner">
-            <div className="input-box" style={{ position: "relative" }}>
-              <AnimatePresence>
-                {showSuggestions && input.length >= 3 && (
-                  <SmartSuggestions
-                    query={input}
-                    onSelect={(q) => {
-                      setShowSuggestions(false);
-                      void doSearch(q);
-                    }}
-                  />
-                )}
-              </AnimatePresence>
+            {/* Pill input */}
+            <motion.div
+              className="sr-pill-wrap"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.38, delay: 0.18 }}
+            >
               {/* Hidden file input */}
               <input
                 ref={fileInputRef}
@@ -1300,102 +1385,30 @@ function SearchApp() {
                 }}
               />
 
-              {/* PDF attachment badge */}
-              {attachedPdf && (
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 6,
-                    padding: "5px 10px 0",
-                    flexWrap: "wrap",
-                  }}
-                >
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 5,
-                      background: "rgba(201,185,154,0.12)",
-                      border: "1px solid rgba(201,185,154,0.25)",
-                      borderRadius: 6,
-                      padding: "3px 8px",
-                      fontSize: 12,
-                      color: "#c9b99a",
-                      maxWidth: "100%",
-                    }}
-                  >
-                    <FileText size={11} />
-                    <span
-                      style={{
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
-                        maxWidth: 200,
+              <div className="sr-pill" style={{ position: "relative" }}>
+                <AnimatePresence>
+                  {showSuggestions && input.length >= 3 && (
+                    <SmartSuggestions
+                      query={input}
+                      onSelect={(q) => {
+                        setShowSuggestions(false);
+                        void doSearch(q);
                       }}
-                    >
-                      {attachedPdf.name}
-                    </span>
-                    <button
-                      onClick={() => setAttachedPdf(null)}
-                      style={{
-                        background: "none",
-                        border: "none",
-                        cursor: "pointer",
-                        color: "#666",
-                        padding: 0,
-                        display: "flex",
-                        alignItems: "center",
-                      }}
-                      title="Remove PDF"
-                    >
-                      <X size={11} />
-                    </button>
-                  </div>
-                </div>
-              )}
+                    />
+                  )}
+                </AnimatePresence>
 
-              <textarea
-                ref={taRef}
-                value={input}
-                onChange={(e) => {
-                  setInput(e.target.value);
-                  resize();
-                  setShowSuggestions(e.target.value.length >= 3);
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === "Escape") {
-                    setShowSuggestions(false);
-                    return;
-                  }
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault();
-                    setShowSuggestions(false);
-                    void doSearch(input);
-                  }
-                }}
-                onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
-                placeholder={
-                  attachedPdf
-                    ? `Ask anything about "${attachedPdf.name}"…`
-                    : "Ask a research question…"
-                }
-                className="input-textarea"
-                rows={1}
-                disabled={loading}
-              />
-
-              <div className="input-bottom-row">
-                {/* Attach button — locked for free/guest users */}
+                {/* Circle + button */}
                 <button
-                  className="input-attach-btn"
+                  className="sr-pill-attach"
                   title={
                     isFree || !session
-                      ? "PDF uploads available in Student & Pro plans"
+                      ? "PDF uploads: Student & Pro plans"
                       : attachedPdf
                         ? "Replace PDF"
                         : "Attach PDF"
                   }
+                  disabled={pdfParsing}
                   onClick={() => {
                     if (isFree || !session) {
                       setShowPdfUpgradeModal(true);
@@ -1403,85 +1416,92 @@ function SearchApp() {
                       fileInputRef.current?.click();
                     }
                   }}
-                  disabled={pdfParsing}
-                  style={{ position: "relative" }}
                 >
                   {pdfParsing ? (
-                    <Loader2
-                      size={15}
-                      style={{ animation: "spin 1s linear infinite" }}
-                    />
+                    <Loader2 size={14} className="sr-spin" />
                   ) : (
-                    <>
-                      <Plus
-                        size={15}
-                        style={{ color: attachedPdf ? "#c9b99a" : undefined }}
-                      />
-                      {(isFree || !session) && (
-                        <span
-                          style={{
-                            position: "absolute",
-                            top: -4,
-                            right: -4,
-                            width: 13,
-                            height: 13,
-                            borderRadius: "50%",
-                            background: "#1a1a1a",
-                            border: "1px solid #333",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            fontSize: 7,
-                          }}
-                        >
-                          🔒
-                        </span>
-                      )}
-                    </>
+                    <Plus size={14} />
+                  )}
+                  {(isFree || !session) && (
+                    <span className="sr-pill-lock">🔒</span>
                   )}
                   {attachedPdf && !isFree && session && (
-                    <span
-                      style={{
-                        position: "absolute",
-                        top: -3,
-                        right: -3,
-                        width: 7,
-                        height: 7,
-                        borderRadius: "50%",
-                        background: "#c9b99a",
-                      }}
-                    />
+                    <span className="sr-pill-pdf-dot" />
                   )}
                 </button>
 
-                {/* Voice button */}
-                <button className="waveform-btn" title="Voice">
+                {/* PDF tag */}
+                {attachedPdf && (
+                  <div className="sr-pill-pdf-tag">
+                    <FileText size={10} />
+                    <span>{attachedPdf.name}</span>
+                    <button
+                      className="sr-pill-pdf-remove"
+                      onClick={() => setAttachedPdf(null)}
+                    >
+                      <X size={9} />
+                    </button>
+                  </div>
+                )}
+
+                {/* Textarea */}
+                <textarea
+                  ref={taRef}
+                  className="sr-pill-input"
+                  value={input}
+                  rows={1}
+                  disabled={loading}
+                  placeholder={
+                    attachedPdf
+                      ? `Ask about "${attachedPdf.name}"…`
+                      : "Ask me anything about research"
+                  }
+                  onChange={(e) => {
+                    setInput(e.target.value);
+                    resize();
+                    setShowSuggestions(e.target.value.length >= 3);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Escape") {
+                      setShowSuggestions(false);
+                      return;
+                    }
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      setShowSuggestions(false);
+                      void doSearch(input);
+                    }
+                  }}
+                  onBlur={() =>
+                    setTimeout(() => setShowSuggestions(false), 150)
+                  }
+                />
+
+                {/* Waveform */}
+                <button className="sr-pill-wave" title="Voice">
                   <WaveformIcon />
                 </button>
 
-                {/* Send button */}
+                {/* Send — white circle with arrow matching image 2 */}
                 <button
+                  className="sr-pill-send"
+                  disabled={loading || (!input.trim() && !attachedPdf)}
                   onClick={() =>
                     void doSearch(
                       input ||
-                        (attachedPdf
-                          ? `Summarize this document: ${attachedPdf.name}`
-                          : ""),
+                        (attachedPdf ? `Summarize: ${attachedPdf.name}` : ""),
                     )
                   }
-                  disabled={loading || (!input.trim() && !attachedPdf)}
-                  className="send-btn"
-                  title="Send"
                 >
                   {loading ? (
-                    <span className="spinner" />
+                    <span className="sr-pill-spinner" />
                   ) : (
                     <svg
                       width="13"
                       height="13"
                       viewBox="0 0 24 24"
                       fill="none"
-                      stroke={input.trim() || attachedPdf ? "#141414" : "#555"}
+                      stroke={input.trim() || attachedPdf ? "#111" : "#666"}
                       strokeWidth="2.5"
                       strokeLinecap="round"
                       strokeLinejoin="round"
@@ -1491,20 +1511,385 @@ function SearchApp() {
                   )}
                 </button>
               </div>
-            </div>
 
-            <p className="input-hint">
-              {session && !isPro
-                ? `${isFree ? `${searchesToday}/5 today` : `${searchesThisMonth}/500 this month`} · `
-                : ""}
-              Semantic Scholar · OpenAlex · arXiv · PubMed
-            </p>
+              {/* Quick action chips */}
+              <div className="sr-quick-chips">
+                <button
+                  className="sr-qchip"
+                  onClick={() => router.push("/review")}
+                >
+                  <BookOpen size={11} /> Literature Review
+                </button>
+                <button
+                  className="sr-qchip"
+                  onClick={() => {
+                    if (isFree || !session) {
+                      setShowPdfUpgradeModal(true);
+                    } else {
+                      router.push("/upload");
+                    }
+                  }}
+                >
+                  <FileText size={11} /> PDF Chat
+                  {(isFree || !session) && (
+                    <Lock size={9} style={{ opacity: 0.4 }} />
+                  )}
+                </button>
+                <button
+                  className="sr-qchip"
+                  onClick={() => router.push("/dashboard")}
+                >
+                  <Layers size={11} /> My Library
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        ) : (
+          /* ── Messages ── */
+          <div className="sr-messages-wrap">
+            <div className="sr-messages-inner">
+              {turns.map((turn, i) => (
+                <motion.div
+                  key={i}
+                  className="sr-turn"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.28 }}
+                >
+                  {/* User bubble */}
+                  <div className="sr-user-row">
+                    <div className="sr-user-bubble">{turn.query}</div>
+                  </div>
+
+                  {/* AI response */}
+                  <div className="sr-ai-row">
+                    <div className="sr-ai-avatar">✦</div>
+                    <div className="sr-ai-body">
+                      {turn.streaming && !turn.answer && turn.status && (
+                        <div className="sr-status">
+                          <Loader2 size={12} className="sr-spin" />
+                          <span>{turn.status}</span>
+                        </div>
+                      )}
+                      {turn.answer ? (
+                        <>
+                          <AnswerRenderer
+                            content={turn.answer}
+                            papers={turn.papers}
+                            streaming={turn.streaming}
+                          />
+                          {!turn.streaming && (
+                            <>
+                              <div className="sr-action-bar">
+                                {turn.papers.length > 0 && (
+                                  <button
+                                    className="sr-chip"
+                                    onClick={() => {
+                                      setPanelTurn(turn);
+                                      setPanelTab("sources");
+                                    }}
+                                  >
+                                    <Layers size={11} /> {turn.papers.length}{" "}
+                                    sources
+                                  </button>
+                                )}
+                                <CopyBtn text={turn.answer} />
+                                <button
+                                  className="sr-chip sr-chip-accent"
+                                  onClick={() =>
+                                    downloadResearchPDF(
+                                      turn.query,
+                                      turn.answer,
+                                      turn.papers,
+                                      session?.user?.name ?? undefined,
+                                    )
+                                  }
+                                >
+                                  <FileDown size={11} /> PDF
+                                </button>
+                                {!atLimit && (
+                                  <button
+                                    className="sr-chip"
+                                    onClick={() => void doSearch(turn.query)}
+                                  >
+                                    <RotateCcw size={11} /> Re-run
+                                  </button>
+                                )}
+                                <div
+                                  style={{
+                                    marginLeft: "auto",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: 4,
+                                  }}
+                                >
+                                  <FeedbackBtn
+                                    query={turn.query}
+                                    conversationId={conversationId}
+                                    turnIndex={i}
+                                    currentFeedback={turn.feedback}
+                                    onFeedback={handleFeedback}
+                                  />
+                                </div>
+                                {session && (
+                                  <span className="sr-saved-tag">✓ Saved</span>
+                                )}
+                              </div>
+                              {(turn.related ?? []).length > 0 && (
+                                <div className="sr-related">
+                                  <p className="sr-related-label">
+                                    Related searches
+                                  </p>
+                                  {(turn.related ?? []).map((q, ri) => (
+                                    <button
+                                      key={ri}
+                                      className="sr-related-btn"
+                                      onClick={() => void doSearch(q)}
+                                    >
+                                      <Search
+                                        size={11}
+                                        style={{ color: "#444", flexShrink: 0 }}
+                                      />
+                                      <span style={{ flex: 1 }}>{q}</span>
+                                      <ArrowRight
+                                        size={10}
+                                        style={{ color: "#333", flexShrink: 0 }}
+                                      />
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
+                            </>
+                          )}
+                        </>
+                      ) : turn.streaming && !turn.status ? (
+                        <div className="sr-typing">
+                          <span className="sr-dot" />
+                          <span className="sr-dot" />
+                          <span className="sr-dot" />
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
+                </motion.div>
+              ))}
+
+              {/* Limit error */}
+              {limitError && !loading && (
+                <div className="sr-limit-card">
+                  <h3>
+                    <Lock
+                      size={13}
+                      style={{
+                        display: "inline",
+                        marginRight: 6,
+                        verticalAlign: -2,
+                      }}
+                    />
+                    {!session
+                      ? "Guest limit reached (2/2)"
+                      : isFree
+                        ? "Daily limit reached (5/5)"
+                        : "Monthly limit (500/500)"}
+                  </h3>
+                  <p>
+                    {!session
+                      ? "Sign in free for 5 searches every day."
+                      : isFree
+                        ? "Upgrade or come back tomorrow."
+                        : "Upgrade to Pro for unlimited."}
+                  </p>
+                  <div className="sr-limit-actions">
+                    {!session ? (
+                      <>
+                        <Link href="/auth/signin" className="sr-btn-solid">
+                          Sign in free →
+                        </Link>
+                        <Link href="/pricing" className="sr-btn-outline">
+                          See plans
+                        </Link>
+                      </>
+                    ) : (
+                      <Link href="/pricing" className="sr-btn-solid">
+                        {isFree ? "Student — ₹199/mo" : "Pro — ₹499/mo"}
+                      </Link>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Error */}
+              {errorMsg && !loading && !limitError && (
+                <div className="sr-error-card">
+                  <AlertCircle
+                    size={14}
+                    style={{ color: "#e06060", flexShrink: 0, marginTop: 1 }}
+                  />
+                  <p style={{ fontSize: 13.5, color: "#e06060" }}>{errorMsg}</p>
+                </div>
+              )}
+              <div ref={endRef} style={{ height: 20 }} />
+            </div>
           </div>
-          {/* end input-wrap-inner */}
-        </div>
-        {/* end input-wrap */}
+        )}
+
+        {/* ── Input bar (chat mode only — hidden on welcome screen) ── */}
+        {(turns.length > 0 || loading) && (
+          <div className="sr-input-wrap">
+            <div className="sr-input-wrap-inner">
+              <div className="sr-pill" style={{ position: "relative" }}>
+                <AnimatePresence>
+                  {showSuggestions && input.length >= 3 && (
+                    <SmartSuggestions
+                      query={input}
+                      onSelect={(q) => {
+                        setShowSuggestions(false);
+                        void doSearch(q);
+                      }}
+                    />
+                  )}
+                </AnimatePresence>
+
+                {/* Hidden file input */}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".pdf,application/pdf"
+                  style={{ display: "none" }}
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) void handlePdfAttach(f);
+                  }}
+                />
+
+                {/* + attach */}
+                <button
+                  className="sr-pill-attach"
+                  title={
+                    isFree || !session
+                      ? "PDF uploads: Student & Pro plans"
+                      : attachedPdf
+                        ? "Replace PDF"
+                        : "Attach PDF"
+                  }
+                  disabled={pdfParsing}
+                  onClick={() => {
+                    if (isFree || !session) {
+                      setShowPdfUpgradeModal(true);
+                    } else {
+                      fileInputRef.current?.click();
+                    }
+                  }}
+                >
+                  {pdfParsing ? (
+                    <Loader2 size={15} className="sr-spin" />
+                  ) : (
+                    <Plus size={15} />
+                  )}
+                  {(isFree || !session) && (
+                    <span className="sr-pill-lock">🔒</span>
+                  )}
+                  {attachedPdf && !isFree && session && (
+                    <span className="sr-pill-pdf-dot" />
+                  )}
+                </button>
+
+                {/* PDF tag */}
+                {attachedPdf && (
+                  <div className="sr-pill-pdf-tag">
+                    <FileText size={10} />
+                    <span>{attachedPdf.name}</span>
+                    <button
+                      className="sr-pill-pdf-remove"
+                      onClick={() => setAttachedPdf(null)}
+                    >
+                      <X size={9} />
+                    </button>
+                  </div>
+                )}
+
+                {/* Textarea */}
+                <textarea
+                  ref={taRef}
+                  className="sr-pill-input"
+                  value={input}
+                  rows={1}
+                  disabled={loading}
+                  placeholder="Ask a research question…"
+                  onChange={(e) => {
+                    setInput(e.target.value);
+                    resize();
+                    setShowSuggestions(e.target.value.length >= 3);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Escape") {
+                      setShowSuggestions(false);
+                      return;
+                    }
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      setShowSuggestions(false);
+                      void doSearch(input);
+                    }
+                  }}
+                  onBlur={() =>
+                    setTimeout(() => setShowSuggestions(false), 150)
+                  }
+                />
+
+                {/* Waveform */}
+                <button className="sr-pill-wave" title="Voice">
+                  <WaveformIcon />
+                </button>
+
+                {/* Send */}
+                <button
+                  className="sr-pill-send"
+                  disabled={loading || (!input.trim() && !attachedPdf)}
+                  onClick={() =>
+                    void doSearch(
+                      input ||
+                        (attachedPdf ? `Summarize: ${attachedPdf.name}` : ""),
+                    )
+                  }
+                >
+                  {loading ? (
+                    <span className="sr-pill-spinner" />
+                  ) : (
+                    <svg
+                      width="13"
+                      height="13"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke={input.trim() || attachedPdf ? "#1a1a1a" : "#444"}
+                      strokeWidth="2.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M12 19V5M5 12l7-7 7 7" />
+                    </svg>
+                  )}
+                </button>
+              </div>
+              <p className="sr-hint">
+                {session && !isPro ? (
+                  <>
+                    <Link href="/pricing">
+                      {isFree
+                        ? `${searchesToday}/5 today`
+                        : `${searchesThisMonth}/500 this month`}
+                    </Link>{" "}
+                    ·{" "}
+                  </>
+                ) : null}
+                Semantic Scholar · OpenAlex · arXiv · PubMed
+              </p>
+            </div>
+          </div>
+        )}
+        {/* end chat-mode input bar */}
       </div>
-      {/* end chat-wrap */}
+      {/* end sr-chat-wrap */}
 
       {/* ── PDF Upgrade Modal — fully responsive ─────────────── */}
       <style>{`
