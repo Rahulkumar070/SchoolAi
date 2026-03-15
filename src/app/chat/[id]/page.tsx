@@ -32,6 +32,7 @@ interface Message {
   content: string;
   papers: Paper[]; // cited papers only — rendered in the Sources panel
   retrievedPapers: Paper[]; // full ranked retrieval set — available for "Retrieved papers" view
+  evidenceIdToPaperId?: Record<string, string>; // maps evidenceId → paperId for citation resolution
   createdAt: string;
 }
 interface ConvMeta {
@@ -141,6 +142,9 @@ function ChatPage() {
   const [sending, setSending] = useState(false);
   const [streamingContent, setStreamingContent] = useState("");
   const [streamingPapers, setStreamingPapers] = useState<Paper[]>([]);
+  const [streamingEvidenceMap, setStreamingEvidenceMap] = useState<
+    Record<string, string>
+  >({});
   const [isStreaming, setIsStreaming] = useState(false);
   const [limitError, setLimitError] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
@@ -275,6 +279,7 @@ function ChatPage() {
         let buffer = "";
         let fullAnswer = "";
         let finalPapers: Paper[] = [];
+        let finalEvidenceMap: Record<string, string> = {};
 
         while (true) {
           const { done, value } = await reader.read();
@@ -290,16 +295,21 @@ function ChatPage() {
                 type: string;
                 text?: string;
                 papers?: Paper[];
+                evidenceIdToPaperId?: Record<string, string>;
               };
               if (evt.type === "papers" && evt.papers) {
                 finalPapers = evt.papers;
                 setStreamingPapers(evt.papers);
+                const eidMap = evt.evidenceIdToPaperId ?? {};
+                finalEvidenceMap = eidMap;
+                setStreamingEvidenceMap(eidMap);
                 setPanelMsg({
                   _id: "streaming",
                   role: "assistant",
                   content: "",
-                  papers: [],
-                  retrievedPapers: [], // ← add this line
+                  papers: evt.papers,
+                  retrievedPapers: [],
+                  evidenceIdToPaperId: eidMap,
                   createdAt: new Date().toISOString(),
                 });
                 setPanelTab("sources");
@@ -315,6 +325,7 @@ function ChatPage() {
                   content: fullAnswer,
                   papers: finalPapers,
                   retrievedPapers: [], // not available client-side; DB record has the full set
+                  evidenceIdToPaperId: finalEvidenceMap,
                   createdAt: new Date().toISOString(),
                 };
                 setMessages((prev) => [
@@ -475,6 +486,7 @@ function ChatPage() {
                           <AnswerRenderer
                             content={msg.content}
                             citedPapers={msg.papers ?? []}
+                            evidenceIdToPaperId={msg.evidenceIdToPaperId ?? {}}
                           />
                           <div className="action-bar">
                             {msg.papers.length > 0 && (
@@ -537,6 +549,7 @@ function ChatPage() {
                             <AnswerRenderer
                               content={streamingContent}
                               citedPapers={streamingPapers}
+                              evidenceIdToPaperId={streamingEvidenceMap}
                               streaming={true}
                             />
                           </>
