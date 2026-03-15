@@ -28,7 +28,8 @@ const MessageSchema = new Schema(
     userId: { type: Types.ObjectId, required: true, ref: "User", index: true },
     role: { type: String, enum: ["user", "assistant"], required: true },
     content: { type: String, required: true, default: "" },
-    papers: { type: [PaperSchema], default: [] }, // only on assistant messages
+    papers: { type: [PaperSchema], default: [] },           // cited papers only (used in answer)
+    retrievedPapers: { type: [PaperSchema], default: [] }, // full ranked retrieval set
     createdAt: { type: Date, default: Date.now },
   },
   { timestamps: false },

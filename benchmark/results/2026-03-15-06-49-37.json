@@ -1,0 +1,49 @@
+{
+  "runAt": "2026-03-15T06:49:37.420Z",
+  "server": "http://localhost:3001",
+  "summary": {
+    "total": 1,
+    "passed": 0,
+    "failed": 1
+  },
+  "reports": [
+    {
+      "id": "bert-gpt-t5-comparison",
+      "description": "Named comparison of BERT, GPT, and T5 — must cite all four originals, not displace with survey papers.",
+      "query": "compare BERT GPT T5 transformer architecture",
+      "pass": false,
+      "durationMs": 52876,
+      "citedPaperCount": 1,
+      "citedPaperTitles": [
+        "Attention Is All You Need"
+      ],
+      "failures": [
+        {
+          "rule": "citedPapers count",
+          "expected": "3–8",
+          "actual": "1"
+        },
+        {
+          "rule": "requiredBackbone (all)",
+          "expected": "\"BERT (Devlin 2019)\" present in cited panel",
+          "actual": "not found"
+        },
+        {
+          "rule": "requiredBackbone (all)",
+          "expected": "\"GPT (Radford 2018)\" present in cited panel",
+          "actual": "not found"
+        },
+        {
+          "rule": "requiredBackbone (all)",
+          "expected": "\"T5 (Raffel 2020)\" present in cited panel",
+          "actual": "not found"
+        },
+        {
+          "rule": "noRawCitationTags",
+          "expected": "no [CITATION:xxx] in rendered answer",
+          "actual": "raw [CITATION:xxx] tags present"
+        }
+      ]
+    }
+  ]
+}

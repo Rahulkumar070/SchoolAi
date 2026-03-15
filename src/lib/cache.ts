@@ -1,9 +1,12 @@
 import { connectDB } from "./mongodb";
 import { CacheModel } from "@/models/Cache";
 
-// Current model version — bump this whenever you upgrade the AI model
-// Old cache entries with a different version will be ignored and regenerated
-const CURRENT_MODEL_VERSION = "sonnet-4-6";
+// Current model version — bump this whenever you upgrade the AI model OR make
+// significant answer-quality fixes that should invalidate stale cached answers.
+// History: sonnet-4-6 → sonnet-4-6-v2 (required-paper backbone completeness fixes)
+//          sonnet-4-6-v2 → sonnet-4-6-v3 (PAPER_KEY_TERM_RE key fix + final backbone validator)
+//          sonnet-4-6-v3 → sonnet-4-6-v4 (Phase 2b: partially-cited multi-model augmentation)
+const CURRENT_MODEL_VERSION = "sonnet-4-6-v4";
 
 // ── Query normalization ───────────────────────────────────────
 export function normalizeQuery(query: string): string {

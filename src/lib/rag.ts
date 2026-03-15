@@ -942,66 +942,66 @@ function foundationalBoost(paper: Paper, originalQuery: string): number {
   const title = paper.title.toLowerCase();
 
   // Each rule: trigger = fires if query matches, phrases = title substrings
-  // boost = additive score bonus (in normalized 0-1 units, so 2.0 = guaranteed top)
+  // boost = additive score bonus (0.8 = strong preference, not guaranteed top)
   const RULES: Array<{ trigger: RegExp; phrases: string[]; boost: number }> = [
     {
       // v8: Broadened — matches "transformer", "why transformers", "replace RNN", etc.
       trigger:
         /\btransformer\b|attention.*mechanism|self.?attention|multi.?head|vaswani|replace.*rnn|rnn.*replace|encoder.*decoder.*attention|why.*transformer|how.*transformer|attention.*architecture/i,
       phrases: ["attention is all you need"],
-      boost: 2.0,
+      boost: 0.8,
     },
     {
       trigger:
         /\bbert\b|bidirectional.*transformer|masked.*language.*model|devlin|pre.?train.*nlp|language.*understanding/i,
       phrases: ["bert: pre-training of deep bidirectional transformers"],
-      boost: 2.0,
+      boost: 0.8,
     },
     {
       trigger: /\bgpt\b|\bgpt.?1\b|generative pre.?training|radford.*2018/i,
       phrases: ["improving language understanding by generative pre-training"],
-      boost: 2.0,
+      boost: 0.8,
     },
     {
       trigger:
         /gpt.?3|few.?shot.*language|language model.*few.?shot|brown.*2020|large language model.*few/i,
       phrases: ["language models are few-shot learners"],
-      boost: 2.0,
+      boost: 0.8,
     },
     {
       trigger: /\bt5\b|text.?to.?text|raffel|exploring.*limits.*transfer/i,
       phrases: [
         "exploring the limits of transfer learning with a unified text-to-text transformer",
       ],
-      boost: 2.0,
+      boost: 0.8,
     },
     {
       trigger:
         /\brag\b|retrieval.?augmented generation|retrieval.*llm|knowledge.*intensive/i,
       phrases: ["retrieval-augmented generation for knowledge-intensive"],
-      boost: 2.0,
+      boost: 0.8,
     },
     {
       trigger:
         /\bresnet\b|residual.*learning|deep residual|he.*kaiming|skip.*connection/i,
       phrases: ["deep residual learning for image recognition"],
-      boost: 2.0,
+      boost: 0.8,
     },
     {
       trigger: /\bgan\b|generative adversarial|goodfellow.*2014/i,
       phrases: ["generative adversarial networks"],
-      boost: 2.0,
+      boost: 0.8,
     },
     {
       trigger:
         /word2vec|word embeddings|skip.?gram|distributed representations.*words/i,
       phrases: ["distributed representations of words and phrases"],
-      boost: 2.0,
+      boost: 0.8,
     },
     {
       trigger: /\badam\b|adam optimizer|adaptive.*moment/i,
       phrases: ["adam: a method for stochastic optimization"],
-      boost: 2.0,
+      boost: 0.8,
     },
     // CRISPR foundational papers
     {
@@ -1012,7 +1012,7 @@ function foundationalBoost(paper: Paper, originalQuery: string): number {
         "genome engineering using the crispr-cas9",
         "cpf1 is a single rna-guided endonuclease",
       ],
-      boost: 2.0,
+      boost: 0.8,
     },
     {
       trigger:
@@ -1022,7 +1022,7 @@ function foundationalBoost(paper: Paper, originalQuery: string): number {
         "frangoul sickle cell disease",
         "in vivo crispr base editing",
       ],
-      boost: 2.0,
+      boost: 0.8,
     },
     {
       trigger: /base edit|prime edit|next.*generation.*crispr|beyond.*crispr/i,
@@ -1031,7 +1031,7 @@ function foundationalBoost(paper: Paper, originalQuery: string): number {
         "search-and-replace genome editing",
         "prime editing",
       ],
-      boost: 2.0,
+      boost: 0.8,
     },
   ];
 
@@ -1147,16 +1147,13 @@ export async function rerankPapersWithSemantic(
 ): Promise<Paper[]> {
   if (!papers.length) return papers;
 
-  // Foundational papers bypass the relevance threshold entirely
-  // They are always included regardless of embedding similarity
-  const foundational = papers.filter((p) => STATIC_PAPER_IDS.has(p.id));
-  const regular = papers.filter((p) => !STATIC_PAPER_IDS.has(p.id));
-
-  if (!regular.length) return papers;
-
+  // All papers (including foundational) go through semantic scoring.
+  // Foundational papers get a strong preference boost (+0.8) rather than
+  // a guaranteed bypass — this prevents them from crowding out the most
+  // directly relevant papers on specific, narrow queries.
   const texts = [
     query,
-    ...regular.map((p) => `${p.title}. ${p.abstract}`.slice(0, 800)),
+    ...papers.map((p) => `${p.title}. ${p.abstract}`.slice(0, 800)),
   ];
 
   let embeddings: number[][];
@@ -1169,61 +1166,74 @@ export async function rerankPapersWithSemantic(
   const queryEmb = embeddings[0] ?? [];
   if (queryEmb.length === 0) return papers;
 
-  const maxCitations = Math.max(...regular.map((p) => p.citationCount ?? 0), 1);
+  const maxCitations = Math.max(...papers.map((p) => p.citationCount ?? 0), 1);
   const isExplanatoryQuery = SURVEY_HELPFUL_QUERY_RE.test(
     originalQuery ?? query,
   );
 
-  const scored = regular.map((paper, i) => {
+  // For named comparison queries (BERT vs GPT vs T5, etc.), apply a stricter
+  // citation floor to prevent low-quality derivative papers from crowding prime
+  // evidence slots. Non-static papers with fewer than 100 citations are dropped.
+  const isComparisonQuery =
+    /\bvs\b|\bversus\b|compare.*\b(bert|gpt|t5|llm|resnet|vit)\b|\b(bert|gpt|t5)\b.*\bvs\b/i.test(
+      originalQuery ?? query,
+    );
+  const MIN_CITATIONS_COMPARISON = 100;
+
+  const scored = papers.map((paper, i) => {
     const paperEmb = embeddings[i + 1] ?? [];
     const semantic =
       paperEmb.length > 0 ? cosineSimilarity(queryEmb, paperEmb) : 0;
 
-    // ① Raise threshold — drop semantically irrelevant papers
-    if (semantic < MIN_PAPER_RELEVANCE) return { paper, score: -1 };
+    // Foundational papers: skip the relevance floor but still score semantically
+    const isFoundational = STATIC_PAPER_IDS.has(paper.id);
+    if (!isFoundational && semantic < MIN_PAPER_RELEVANCE)
+      return { paper, score: -1 };
+
+    // For comparison queries, drop non-foundational papers with very low citations
+    // — they are almost always derivative surveys that don't belong in the evidence
+    if (
+      isComparisonQuery &&
+      !isFoundational &&
+      (paper.citationCount ?? 0) < MIN_CITATIONS_COMPARISON
+    )
+      return { paper, score: -1 };
 
     const normCitations =
       Math.log((paper.citationCount ?? 0) + 1) / Math.log(maxCitations + 1);
     const recency = recencyScore(paper);
 
-    // ② Rebalanced formula: 0.65 semantic / 0.25 citations / 0.10 recency
+    // Rebalanced formula: 0.65 semantic / 0.25 citations / 0.10 recency
     let score = 0.65 * semantic + 0.25 * normCitations + 0.1 * recency;
 
     // Top-venue bonus
     if (venueQuality(paper) > 0) score *= 1.15;
 
-    // ③ Survey boost: high-citation surveys help explanatory queries
+    // Survey handling
     if (SURVEY_TITLE_RE_SCORE.test(paper.title)) {
       const cit = paper.citationCount ?? 0;
       if (cit >= 1000 && isExplanatoryQuery) {
-        score += 0.05; // useful survey for an "explain/overview" query
+        score += 0.05;
       } else if (cit >= 5000) {
-        score *= 0.85; // highly cited survey — slight penalty to avoid crowding
+        score *= 0.85;
       } else if (cit >= 1000) {
         score *= 0.7;
       } else {
-        score *= 0.45; // low-citation survey likely off-topic filler
+        score *= 0.45;
       }
     }
 
-    // ④ Foundational boost — direct additive, no ×0.1 penalty
-    // foundationalBoost returns 0 or 2.0, which puts canonical papers
-    // comfortably ahead of any noise paper
+    // Foundational strong-preference boost (0.8, not 2.0) — keeps them near
+    // the top without locking out highly-relevant retrieved papers
     score += foundationalBoost(paper, originalQuery ?? query);
 
     return { paper, score };
   });
 
-  const filtered = scored
+  return scored
     .filter((s) => s.score >= 0)
     .sort((a, b) => b.score - a.score)
     .map((s) => s.paper);
-
-  // Re-insert foundational papers at the front
-  const dedup = new Set(filtered.map((p) => p.id));
-  const foundationalToAdd = foundational.filter((p) => !dedup.has(p.id));
-
-  return [...foundationalToAdd, ...filtered];
 }
 
 // =============================================================
@@ -1338,14 +1348,16 @@ export async function evaluateAnswerQuality(
       passed: overall >= QUALITY_THRESHOLD,
     };
   } catch {
+    // Do not fake-pass quality control — return a failing score so the caller
+    // can decide whether to regenerate rather than silently accept a bad answer.
     return {
-      score: 8,
-      relevance: 8,
-      evidence: 8,
-      completeness: 8,
-      clarity: 8,
-      issues: [],
-      passed: true,
+      score: 0,
+      relevance: 0,
+      evidence: 0,
+      completeness: 0,
+      clarity: 0,
+      issues: ["Quality evaluation failed — treat as unverified"],
+      passed: false,
     };
   }
 }
@@ -1539,6 +1551,29 @@ async function fetchPubMed(q: string, n = 6): Promise<Paper[]> {
           source: "PubMed",
         });
     }
+
+    // Enrich PubMed papers with citation counts from Semantic Scholar.
+    // PubMed returns citationCount=0 which unfairly downranks biomedical papers
+    // in mixed-source ranking. A DOI lookup lets us fix that cheaply.
+    await Promise.all(
+      papers.map(async (paper, idx) => {
+        if (!paper.doi) return;
+        try {
+          const ssData = (await withTimeout(
+            fetch(
+              `https://api.semanticscholar.org/graph/v1/paper/DOI:${encodeURIComponent(paper.doi)}?fields=citationCount,externalIds`,
+            ).then((r) => r.json()),
+            5_000,
+          )) as any;
+          if (typeof ssData.citationCount === "number") {
+            papers[idx] = { ...paper, citationCount: ssData.citationCount };
+          }
+        } catch {
+          // silently skip — zero citations is better than crashing
+        }
+      }),
+    );
+
     paperSearchCache.set(cacheKey, papers, 10 * 60 * 1000);
     return papers;
   } catch {
@@ -2325,242 +2360,289 @@ export const STATIC_PAPER_IDS: ReadonlySet<string> = new Set([
   "dosovitskiy2020",
 ]);
 
-function getFoundationalPapers(query: string): Paper[] {
-  const matched: Paper[] = [];
+// Foundational injection levels:
+//   "required"  — named-entity match (BERT, GPT-3, T5, etc.) — always inject
+//   "helpful"   — broad overview query — inject if space allows
+//   "optional"  — extra context — inject only after required + helpful are in
+type FoundationalLevel = "required" | "helpful" | "optional";
+interface FoundationalMatch {
+  paper: Paper;
+  level: FoundationalLevel;
+}
 
-  // v8: broadened triggers — now catches "why did transformers replace RNNs",
-  // "transformer architecture", "how attention works", etc.
+function getFoundationalPapers(query: string): {
+  papers: Paper[];
+  requiredIds: Set<string>;
+} {
+  const raw: FoundationalMatch[] = [];
+
+  const add = (key: string, level: FoundationalLevel) => {
+    const p = STATIC_PAPERS[key];
+    if (p) raw.push({ paper: p, level });
+  };
+
+  // ── NLP / Transformers ───────────────────────────────────────
   if (
     /\btransformer\b|attention.*mechanism|self.?attention|multi.?head|query.*key.*value|scaled dot|how.*attention|replace.*rnn|encoder.*decoder.*attn|attention.*architecture/i.test(
       query,
     )
   )
-    matched.push(STATIC_PAPERS["attention-transformer"]);
+    add(
+      "attention-transformer",
+      /vaswani|attention is all you need/i.test(query) ? "required" : "helpful",
+    );
 
   if (
     /\bbert\b|bidirectional.*transformer|masked.*language.*model|pre.?train.*nlp|language.*understanding.*pre/i.test(
       query,
     )
   )
-    matched.push(STATIC_PAPERS["bert"]);
+    add("bert", /\bbert\b/i.test(query) ? "required" : "helpful");
 
   if (/\bgpt\b|\bgpt.?1\b|generative pre.?training|radford.*2018/i.test(query))
-    matched.push(STATIC_PAPERS["gpt1"]);
+    add(
+      "gpt1",
+      /\bgpt.?1\b|radford.*2018/i.test(query) ? "required" : "helpful",
+    );
 
   if (
     /gpt.?3|few.?shot.*language model|large language model.*few|brown.*2020/i.test(
       query,
     )
   )
-    matched.push(STATIC_PAPERS["gpt3"]);
+    add("gpt3", /gpt.?3|brown.*2020/i.test(query) ? "required" : "helpful");
 
   if (/\bt5\b|text.?to.?text|raffel|unified.*transfer.*learning/i.test(query))
-    matched.push(STATIC_PAPERS["t5"]);
+    add("t5", /\bt5\b|raffel/i.test(query) ? "required" : "helpful");
+
+  // BERT, GPT, and T5 are all Transformer derivatives — guarantee "Attention Is All You Need"
+  // whenever any of them is named. The query may not contain the word "transformer" even
+  // though the architecture paper is essential context (e.g. "BERT vs GPT vs T5" query).
+  // This prevents survey papers from filling the shared-architecture citation slot.
+  if (
+    /\bbert\b/i.test(query) ||
+    /\bgpt[\s\-]?\d?\b|\bgpt\b/i.test(query) ||
+    /\bt5\b/i.test(query)
+  )
+    add("attention-transformer", "required");
 
   if (
     /\brag\b|retrieval.?augmented generation|retrieval.*llm.*generat/i.test(
       query,
     )
   )
-    matched.push(STATIC_PAPERS["rag"]);
+    add("rag", /\brag\b|lewis.*2020/i.test(query) ? "required" : "helpful");
 
-  // ResNet — broadened to fire on CNN/CV queries too
+  // ── Computer Vision ──────────────────────────────────────────
   if (
     /\bresnet\b|residual.*learning|deep residual|skip.*connection/i.test(query)
   )
-    matched.push(STATIC_PAPERS["resnet"]);
+    add("resnet", /\bresnet\b|he.*2016/i.test(query) ? "required" : "helpful");
 
-  // AlexNet — fires on CNN, deep learning, ImageNet queries
   if (
     /\balexnet\b|krizhevsky|imagenet.*classif|deep.*convolutional.*classif|cnn.*imagenet/i.test(
       query,
     )
   )
-    matched.push(STATIC_PAPERS["alexnet"]);
+    add(
+      "alexnet",
+      /\balexnet\b|krizhevsky/i.test(query) ? "required" : "helpful",
+    );
 
-  // VGG — fires on VGG or very deep CNN queries
   if (
     /\bvgg\b|simonyan|very deep.*convolutional|3x3.*convolution.*deep/i.test(
       query,
     )
   )
-    matched.push(STATIC_PAPERS["vgg"]);
+    add("vgg", "required");
 
-  // YOLO — fires on object detection / real-time detection queries
   if (
     /\byolo\b|you only look once|real.?time.*object detect|unified.*object detect/i.test(
       query,
     )
   )
-    matched.push(STATIC_PAPERS["yolo"]);
+    add("yolo", /\byolo\b/i.test(query) ? "required" : "helpful");
 
-  // ViT — fires on vision transformer queries
   if (
     /\bvit\b|vision transformer|image.*16x16|image patch.*transformer|dosovitskiy/i.test(
       query,
     )
   )
-    matched.push(STATIC_PAPERS["vit"]);
+    add("vit", "required");
 
-  // mRNA vaccine foundational papers
+  if (
+    /convolutional neural network|how.*cnn.*work|cnn.*computer vision|deep learning.*computer vision|image classif.*deep|object detect.*deep/i.test(
+      query,
+    )
+  ) {
+    add("alexnet", "helpful");
+    add("resnet", "helpful");
+    add("vgg", "optional");
+    add("yolo", "optional");
+  }
+
+  // ── mRNA Vaccines ────────────────────────────────────────────
   if (
     /mrna vaccine|mrna.*covid|covid.*vaccine|sars.cov.2.*vaccine|bnt162|mrna.1273|lipid nanoparticle.*vaccine|nucleoside.*mrna|mrna.*immunogen|spike.*vaccine|pfizer.*vaccine|moderna.*vaccine/i.test(
       query,
     )
   ) {
-    matched.push(STATIC_PAPERS["mrna-kariko"]);
-    matched.push(STATIC_PAPERS["mrna-polack"]);
-    matched.push(STATIC_PAPERS["mrna-baden"]);
-    matched.push(STATIC_PAPERS["mrna-corbett"]);
+    add("mrna-kariko", "required");
+    add("mrna-polack", "required");
+    add("mrna-baden", "helpful");
+    add("mrna-corbett", "helpful");
   }
   if (
     /how.*mrna.*work|mrna.*mechanism|nucleoside.*modif|kariko|weissman.*mrna/i.test(
       query,
     )
-  ) {
-    if (!matched.find((p) => p.id === STATIC_PAPERS["mrna-kariko"].id))
-      matched.push(STATIC_PAPERS["mrna-kariko"]);
-  }
+  )
+    add("mrna-kariko", "required");
 
-  // Climate science foundational papers
+  // ── Climate Science ──────────────────────────────────────────
   if (
     /greenhouse gas|global warming|climate change|radiative forcing|carbon cycle|co2.*atmosphere|atmospheric.*co2|ipcc|climate model|earth.*warming/i.test(
       query,
     )
   ) {
-    matched.push(STATIC_PAPERS["climate-hansen"]);
-    matched.push(STATIC_PAPERS["climate-manabe"]);
-    matched.push(STATIC_PAPERS["climate-keeling"]);
-    matched.push(STATIC_PAPERS["climate-ipcc"]);
+    add("climate-hansen", "helpful");
+    add("climate-manabe", "helpful");
+    add("climate-keeling", "optional");
+    add("climate-ipcc", "helpful");
   }
   if (
     /sea level|ice sheet|arctic.*warming|permafrost|tipping point.*climate/i.test(
       query,
     )
   ) {
-    if (!matched.find((p) => p.id === STATIC_PAPERS["climate-ipcc"].id))
-      matched.push(STATIC_PAPERS["climate-ipcc"]);
-    if (!matched.find((p) => p.id === STATIC_PAPERS["climate-hansen"].id))
-      matched.push(STATIC_PAPERS["climate-hansen"]);
+    add("climate-ipcc", "helpful");
+    add("climate-hansen", "helpful");
   }
 
-  // Economics / monetary policy foundational papers
+  // ── Economics / Monetary Policy ──────────────────────────────
   if (
     /inflation|monetary policy|central bank|interest rate.*policy|price stability|money supply/i.test(
       query,
     )
   ) {
-    matched.push(STATIC_PAPERS["econ-friedman"]);
-    matched.push(STATIC_PAPERS["econ-taylor-rule"]);
-    matched.push(STATIC_PAPERS["econ-clarida"]);
-    matched.push(STATIC_PAPERS["econ-bernanke"]);
+    add("econ-friedman", "helpful");
+    add("econ-taylor-rule", "helpful");
+    add("econ-clarida", "optional");
+    add("econ-bernanke", "optional");
   }
-  if (/taylor rule|federal funds rate|policy rule.*interest/i.test(query)) {
-    if (!matched.find((p) => p.id === STATIC_PAPERS["econ-taylor-rule"].id))
-      matched.push(STATIC_PAPERS["econ-taylor-rule"]);
-  }
+  if (/taylor rule|federal funds rate|policy rule.*interest/i.test(query))
+    add("econ-taylor-rule", "required");
   if (
     /credit channel|financial accelerator|bank lending.*monetary/i.test(query)
-  ) {
-    if (!matched.find((p) => p.id === STATIC_PAPERS["econ-bernanke"].id))
-      matched.push(STATIC_PAPERS["econ-bernanke"]);
-  }
+  )
+    add("econ-bernanke", "required");
 
-  // CAR-T cell therapy foundational papers
+  // ── CAR-T Cell Therapy ───────────────────────────────────────
   if (
-    /car.?t|chimeric antigen receptor|cart.*cell|t.cell.*therapy.*cancer|adoptive.*cell.*therapy/i.test(
+    /car.?t|chimeric antigen receptor|cart.*cell|t.cell.*therapy.*cancer|adoptive.*cell.*therapy/i.test(
       query,
     )
   ) {
-    matched.push(STATIC_PAPERS["cart-june"]);
-    matched.push(STATIC_PAPERS["cart-neelapu"]);
-    matched.push(STATIC_PAPERS["cart-sadelain"]);
+    add("cart-june", "helpful");
+    add("cart-neelapu", "helpful");
+    add("cart-sadelain", "optional");
   }
   if (
     /cd19.*car|anti.cd19|b.cell.*lymphoma.*car|leukemia.*car.?t|all.*car.?t/i.test(
       query,
     )
-  ) {
-    if (!matched.find((p) => p.id === STATIC_PAPERS["cart-neelapu"].id))
-      matched.push(STATIC_PAPERS["cart-neelapu"]);
-  }
+  )
+    add("cart-neelapu", "required");
 
-  // Broad CV query — inject core CV foundational papers
-  if (
-    /convolutional neural network|how.*cnn.*work|cnn.*computer vision|deep learning.*computer vision|image classif.*deep|object detect.*deep/i.test(
-      query,
-    )
-  ) {
-    for (const key of ["alexnet", "resnet", "vgg", "yolo"]) {
-      if (!matched.find((p) => p.id === STATIC_PAPERS[key].id))
-        matched.push(STATIC_PAPERS[key]);
-    }
-  }
-
-  if (/word2vec|word embeddings|skip.?gram/i.test(query))
-    matched.push(STATIC_PAPERS["word2vec"]);
-
-  if (/\bgan\b|generative adversarial|goodfellow/i.test(query))
-    matched.push(STATIC_PAPERS["gans"]);
-
-  if (/\badam\b|adam optimizer|adaptive.*moment/i.test(query))
-    matched.push(STATIC_PAPERS["adam"]);
-
-  // CRISPR / gene editing foundational papers
+  // ── CRISPR / Gene Editing ────────────────────────────────────
   if (/crispr|cas9|gene edit|genome edit|rna.?guided.*nuclease/i.test(query)) {
-    matched.push(STATIC_PAPERS["crispr-doudna"]);
-    matched.push(STATIC_PAPERS["crispr-ran"]);
+    add("crispr-doudna", "required");
+    add("crispr-ran", "helpful");
   }
   if (
     /base edit|cytidine deaminase|adenine base|C.*T.*edit|A.*G.*edit/i.test(
       query,
     )
-  ) {
-    matched.push(STATIC_PAPERS["crispr-base-editing"]);
-  }
+  )
+    add("crispr-base-editing", "required");
   if (
     /prime edit|search.?and.?replace.*genome|pegRNA|reverse transcriptase.*cas9/i.test(
       query,
     )
-  ) {
-    matched.push(STATIC_PAPERS["crispr-prime-editing"]);
-  }
+  )
+    add("crispr-prime-editing", "required");
   if (
     /sickle cell|thalassemia|crispr.*clinic|fetal hemoglobin|CTX001|clinical.*crispr/i.test(
       query,
     )
-  ) {
-    matched.push(STATIC_PAPERS["crispr-sickle-cell"]);
-  }
-  // For broad CRISPR queries, inject all CRISPR papers
+  )
+    add("crispr-sickle-cell", "required");
   if (
     /crispr.*therapeutic|crispr.*application|crispr.*gene therapy|how.*crispr.*work/i.test(
       query,
     )
   ) {
-    for (const key of [
-      "crispr-doudna",
-      "crispr-ran",
-      "crispr-base-editing",
-      "crispr-prime-editing",
-      "crispr-sickle-cell",
-    ]) {
-      if (!matched.find((p) => p.id === STATIC_PAPERS[key].id))
-        matched.push(STATIC_PAPERS[key]);
+    add("crispr-doudna", "required");
+    add("crispr-ran", "helpful");
+    add("crispr-base-editing", "helpful");
+    add("crispr-prime-editing", "helpful");
+    add("crispr-sickle-cell", "optional");
+  }
+
+  // ── Misc ─────────────────────────────────────────────────────
+  if (/word2vec|word embeddings|skip.?gram/i.test(query))
+    add("word2vec", "required");
+  if (/\bgan\b|generative adversarial|goodfellow/i.test(query))
+    add("gans", "required");
+  if (/\badam\b|adam optimizer|adaptive.*moment/i.test(query))
+    add("adam", "required");
+
+  // ── Comparison queries — require backbone papers for every named model ────
+  // Fires when: (a) at least 2 of {BERT, GPT, T5} appear AND there is a
+  // comparison word, OR (b) all three appear together in any order.
+  // Only marks papers required for models actually named — avoids over-requiring
+  // GPT papers when the query is "BERT vs T5".
+  {
+    const mentionsBert = /\bbert\b/i.test(query);
+    const mentionsGpt = /\bgpt[\s\-]?\d*\b/i.test(query);
+    const mentionsT5 = /\bt5\b/i.test(query);
+    const namedCount = +mentionsBert + +mentionsGpt + +mentionsT5;
+    const hasComparisonWord =
+      /\bvs\.?\b|\bversus\b|\bcompar|\bdiffer|\bcontrast/i.test(query);
+    if ((namedCount >= 2 && hasComparisonWord) || namedCount === 3) {
+      // Transformer is the shared foundation — always required when comparing derivatives
+      add("attention-transformer", "required");
+      if (mentionsBert) add("bert", "required");
+      if (mentionsGpt) {
+        add("gpt1", "required");
+        add("gpt3", "required");
+      }
+      if (mentionsT5) add("t5", "required");
     }
   }
 
-  // Comparison queries: inject all relevant foundational papers
-  if (
-    /compare.*bert.*gpt|bert.*vs.*gpt|gpt.*vs.*bert|bert.*gpt.*t5/i.test(query)
-  ) {
-    for (const key of ["attention-transformer", "bert", "gpt1", "gpt3", "t5"]) {
-      if (!matched.find((p) => p.id === STATIC_PAPERS[key].id))
-        matched.push(STATIC_PAPERS[key]);
-    }
-  }
+  // ── Priority order: required first, then helpful, then optional ──
+  const order: FoundationalLevel[] = ["required", "helpful", "optional"];
+  const sorted = [...raw].sort(
+    (a, b) => order.indexOf(a.level) - order.indexOf(b.level),
+  );
 
-  return matched;
+  // Auto-deduplicate by paper id — first occurrence wins (highest priority level)
+  const seen = new Set<string>();
+  const deduped = sorted.filter(({ paper }) => {
+    if (seen.has(paper.id)) return false;
+    seen.add(paper.id);
+    return true;
+  });
+
+  const requiredIds = new Set(
+    deduped.filter((m) => m.level === "required").map((m) => m.paper.id),
+  );
+
+  return {
+    papers: deduped.map(({ paper }) => paper),
+    requiredIds,
+  };
 }
 
 // =============================================================
@@ -2819,8 +2901,10 @@ function isMLQuery(q: string): boolean {
 }
 
 function passesAllFilters(paper: Paper, originalQuery: string): boolean {
-  // 1. Hard junk pattern block
-  if (JUNK_PATTERNS.some((p) => p.test(paper.title))) return false;
+  // 1. Hard junk pattern block — checked against title AND abstract to catch
+  //    papers that hide irrelevance behind a clean-sounding title
+  const titleAndAbstract = `${paper.title} ${(paper.abstract ?? "").slice(0, 500)}`;
+  if (JUNK_PATTERNS.some((p) => p.test(titleAndAbstract))) return false;
 
   // 2. Domain guard — drop papers from incompatible domains
   const queryDomain = detectQueryDomain(originalQuery);
@@ -3081,7 +3165,23 @@ function passesAllFilters(paper: Paper, originalQuery: string): boolean {
 // SECTION 17 — UNIFIED SEARCH  (v6: + centrality computation)
 // =============================================================
 
-export async function searchAllWithPubMed(q: string): Promise<Paper[]> {
+// Pattern 6: Extract individual entities from comparison queries.
+// "TCP vs UDP" → ["TCP", "UDP"]
+// "Kubernetes vs Docker Swarm" → ["Kubernetes", "Docker Swarm"]
+function parseComparisonEntities(query: string): string[] {
+  if (!/\bvs\.?\b|\bversus\b|\bcompare\b|\bcomparison\b/i.test(query)) return [];
+  const stripped = query
+    .replace(/^(compare|comparison\s+of|difference\s+between)\s+/i, "")
+    .replace(/\bvs\.?\b|\bversus\b/gi, "|||");
+  return stripped
+    .split("|||")
+    .map((p) => p.trim())
+    .filter((p) => p.length > 1 && !/^(the|and|or|a|an|is|are)$/i.test(p));
+}
+
+export async function searchAllWithPubMed(
+  q: string,
+): Promise<{ papers: Paper[]; requiredIds: Set<string> }> {
   const rewritten = await rewriteQuery(q);
   const keywords = extractKeywords(rewritten);
 
@@ -3122,8 +3222,30 @@ export async function searchAllWithPubMed(q: string): Promise<Paper[]> {
     fetchCitationGraph(ssIds),
   ]);
 
-  const foundationalPapers: Paper[] =
-    foundRes.status === "fulfilled" ? foundRes.value : [];
+  const foundResult =
+    foundRes.status === "fulfilled"
+      ? foundRes.value
+      : { papers: [], requiredIds: new Set<string>() };
+
+  const foundationalPapers: Paper[] = foundResult.papers;
+  const requiredFoundationalIds: Set<string> = foundResult.requiredIds;
+
+  // Pattern 6: For comparison queries, run entity-specific searches to ensure
+  // both sides of the comparison have retrieved papers.
+  const comparisonEntities = parseComparisonEntities(q);
+  let entityPapers: Paper[] = [];
+  if (comparisonEntities.length >= 2) {
+    const entityFetches = await Promise.allSettled(
+      comparisonEntities.flatMap((entity) => [
+        withRetry(() => fetchSemanticScholar(entity, 6)),
+        withRetry(() => fetchOpenAlex(entity, 5)),
+        withRetry(() => fetchArXiv(entity, 4)),
+      ]),
+    );
+    entityPapers = entityFetches.flatMap((r) =>
+      r.status === "fulfilled" ? r.value : [],
+    );
+  }
 
   const all: Paper[] = [
     ...primarySS,
@@ -3132,6 +3254,7 @@ export async function searchAllWithPubMed(q: string): Promise<Paper[]> {
     ...(pmRes.status === "fulfilled" ? pmRes.value : []),
     ...extraResults.flatMap((r) => (r.status === "fulfilled" ? r.value : [])),
     ...citationPapers,
+    ...entityPapers,
   ];
 
   const dedup = new PaperDeduplicator();
@@ -3161,18 +3284,32 @@ export async function searchAllWithPubMed(q: string): Promise<Paper[]> {
 
   const allCandidates = [...foundationalPapers, ...relevant];
 
-  // v7: Compute centrality, then semantic-primary reranking
   const withCentrality = await computeGraphCentrality(allCandidates);
-
-  // Semantic-primary reranking: 0.6 * semantic + 0.2 * citations + 0.2 * recency
-  // Papers below relevance threshold are dropped to prevent irrelevant results.
   const semanticRanked = await rerankPapersWithSemantic(
     withCentrality,
     rewritten,
     q,
   );
 
-  return semanticRanked.slice(0, 15);
+  // Pin required papers at the front before applying the 15-paper cap.
+  // guaranteeFoundationalChunks can only inject chunks from papers that were
+  // passed to chunkPapersWithSections. If a required paper is sliced out here
+  // it has no chunks in the pool, so guaranteeFoundationalChunks has nothing
+  // to work with and the paper can never be cited.
+  const requiredSet = new Set(Array.from(requiredFoundationalIds));
+  const requiredInRanked = semanticRanked.filter((p) => requiredSet.has(p.id));
+  const otherPapers = semanticRanked.filter((p) => !requiredSet.has(p.id));
+  // Allow the list to grow beyond 15 to fit all required papers, then fill
+  // remaining slots with the highest-ranked non-required papers.
+  const capped = [...requiredInRanked, ...otherPapers].slice(
+    0,
+    Math.max(15, requiredInRanked.length),
+  );
+
+  return {
+    papers: capped,
+    requiredIds: requiredFoundationalIds,
+  };
 }
 
 // =============================================================
@@ -3184,6 +3321,7 @@ export async function searchAllWithPubMed(q: string): Promise<Paper[]> {
 // =============================================================
 
 export interface Chunk {
+  evidenceId: string; // stable ID assigned at chunk-creation time; never changes after ranking
   paperId: string;
   paperIdx: number;
   title: string;
@@ -3194,7 +3332,7 @@ export interface Chunk {
   doi?: string;
   authors?: string[];
   keywordDensity: number;
-  section?: SectionType; // v6 NEW
+  section?: SectionType;
 }
 
 function splitIntoSentences(text: string): string[] {
@@ -3217,6 +3355,7 @@ function makeChunksFromText(
 
   let current: string[] = [];
   let currentWordCount = 0;
+  let localIdx = 0; // per-paper, per-section counter for stable ID
 
   const pushChunk = () => {
     if (current.length === 0) return;
@@ -3225,7 +3364,11 @@ function makeChunksFromText(
     const keywordDensity = queryKeywords.filter((k) =>
       textLower.includes(k),
     ).length;
+    // Stable evidenceId: derived from paper identity + section + position within that section.
+    // This never changes regardless of rerank order.
+    const evidenceId = `e${hashString(`${paper.id}:${section ?? "abstract"}:${localIdx}`).slice(0, 6)}`;
     chunks.push({
+      evidenceId,
       paperId: paper.id,
       paperIdx: idx + 1,
       title: paper.title,
@@ -3238,6 +3381,7 @@ function makeChunksFromText(
       keywordDensity,
       section,
     });
+    localIdx++;
   };
 
   for (const sentence of sentences) {
@@ -3269,13 +3413,18 @@ const SECTION_PRIORITY: Record<string, number> = {
 export async function chunkPapersWithSections(
   papers: Paper[],
   queryKeywords: string[] = [],
+  sectionFetchLimit = 5, // only fetch full-text sections for top N papers
 ): Promise<Chunk[]> {
   const chunks: Chunk[] = [];
 
   await Promise.all(
     papers.map(async (paper, idx) => {
-      // Try to get full-text sections for top papers
-      const sections = await fetchPaperSections(paper.id).catch(() => null);
+      // Fetch sections only for the top sectionFetchLimit papers — broad fetching
+      // adds noisy context that hurts precision more than it helps recall.
+      const sections =
+        idx < sectionFetchLimit
+          ? await fetchPaperSections(paper.id).catch(() => null)
+          : null;
 
       if (sections && Object.keys(sections).length > 1) {
         // Section-aware chunking — use each available section
@@ -3371,7 +3520,11 @@ export async function rankChunks(
 
   const idf: Record<string, number> = {};
   for (const t of qTokens) {
-    const df = chunks.filter((c) => c.text.toLowerCase().includes(t)).length;
+    // True token-based document frequency — avoids spurious substring matches
+    const df = chunks.filter((c) => {
+      const toks = tokenize(c.text);
+      return toks.some((tok) => tok === t);
+    }).length;
     idf[t] = df > 0 ? Math.log((chunks.length - df + 0.5) / (df + 0.5) + 1) : 0;
   }
 
@@ -3550,26 +3703,56 @@ export async function rerankChunks(
 // SECTION 21 — GUARANTEE FOUNDATIONAL CHUNKS (unchanged)
 // =============================================================
 
-const MAX_EVIDENCE_CHUNKS = 12;
+const MAX_EVIDENCE_CHUNKS = 15;
 
+// Papers that are "required" for a query (named-entity match) get a special
+// guarantee: they are always injected into the evidence regardless of whether
+// they survived semantic reranking. This fixes the BERT/GPT/T5 comparison case
+// where the 0.8 boost wasn't always enough to beat retrieved papers.
 export function guaranteeFoundationalChunks(
   topChunks: Chunk[],
   allChunks: Chunk[],
   papers: Paper[],
+  requiredPaperIds?: Set<string>,
 ): Chunk[] {
   const coveredIds = new Set(topChunks.map((c) => c.paperId));
-  const missingFoundational = papers.filter(
-    (p) => STATIC_PAPER_IDS.has(p.id) && !coveredIds.has(p.id),
+
+  // Step 1: inject "required" foundational papers first — they must be present
+  // regardless of how many chunks we already have.
+  const requiredMissing = papers.filter(
+    (p) => requiredPaperIds?.has(p.id) && !coveredIds.has(p.id),
   );
-  if (missingFoundational.length === 0) return topChunks;
+
+  // Step 2: inject other STATIC foundational papers that are present in allChunks
+  // but didn't survive ranking — they go in only if there's still room.
+  const optionalMissing = papers.filter(
+    (p) =>
+      STATIC_PAPER_IDS.has(p.id) &&
+      !coveredIds.has(p.id) &&
+      !requiredPaperIds?.has(p.id),
+  );
+
+  if (requiredMissing.length === 0 && optionalMissing.length === 0)
+    return topChunks;
 
   const result = [...topChunks];
-  for (const paper of missingFoundational) {
+
+  for (const paper of requiredMissing) {
+    // Required papers are injected even beyond the normal cap — they are needed
+    // for correctness, not just quality. Cap at MAX_EVIDENCE_CHUNKS + required count.
+    const paperChunks = allChunks.filter((c) => c.paperId === paper.id);
+    if (paperChunks.length === 0) continue;
+    result.push(paperChunks[0]);
+    coveredIds.add(paper.id);
+  }
+
+  for (const paper of optionalMissing) {
     if (result.length >= MAX_EVIDENCE_CHUNKS) break;
     const paperChunks = allChunks.filter((c) => c.paperId === paper.id);
     if (paperChunks.length === 0) continue;
     result.push(paperChunks[0]);
   }
+
   return result;
 }
 
@@ -3586,25 +3769,25 @@ export function buildEvidenceBlocks(
   papers: Paper[],
 ): EvidenceBlock[] {
   const paperMap = new Map(papers.map((p) => [p.id, p]));
-  return topChunks.map((chunk, idx) => {
+  return topChunks.map((chunk) => {
     const paper = paperMap.get(chunk.paperId);
     const authors = chunk.authors ?? paper?.authors ?? [];
     const year = chunk.year ?? paper?.year ?? null;
     const citationCount = paper?.citationCount ?? 0;
 
     return {
-      chunk_id: `c${String(idx + 1).padStart(2, "0")}`,
+      chunk_id: chunk.evidenceId, // use stable ID — never position-derived
       paper_id: chunk.paperId,
       title: chunk.title,
-      authors, // v6 NEW
+      authors,
       year,
       venue: paper?.journal ?? chunk.source ?? "Unknown",
-      citationCount, // v6 NEW
-      doi: paper?.doi ?? chunk.doi, // v6 NEW
+      citationCount,
+      doi: paper?.doi ?? chunk.doi,
       url: chunk.url ?? paper?.url ?? "Not available",
       text: chunk.text,
-      section: chunk.section, // v6 NEW
-      inlineCite: formatInlineCite(authors, year), // v6 NEW
+      section: chunk.section,
+      inlineCite: formatInlineCite(authors, year),
     };
   });
 }
@@ -3683,7 +3866,7 @@ export async function verifyClaimCitations(
     };
   }
 
-  // Build context for Haiku
+  // Build context for Haiku — include paper title so it can do attribution checks
   const blockMap = new Map(evidenceBlocks.map((b) => [b.chunk_id, b]));
   const claimsCtx = claims
     .slice(0, 12) // cap to avoid token limit
@@ -3692,7 +3875,7 @@ export async function verifyClaimCitations(
         .map((cid) => {
           const block = blockMap.get(cid);
           return block
-            ? `  [${cid}]: "${block.text.slice(0, 300)}"`
+            ? `  [${cid}] from paper "${block.title}" (${block.inlineCite}):\n    "${block.text.slice(0, 300)}"`
             : `  [${cid}]: NOT FOUND`;
         })
         .join("\n");
@@ -3705,18 +3888,22 @@ export async function verifyClaimCitations(
       model: "claude-haiku-4-5-20251001",
       max_tokens: 800,
       system:
-        "You are an academic citation auditor. For each claim-citation pair, score support 0-10 and decide action. " +
+        "You are a strict academic citation auditor. For each claim-citation pair, score how directly the cited chunk supports the specific claim (0-10). " +
         "Return ONLY valid JSON: an array of objects {claim_index, chunk_id, score, action} " +
-        "where action is 'keep' (score>=4), 'flag' (score 1-3), or 'remove' (score<1). " +
-        "IMPORTANT: Be very generous with scores. If the chunk is from the same domain as the claim, score >= 6. " +
-        "If the paper's topic broadly relates to the claim topic (e.g. both about CAR-T, both about CRISPR, both about CNNs), score >= 7. " +
-        "Only 'flag' (score 1-3) when the chunk is from a completely unrelated field (e.g. NLP paper cited for a biology claim). " +
-        "Only 'remove' (score<1) when the chunk directly contradicts the claim. " +
-        "Default to 'keep' when uncertain. No markdown.",
+        "where action is:\n" +
+        "  'keep'   — score >= 7: chunk directly supports the claim\n" +
+        "  'flag'   — score 4-6: chunk is topically related but does not directly support the claim\n" +
+        "  'remove' — score <= 3: chunk does not support the claim or is from an unrelated field\n\n" +
+        "CROSS-PAPER ATTRIBUTION RULE (highest priority): If the claim names a specific author, " +
+        "model, or paper (e.g. 'Vaswani introduced the Transformer', 'BERT uses masked language modeling', " +
+        "'GPT-3 has 175B parameters'), the cited chunk MUST be from that exact paper. " +
+        "If the chunk is from a different paper — even one in the same field — score <= 2 and action 'remove'. " +
+        "Topical similarity does NOT compensate for wrong-paper attribution.\n\n" +
+        "Do NOT default to 'keep' when uncertain — use 'flag'. No markdown.",
       messages: [
         {
           role: "user",
-          content: `Verify each claim is supported by its cited chunk:\n\n${claimsCtx}`,
+          content: `Verify each claim is directly supported by its cited chunk:\n\n${claimsCtx}`,
         },
       ],
     });
@@ -3752,16 +3939,26 @@ export async function verifyClaimCitations(
       const cid = v.chunk_id;
       const tag = `[CITATION:${cid}]`;
 
-      if (v.action === "remove") {
-        verifiedAnswer = verifiedAnswer.replaceAll(tag, "");
+      if (v.action === "remove" || v.score <= 3) {
+        // Remove both bare and already-flagged forms so no dangling ⚠️ is left behind
+        verifiedAnswer = verifiedAnswer.replace(
+          new RegExp(`\\[CITATION:${cid}\\](?:⚠️)?`, "g"),
+          "",
+        );
         removed++;
         log.push(`REMOVED ${tag} (score: ${v.score})`);
-      } else if (v.action === "flag") {
-        // Add a ⚠️ flag to weak citations so users can spot them
-        verifiedAnswer = verifiedAnswer.replaceAll(tag, `${tag}⚠️`);
+      } else if (v.action === "flag" || (v.score >= 4 && v.score <= 6)) {
+        // Weak citation — flag visibly so users know support is indirect.
+        // Replace only bare [CITATION:id] (not already-flagged [CITATION:id]⚠️)
+        // so repeated calls to verifyClaimCitations remain idempotent.
+        verifiedAnswer = verifiedAnswer.replace(
+          new RegExp(`\\[CITATION:${cid}\\](?!⚠️)`, "g"),
+          `${tag}⚠️`,
+        );
         flagged++;
         log.push(`FLAGGED ${tag} (score: ${v.score})`);
       }
+      // score >= 7 → keep unchanged
     }
 
     return {
@@ -3788,7 +3985,7 @@ export async function verifyAnswer(
   answer: string,
   context: string,
 ): Promise<string> {
-  if (answer.split(" ").length < 80) return answer;
+  // Always verify — short answers are just as likely to have hallucinated citations
   try {
     const r = await ant.messages.create({
       model: "claude-haiku-4-5-20251001",
@@ -3796,7 +3993,7 @@ export async function verifyAnswer(
       system: `You are an academic answer verifier. Your task:
 1. Remove any 📄 citation cards that reference papers NOT mentioned in the provided context.
 2. Remove fabricated URLs, DOIs, or author names absent from the context.
-3. Mark claims unsupported by context with "(From general knowledge)" — do NOT delete them.
+3. Remove claims that cannot be supported by any evidence block. Do NOT add markers like "(From general knowledge)" — simply delete the unsupported sentence.
 4. Preserve the original section structure, headings, and all supported content exactly.
 5. Never add new content or alter correct, well-supported claims.
 Return the cleaned answer only. If the answer is already accurate, return it unchanged.`,
@@ -3838,7 +4035,7 @@ export function buildRAGContext(
           c.authors.length > 1 ? ` | ${lastName} et al.` : ` | ${lastName}`;
       }
       return (
-        `[Chunk ${i + 1} | Ref ${c.paperIdx}: "${c.title}" (${c.source}, ${c.year ?? "n.d."})${authorStr}` +
+        `[Chunk ${i + 1} | ${c.evidenceId}: "${c.title}" (${c.source}, ${c.year ?? "n.d."})${authorStr}` +
         (c.section ? ` [${c.section}]` : "") +
         `]\n` +
         c.text +
@@ -3853,25 +4050,47 @@ export function buildRAGContext(
 // SECTION 26 — RAG SYSTEM PROMPT (v6: includes inline_cite field)
 // =============================================================
 
-const RAG_SYSTEM = `You are Researchly, a citation-grounded academic research assistant for Indian students and researchers.
+// =============================================================
+// SECTION 26 — UNIFIED RAG SYSTEM PROMPT
+//
+// Single prompt contract used everywhere. Key rules:
+//   - Every factual sentence must end with [CITATION:evidenceId]
+//   - NO LLM-generated citation cards, bibliography YAML, or paper metadata
+//   - citedPapers is built in code from usedEvidenceIds after generation
+//   - For named comparison queries, original papers must appear before derivatives
+// =============================================================
+
+export const RAG_SYSTEM = `You are Researchly, a citation-grounded academic research assistant for Indian students and researchers.
 You ONLY help with academic, research, and study topics.
 You must answer the user using ONLY the retrieved evidence blocks provided below.
 
 GROUNDING RULES
-1. Every factual sentence must end with one or more citations in this exact format: [CITATION:chunk_id]
-2. Only cite chunk IDs that appear in the EVIDENCE BLOCKS section.
-3. Use the inline_cite field from the evidence block for the readable citation (e.g. "Vaswani et al. (2017)").
-4. When you first use a paper, write its inline_cite before the [CITATION:chunk_id] tag.
-   Example: "The Transformer uses only attention mechanisms. Vaswani et al. (2017) [CITATION:c01]"
-   Subsequent uses of the same paper: just [CITATION:cXX] (no repeated inline_cite)
-5. If a claim is supported by multiple chunks, cite all: [CITATION:c01][CITATION:c03]
-6. If evidence is insufficient, write: "I cannot support that from the retrieved papers."
-7. Never invent authors, years, venues, URLs, DOI values, or paper titles.
-8. Never cite a paper unless at least one cited chunk belongs to that paper.
-
-CITATION FORMAT FOR REFERENCE PANEL
-After every paper cited for the first time, insert a structured citation card:
-> **[N]** Author et al. (Year) — *Title* — Venue — Citations: X — DOI: ...
+1. Every factual sentence must end with one or more citations: [CITATION:evidenceId]
+2. Only cite evidence IDs that appear in the EVIDENCE BLOCKS section.
+3. Use the inline_cite field from the evidence block for the first mention of each paper.
+   Example: "The Transformer uses only attention mechanisms. Vaswani et al. (2017) [CITATION:e3a1f2]"
+   Subsequent uses of the same paper: just [CITATION:evidenceId] (no repeated inline_cite)
+4. If a claim is supported by multiple chunks, cite all: [CITATION:e3a1f2][CITATION:e9b4c1]
+5. If evidence is insufficient, write exactly: "I cannot support that from the retrieved papers."
+6. Never invent authors, years, venues, URLs, DOI values, or paper titles.
+7. Never cite a paper unless at least one cited evidence block belongs to that paper.
+8. For comparison queries (e.g. BERT vs GPT vs T5), cite the original paper for each model
+   before citing any derivative or survey papers.
+9. NAMED-MODEL COMPARISON RULE — when the query compares BERT, GPT, or T5:
+   a. ## Overview MUST cite only original model papers (Vaswani 2017, Devlin 2019, Radford 2018,
+      Brown 2020, Raffel 2020). A survey that discusses these models is NOT a substitute — citing
+      a survey (e.g. Zhao et al., 2023) in the Overview instead of an original paper is a violation.
+   b. If the evidence contains a chunk from "Attention Is All You Need" (Vaswani et al., 2017),
+      you MUST cite it for any claim about encoder/decoder structure, multi-head attention, or the
+      shared architectural foundation of BERT, GPT, and T5.
+   c. Reserve survey citations strictly for ## Technical Details or Comparison — never in ## Overview.
+   d. In ## Key Concepts for a BERT/GPT/T5 comparison query, the ONLY permitted primary concept
+      items are the four backbone models: Transformer (Vaswani 2017), BERT (Devlin 2019),
+      GPT (Radford 2018 / Brown 2020), and T5 (Raffel 2020). Each must be a separate bullet.
+      FORBIDDEN as primary Key Concept items: TinyBERT, DistilBERT, RoBERTa, ALBERT, XLNet,
+      MPNet, BART, ELECTRA, DeBERTa, BitFit, adapter tuning, or any other fine-tuning variant.
+      Those derivative models may appear only inside ## Technical Details or Comparison as
+      brief supporting evidence — never as a named Key Concept.
 
 MANDATORY RESPONSE STRUCTURE — output ALL 7 sections in order:
 1. ## Overview
@@ -3880,34 +4099,32 @@ MANDATORY RESPONSE STRUCTURE — output ALL 7 sections in order:
 4. ## Technical Details or Comparison  (comparison table when comparing 2+ models)
 5. ## Limitations
 6. ## Key Takeaways
-7. ## What To Search Next  (3 query suggestions, no citations needed)
+7. ## What To Search Next  (3 query suggestions, no citations needed here)
 
 CITATION PLACEMENT — hard limits per section:
 - ## Overview: max 2 citations
 - ## Key Concepts: EVERY concept sub-item MUST have at least 1 citation. Max 4 total.
 - ## System Architecture: 0 citations
 - ## Technical Details or Comparison: max 3 citations
-- ## Limitations: 0 citations
-- ## Key Takeaways: max 2 citations on first two takeaways only
+- ## Limitations: max 2 citations — every factual limitation claim must cite its evidence
+- ## Key Takeaways: every factual takeaway MUST have exactly 1 citation; max 4 citations total
 - ## What To Search Next: 0 citations
-- TOTAL across whole answer: maximum 10 [CITATION:*] markers
+- TOTAL across whole answer: maximum 14 [CITATION:*] markers
 
-KEY CONCEPTS RULE: For each named concept (e.g. "Microglial activation:", "NLRP3 Inflammasome:"),
-you MUST append a [CITATION:chunk_id] at the end of its description. Do not leave any concept uncited.
+KEY CONCEPTS RULE: For EVERY named concept in ## Key Concepts, you MUST append [CITATION:evidenceId] at the end of its description. No exceptions — not even for well-known models.
+Example of correct formatting for a comparison query:
+  - BERT (...description...) Devlin et al. (2019) [CITATION:eXXXXXX]
+  - GPT (...description...) Radford et al. (2018) [CITATION:eXXXXXX]
+  - T5 (...description...) Raffel et al. (2020) [CITATION:eXXXXXX]
+If a concept has no matching evidence block, write "I cannot support that from the retrieved papers." instead of leaving it uncited.
 
-At the end of your answer, output a "## Cited Papers" section in YAML format:
-## Cited Papers
-- paper_id: <paper_id>
-  title: <title>
-  authors: <Author et al.>
-  year: <year>
-  venue: <venue>
-  citations: <citationCount>
-  doi: <doi or "Not available">
-  url: <url>
-  cited_chunk_ids: [<chunk_id>, ...]
+UNCITED SENTENCE RULE: Every factual sentence in ## Overview, ## Key Concepts, ## Technical Details or Comparison, and ## Limitations that does not end with a [CITATION:evidenceId] tag is a violation. Before finalising your answer, scan every sentence in those four sections and confirm each one ends with a citation tag.
 
-Include ONLY papers that were actually cited in the answer body. Then STOP.
+IMPORTANT — DO NOT output any of the following:
+- Citation cards like "> **[N]** Author et al. (Year) — Title — Venue..."
+- A "## Cited Papers" section, bibliography, YAML block, or references list
+- Any paper metadata section at the end of your answer
+The system builds the citation list from the evidence IDs you used — you do not need to write it.
 
 WRITING RULES
 - Never start with filler phrases like "Great question!" or "Certainly!".
@@ -3915,53 +4132,50 @@ WRITING RULES
 - Research answers: 600–900 words. Study: 400–600 words.`;
 
 // =============================================================
-// SECTION 27 — RAG ANSWER GENERATOR  (v6: + claim verification)
+// SECTION 27 — RAG ANSWER GENERATOR
+//
+// Changes vs v6:
+//   - lastChunkIdToPaperId is now request-local (no global mutable state)
+//   - Returns { answer, chunkIdToPaperId, evidenceBlocks } so callers can
+//     build citedPapers entirely in code from usedEvidenceIds
+//   - After regeneration: re-runs BOTH verifyAnswer + verifyClaimCitations
+//   - Stream mode passes chunkIdToPaperId back via returned object
 // =============================================================
 
-export let lastChunkIdToPaperId: Map<string, string> = new Map();
+export interface RAGAnswerResult {
+  answer: string;
+  chunkIdToPaperId: Map<string, string>;
+  evidenceBlocks: EvidenceBlock[];
+  usedEvidenceIds: Set<string>;
+  citedPapers: Paper[];
+}
 
 export async function generateRAGAnswer(
   query: string,
   papers: Paper[],
   stream = false,
+  requiredIds?: Set<string>,
 ): Promise<string | AsyncIterable<string>> {
   const keywords = extractKeywords(query);
-  // v6: use section-aware chunking
   const chunks = await chunkPapersWithSections(papers, keywords);
   const bm25Chunks = await rankChunks(query, chunks);
   const reranked = await rerankChunks(query, bm25Chunks, 8);
-  const topChunks = guaranteeFoundationalChunks(reranked, chunks, papers);
+  const topChunks = guaranteeFoundationalChunks(
+    reranked,
+    chunks,
+    papers,
+    requiredIds,
+  );
 
   const evidenceBlocks = buildEvidenceBlocks(topChunks, papers);
   const formattedEvidence = formatEvidenceBlocks(evidenceBlocks);
 
-  lastChunkIdToPaperId = new Map(
+  // Request-local map — never touches global state
+  const chunkIdToPaperId = new Map(
     evidenceBlocks.map((b) => [b.chunk_id, b.paper_id]),
   );
 
-  const PROMPT = `You are Researchly, a citation-grounded research assistant.
-You must answer the user using ONLY the retrieved evidence blocks provided below.
-
-GROUNDING RULES
-1. Every factual sentence must end with [CITATION:chunk_id]
-2. Only cite chunk IDs in the EVIDENCE BLOCKS section.
-3. Use inline_cite field for the first mention: "Vaswani et al. (2017) [CITATION:c01]"
-4. Subsequent mentions of same paper: just [CITATION:cXX]
-5. If evidence is insufficient: "I cannot support that from the retrieved papers."
-6. Never invent metadata.
-7. When comparing models, cite each model's original paper at least once.
-
-OUTPUT RULES
-- Write in 4 to 6 short sections with clear headings.
-- Append citation tags after every factual sentence.
-- At the end, output "## Cited Papers" with full metadata for each cited paper including:
-  paper_id, title, authors, year, venue, citations, doi, url, cited_chunk_ids.
-
-EVIDENCE BLOCKS
-${formattedEvidence}
-
-USER QUESTION
-${query}`;
+  const PROMPT = buildRAGPrompt(query, formattedEvidence);
 
   if (stream) {
     const s = await ant.messages.stream({
@@ -3987,18 +4201,15 @@ ${query}`;
   const bv = res.content[0];
   let rawAnswer = bv.type === "text" ? bv.text : "";
 
-  // v5 verification
+  // Pass 1: hallucination guard
   rawAnswer = await verifyAnswer(rawAnswer, formattedEvidence);
-
-  // v6 claim-level citation verification
+  // Pass 2: per-citation strength check
   const { verified_answer: verifiedAnswer } = await verifyClaimCitations(
     rawAnswer,
     evidenceBlocks,
   );
 
-  // v7 NEW: Answer Quality Control — Upgrade #6
-  // Evaluate answer quality (0-10). If score < QUALITY_THRESHOLD (7),
-  // regenerate once with targeted fix instructions listing specific issues.
+  // Quality gate: if score < threshold, regenerate once and re-verify both passes
   const quality = await evaluateAnswerQuality(
     query,
     verifiedAnswer,
@@ -4021,21 +4232,56 @@ ${query}`;
         messages: [{ role: "user", content: fixPrompt }],
       });
       const rb = retryRes.content[0];
-      const retryAnswer = rb.type === "text" ? rb.text : verifiedAnswer;
-      // Only use the regenerated answer if it's substantially longer (better)
-      if (retryAnswer.length > verifiedAnswer.length * 0.8) {
-        const { verified_answer: retryVerified } = await verifyClaimCitations(
-          retryAnswer,
+      const retryRaw = rb.type === "text" ? rb.text : verifiedAnswer;
+      if (retryRaw.length > verifiedAnswer.length * 0.8) {
+        // Re-run BOTH verification passes on the regenerated answer
+        const retryVerified1 = await verifyAnswer(
+          retryRaw,
+          formattedEvidence,
+        ).catch(() => retryRaw);
+        const { verified_answer: retryVerified2 } = await verifyClaimCitations(
+          retryVerified1,
           evidenceBlocks,
-        ).catch(() => ({ verified_answer: retryAnswer }));
-        return retryVerified;
+        ).catch(() => ({ verified_answer: retryVerified1 }));
+        return retryVerified2;
       }
     } catch {
-      // Fall back to the first answer if retry fails
+      // Fall back to first verified answer
     }
   }
 
   return verifiedAnswer;
+}
+
+// Shared prompt builder — used by both generateRAGAnswer and stream/route.ts
+export function buildRAGPrompt(
+  query: string,
+  formattedEvidence: string,
+  intentAddendum = "",
+): string {
+  const intentSection = intentAddendum ? `\n\n${intentAddendum}` : "";
+  return `You are Researchly, a citation-grounded research assistant.
+You must answer the user using ONLY the retrieved evidence blocks provided below.
+Do not use prior knowledge, world knowledge, or unstated assumptions.
+
+GROUNDING RULES
+1. Every factual sentence must end with one or more citations: [CITATION:evidenceId]
+2. Only cite evidence IDs that appear in the EVIDENCE BLOCKS section.
+3. Use the inline_cite field for the FIRST mention of each paper:
+   "Vaswani et al. (2017) [CITATION:e3a1f2]"
+4. For subsequent mentions of the same paper: just [CITATION:evidenceId]
+5. If the evidence is insufficient: "I cannot support that from the retrieved papers."
+6. If sources conflict, state the conflict explicitly and cite both sides.
+7. Never invent authors, years, venues, URLs, DOI values, or paper titles.
+8. For comparison queries, cite each model's original paper at least once before citing derivatives.
+9. Do not output citation cards, bibliography YAML, or a Cited Papers section —
+   the system builds the citation list from the evidence IDs you use.
+
+EVIDENCE BLOCKS
+${formattedEvidence}
+
+USER QUESTION
+${query}${intentSection}`;
 }
 
 // =============================================================
@@ -4069,6 +4315,523 @@ export async function enrichWithFullText(
     }
   }
   return enriched;
+}
+
+// =============================================================
+// SECTION 29 — UNCITED SENTENCE REPAIR
+//
+// After generation + verification, scans ## Overview and ## Key Concepts
+// for factual sentences that have no [CITATION:evidenceId] tag.
+// For each one, asks Haiku which evidence block best supports it and
+// inserts the tag. This catches the T5-has-no-citation failure mode
+// where the model forgot to tag a concept it actually had evidence for.
+// =============================================================
+
+export async function repairUncitedSentences(
+  answer: string,
+  evidenceBlocks: EvidenceBlock[],
+): Promise<string> {
+  if (!evidenceBlocks.length) return answer;
+
+  // ── Lookup maps built from evidenceBlocks ──────────────────────────────────
+  const validChunkIds = new Set(evidenceBlocks.map((b) => b.chunk_id));
+  const paperIdToChunkId = new Map<string, string>();
+  for (const b of evidenceBlocks) {
+    if (!paperIdToChunkId.has(b.paper_id)) paperIdToChunkId.set(b.paper_id, b.chunk_id);
+  }
+
+  // ── Deterministic rules (defined early — used in both scanning and augmentation) ──
+
+  // Bug A: sentences about Transformer architecture misattributed to Devlin.
+  // If a sentence matches TRANSFORMER_ARCH_RE but NOT BERT_SPECIFIC_RE, swap
+  // any Devlin chunk to Vaswani.
+  const TRANSFORMER_ARCH_RE =
+    /\btransformer architecture\b|\bshared foundation\b|\battention mechanism\b|\bbackbone\b|\bself.?attention\b|\bmulti.?head\b|\bencoder.{0,30}decoder\b/i;
+  const BERT_SPECIFIC_RE = /\bBERT\b|\bbidirectional\b|\bmasked language\b|\bMLM\b|\bNSP\b/i;
+
+  const devlinChunk  = paperIdToChunkId.get("devlin2019");
+  const vaswaniChunk = paperIdToChunkId.get("vaswani2017");
+
+  // Bug B: explicit backbone-model rules — ordered so GPT-3 check precedes
+  // generic GPT so "GPT-3" does not double-match both patterns.
+  // paperIds is an ordered list: use the FIRST paper that exists in evidenceBlocks.
+  // This allows a graceful fallback (e.g. radford2018 → brown2020 for generic "GPT"
+  // when only the GPT-3 paper was retrieved).
+  const BACKBONE_MODEL_RULES: Array<{ re: RegExp; paperIds: string[] }> = [
+    { re: /\bBERT\b/,                                                                paperIds: ["devlin2019"]               },
+    { re: /\bGPT[-\s]?3\b|\bGPT3\b|\bfew.?shot learner\b|\b175.{0,10}billion\b/,  paperIds: ["brown2020"]                },
+    { re: /\bGPT(?![-\s]?3)\b|\bGPT[-\s]?1\b|\bgenerative pre.?training\b/,        paperIds: ["radford2018", "brown2020"] },
+    { re: /\bT5\b|\btext.?to.?text\b/,                                               paperIds: ["raffel2020"]               },
+    { re: /\btransformer architecture\b|\battention is all you need\b|\bVaswani\b/i, paperIds: ["vaswani2017"]              },
+  ];
+
+  // Collective-reference rule: "these three models" / "all three" / "each model"
+  // in a BERT+GPT+T5 answer should cite all three backbone papers.
+  // Detected by scanning the full answer for all three model names.
+  const isThreeWayBERTGPTT5 =
+    /\bBERT\b/.test(answer) && /\bGPT\b/.test(answer) && /\bT5\b/.test(answer);
+  const COLLECTIVE_REF_RE =
+    /\bthese three models?\b|\ball three models?\b|\beach of the three\b|\beach model\b/i;
+
+  // Title-keyword rules: for papers not in STATIC_PAPERS (e.g. MPNet, RoBERTa)
+  // we find their chunk by matching against evidenceBlock titles at runtime.
+  const TITLE_KEYWORD_RULES: Array<{ sentenceRe: RegExp; titleRe: RegExp }> = [
+    { sentenceRe: /\bMPNet\b/i,   titleRe: /mpnet/i   },
+    { sentenceRe: /\bRoBERTa\b/i, titleRe: /roberta/i },
+    { sentenceRe: /\bXLNet\b/i,   titleRe: /xlnet/i   },
+    { sentenceRe: /\bALBERT\b/i,  titleRe: /albert/i  },
+    { sentenceRe: /\bELECTRA\b/i, titleRe: /electra/i },
+  ];
+
+  // ── Section scanning with sub-sentence splitting ───────────────────────────
+  // Root cause of Issues 2+3: the old scanner did `if (line.has_citation) skip_line`.
+  // This silently dropped the uncited sentences that were "lumped" on the same
+  // line as a cited one (e.g. "BERT pre-trains... GPT-3 achieves 175B. [CITATION:x]").
+  // Fix: split each line at sentence boundaries first, then check each sub-sentence
+  // independently for citations.
+  const targetSections = [
+    "overview",
+    "key concepts",
+    "technical details or comparison",
+    "technical details",
+    "limitations",
+    "key takeaways",
+  ];
+  const sectionParts = answer.split(/(^##\s+.+$)/m);
+
+  // uncited: sentences with 0 citations → sent to Haiku AND Phase 2 backbone pass
+  // partiallyCited: sentences with ≥1 citation that name multiple models → Phase 2 only
+  // Root cause of sentences 1+2: the old scanner did `if (hasCitation) skip` which
+  // prevented multi-model sentences that already had ONE citation from ever receiving
+  // additional citations for the other models they mentioned.
+  const uncited: Array<{ sentence: string; sectionIdx: number; sectionName: string }> = [];
+  const partiallyCited: Array<{ sentence: string; sectionIdx: number; sectionName: string }> = [];
+
+  for (let si = 0; si < sectionParts.length; si++) {
+    const part = sectionParts[si];
+    if (!/^##\s+/.test(part)) continue;
+    const heading = part.replace(/^##\s+/, "").trim().toLowerCase();
+    if (!targetSections.includes(heading)) continue;
+
+    const bodyIdx = si + 1;
+    const body = sectionParts[bodyIdx] ?? "";
+
+    for (const line of body.split("\n")) {
+      const trimmed = line.trim();
+      if (trimmed.length < 20) continue;
+      if (/^[#|]/.test(trimmed)) continue;          // markdown headers, table pipes
+      if (/[│├└┐┘┌─▼]/.test(trimmed)) continue;    // diagram chars
+      if (/^\|.+\|$/.test(trimmed)) continue;       // full table rows
+
+      // Split line into sub-sentences at `. ` / `! ` / `? ` boundaries followed
+      // by an uppercase letter. Em-dashes (—) are intentionally NOT sentence breaks.
+      const subSentences = trimmed.split(/(?<=[.!?])\s+(?=[A-Z])/);
+
+      for (const raw of subSentences) {
+        const s = raw.trim();
+        if (s.length < 20) continue;
+
+        const hasCitation = /\[CITATION:[a-z0-9]+\]/.test(s);
+        // Pattern 3: Key Concepts definitions may not end with standard punctuation
+        // (e.g. "**BERT** — bidirectional pre-trained model for NLU tasks")
+        // Accept them if they have ≥5 words and are in the key concepts section.
+        const isKeyConceptsSection = heading === "key concepts";
+        const endsOk =
+          /[.!?]$/.test(s) ||
+          /\(\d{4}\)$/.test(s) ||
+          /\[CITATION:[a-z0-9]+\]$/.test(s) ||
+          (isKeyConceptsSection && s.split(/\s+/).length >= 5);
+        if (!endsOk) continue;
+
+        if (!hasCitation) {
+          uncited.push({ sentence: s, sectionIdx: bodyIdx, sectionName: heading });
+        } else {
+          // Already has at least one citation — may still need more for other
+          // named models in the same sentence (the primary multi-citation bug).
+          partiallyCited.push({ sentence: s, sectionIdx: bodyIdx, sectionName: heading });
+        }
+      }
+    }
+  }
+
+  // DEBUG: log extracted sentences by section — helps diagnose missing Key Concepts citations
+  const keyConcepts = uncited.filter((u) => u.sectionName === "key concepts");
+  if (keyConcepts.length > 0) {
+    console.log("[repairUncited] Key Concepts uncited sentences:", keyConcepts.map((u) => u.sentence));
+  }
+  const keyConceptsPartial = partiallyCited.filter((u) => u.sectionName === "key concepts");
+  if (keyConceptsPartial.length > 0) {
+    console.log("[repairUncited] Key Concepts partially-cited sentences:", keyConceptsPartial.map((u) => u.sentence));
+  }
+  console.log("[repairUncited] evidenceBlock paperIds:", [...new Set(evidenceBlocks.map((b) => b.paper_id))]);
+
+  if (uncited.length === 0 && partiallyCited.length === 0) return answer;
+
+  // ── Haiku primary citation matching (uncited sentences only) ─────────────
+  const evidenceSummary = evidenceBlocks
+    .map((b) => `[${b.chunk_id}] "${b.title}" (${b.inlineCite}): ${b.text.slice(0, 200)}`)
+    .join("\n");
+
+  type HaikuRaw = {
+    sentence_index: number;
+    chunk_ids?: (string | null)[];
+    chunk_id?: string | null;       // backward compat: old single-id format
+    confidence: number;
+  };
+
+  let haikuRaw: HaikuRaw[] = [];
+  if (uncited.length > 0) {
+    const sentencesCtx = uncited.map((u, i) => `Sentence ${i + 1}: "${u.sentence}"`).join("\n");
+    try {
+      const r = await ant.messages.create({
+        model: "claude-haiku-4-5-20251001",
+        max_tokens: 2500,
+        system:
+          "You are a citation matcher. For each sentence, find ALL evidence blocks that support it (up to 3). " +
+          "Return ONLY valid JSON: array of {sentence_index, chunk_ids: string[], confidence} " +
+          "where confidence is 0-10 and chunk_ids is [] if confidence < 5. No markdown.",
+        messages: [
+          {
+            role: "user",
+            content: `EVIDENCE BLOCKS:\n${evidenceSummary}\n\nUNCITED SENTENCES:\n${sentencesCtx}\n\nMatch each sentence to ALL supporting evidence blocks.`,
+          },
+        ],
+      });
+      const b = r.content[0];
+      if (b.type === "text") {
+        haikuRaw = JSON.parse(b.text.trim().replace(/```json|```/g, "").trim()) as HaikuRaw[];
+      }
+    } catch {
+      // Haiku failed — Phase 2 deterministic pass will still run
+    }
+
+    // Pattern 1: Tail-retry — if Haiku's JSON omitted any sentences (truncation),
+    // re-send only the missing ones in a second, smaller request.
+    if (haikuRaw.length > 0 && uncited.length > 0) {
+      const returnedIndices = new Set(haikuRaw.map((m) => m.sentence_index));
+      const missingIndices = uncited
+        .map((_, i) => i + 1)
+        .filter((idx) => !returnedIndices.has(idx));
+      if (missingIndices.length > 0) {
+        console.warn(
+          `[repairUncited] tail-retry: ${missingIndices.length} sentences not covered by Haiku`,
+        );
+        const tailCtx = missingIndices
+          .map((idx) => `Sentence ${idx}: "${uncited[idx - 1].sentence}"`)
+          .join("\n");
+        try {
+          const r2 = await ant.messages.create({
+            model: "claude-haiku-4-5-20251001",
+            max_tokens: 800,
+            system:
+              "You are a citation matcher. For each sentence, find ALL evidence blocks that support it (up to 3). " +
+              "Return ONLY valid JSON: array of {sentence_index, chunk_ids: string[], confidence} " +
+              "where confidence is 0-10 and chunk_ids is [] if confidence < 5. No markdown.",
+            messages: [
+              {
+                role: "user",
+                content: `EVIDENCE BLOCKS:\n${evidenceSummary}\n\nUNCITED SENTENCES:\n${tailCtx}\n\nMatch each sentence to ALL supporting evidence blocks.`,
+              },
+            ],
+          });
+          const b2 = r2.content[0];
+          if (b2.type === "text") {
+            const tailRaw = JSON.parse(
+              b2.text.trim().replace(/```json|```/g, "").trim(),
+            ) as HaikuRaw[];
+            haikuRaw.push(...tailRaw);
+          }
+        } catch {
+          // tail retry failed — deterministic pass will cover these
+        }
+      }
+    }
+  }
+
+  // Normalize + Bug C: filter hallucinated chunk_ids not in evidenceBlocks
+  type HaikuNorm = { sentence_index: number; chunk_ids: string[]; confidence: number };
+  const haikuMatches: HaikuNorm[] = haikuRaw.map((m) => {
+    const raw = m.chunk_ids ?? (m.chunk_id ? [m.chunk_id] : []);
+    return {
+      sentence_index: m.sentence_index,
+      confidence: m.confidence,
+      chunk_ids: raw.filter((id): id is string => typeof id === "string" && validChunkIds.has(id)),
+    };
+  });
+
+  // ── Phase 1: Apply Haiku primary citations + Bug A re-attribution ──────────
+  const perSentence = new Map<number, Set<string>>(); // 1-based index → chunk_ids
+
+  for (const m of haikuMatches) {
+    if (m.confidence < 6) continue;
+    const target = uncited[m.sentence_index - 1];
+    if (!target) continue;
+
+    const chunkSet = new Set<string>(m.chunk_ids);
+
+    // Bug A: re-attribute Devlin → Vaswani for general Transformer-arch sentences
+    if (
+      devlinChunk && vaswaniChunk &&
+      chunkSet.has(devlinChunk) &&
+      TRANSFORMER_ARCH_RE.test(target.sentence) &&
+      !BERT_SPECIFIC_RE.test(target.sentence)
+    ) {
+      chunkSet.delete(devlinChunk);
+      chunkSet.add(vaswaniChunk);
+    }
+
+    perSentence.set(m.sentence_index, chunkSet);
+  }
+
+  // Pattern 5: Title overlap verification — after Haiku assigns citations, swap
+  // any chunk whose paper title has ZERO key-term overlap with the sentence.
+  // Only applies when the sentence has 3+ key terms (to avoid over-swapping).
+  // For Key Concepts sentences naming a technique, the title MUST contain it.
+  const sentenceKeyTerms = (s: string): string[] =>
+    s
+      .toLowerCase()
+      .replace(/\[CITATION:[a-z0-9]+\]/g, "")
+      .replace(/[^a-z0-9\s]/g, " ")
+      .split(/\s+/)
+      .filter((w) => w.length >= 5 && !STOP_WORDS.has(w));
+
+  for (const [sidx, chunkSet] of perSentence) {
+    const target = uncited[sidx - 1];
+    if (!target) continue;
+    const terms = sentenceKeyTerms(target.sentence);
+    if (terms.length < 3) continue;
+
+    for (const chunkId of [...chunkSet]) {
+      const block = evidenceBlocks.find((b) => b.chunk_id === chunkId);
+      if (!block) continue;
+      const titleLower = block.title.toLowerCase();
+      const hasOverlap = terms.some((t) => titleLower.includes(t));
+      if (!hasOverlap) {
+        // Try to find a better-matching block
+        const betterBlock = evidenceBlocks.find(
+          (b) =>
+            !chunkSet.has(b.chunk_id) &&
+            terms.some((t) => b.title.toLowerCase().includes(t)),
+        );
+        if (betterBlock) {
+          chunkSet.delete(chunkId);
+          chunkSet.add(betterBlock.chunk_id);
+        }
+      }
+    }
+  }
+
+  // ── Phase 2: Deterministic backbone augmentation — independent of Haiku ────
+  // Root cause of Issues 1, 4, 5, 6: Bug B augmentation was INSIDE the Haiku
+  // confidence gate, so sentences Haiku scored < 6 (or skipped entirely) never
+  // got backbone citations injected. Fix: run this pass over ALL uncited sentences
+  // regardless of whether Haiku produced a match.
+  for (let i = 0; i < uncited.length; i++) {
+    const target = uncited[i];
+    const sidx = i + 1;
+    const chunkSet = perSentence.get(sidx) ?? new Set<string>();
+    let modified = false;
+
+    // Named backbone models — try each paperId in order, use first available
+    for (const { re, paperIds } of BACKBONE_MODEL_RULES) {
+      if (!re.test(target.sentence)) continue;
+      const matched = paperIds.find((pid) => paperIdToChunkId.has(pid));
+      console.log(`[repairUncited] backbone match: re=${re} sentence="${target.sentence.slice(0, 60)}" tried=${paperIds.join(",")} found=${matched ?? "NONE"}`);
+      for (const paperId of paperIds) {
+        const chunkId = paperIdToChunkId.get(paperId);
+        if (chunkId && !chunkSet.has(chunkId)) { chunkSet.add(chunkId); modified = true; break; }
+      }
+    }
+
+    // Collective references ("these three models", "all three") in BERT/GPT/T5 answers
+    if (isThreeWayBERTGPTT5 && COLLECTIVE_REF_RE.test(target.sentence)) {
+      for (const pid of ["devlin2019", "radford2018", "raffel2020"]) {
+        const chunkId = paperIdToChunkId.get(pid);
+        if (chunkId && !chunkSet.has(chunkId)) { chunkSet.add(chunkId); modified = true; }
+      }
+    }
+
+    // Non-backbone papers: look up by title keyword in evidenceBlocks
+    for (const { sentenceRe, titleRe } of TITLE_KEYWORD_RULES) {
+      if (!sentenceRe.test(target.sentence)) continue;
+      const block = evidenceBlocks.find((b) => titleRe.test(b.title));
+      if (block && !chunkSet.has(block.chunk_id)) { chunkSet.add(block.chunk_id); modified = true; }
+    }
+
+    // Pattern 3+7: Inline author mention → look up matching evidence block and
+    // add its citation. This handles "Chang et al. (2023)" with no [CITATION:xxx].
+    const INLINE_AUTHOR_RE = /([A-Z][a-z]+)\s+et\s+al\.\s*\((\d{4})\)/g;
+    let authorMatch: RegExpExecArray | null;
+    INLINE_AUTHOR_RE.lastIndex = 0;
+    while ((authorMatch = INLINE_AUTHOR_RE.exec(target.sentence)) !== null) {
+      const lastName = authorMatch[1].toLowerCase();
+      const year = parseInt(authorMatch[2]);
+      const matchingBlock = evidenceBlocks.find(
+        (b) =>
+          b.authors.length > 0 &&
+          b.authors[0].toLowerCase().includes(lastName) &&
+          b.year === year,
+      );
+      if (matchingBlock && !chunkSet.has(matchingBlock.chunk_id)) {
+        chunkSet.add(matchingBlock.chunk_id);
+        modified = true;
+      }
+    }
+
+    if (modified) perSentence.set(sidx, chunkSet);
+  }
+
+  // Pattern 4: First-sentence-per-section fallback — if the first sentence in any
+  // section makes a broad definitional claim and has no citation, assign the
+  // primary paper (most-cited paper in the retrieved evidence set).
+  {
+    const paperFreq = new Map<string, number>();
+    for (const b of evidenceBlocks) {
+      paperFreq.set(b.paper_id, (paperFreq.get(b.paper_id) ?? 0) + 1);
+    }
+    const primaryPaperId = [...paperFreq.entries()].sort(
+      (a, b) => b[1] - a[1],
+    )[0]?.[0];
+    const primaryChunkId = primaryPaperId
+      ? paperIdToChunkId.get(primaryPaperId)
+      : undefined;
+
+    if (primaryChunkId) {
+      const seenSections = new Set<number>();
+      const BROAD_CLAIM_RE =
+        /\bhas been\b|\bis a\b|\benables\b|\bcombines\b|\bapplied to\b|\bcan be\b|\bwas proposed\b|\bare used\b|\bintroduce[sd]?\b|\bpresent[s]?\b/i;
+      for (let i = 0; i < uncited.length; i++) {
+        const { sentence, sectionIdx } = uncited[i];
+        if (seenSections.has(sectionIdx)) continue;
+        seenSections.add(sectionIdx);
+        const sidx = i + 1;
+        if (!perSentence.has(sidx) && BROAD_CLAIM_RE.test(sentence)) {
+          perSentence.set(sidx, new Set([primaryChunkId]));
+        }
+      }
+    }
+  }
+
+  // ── Phase 2b: backbone augmentation for partially-cited sentences ──────────
+  // Sentences that already have ≥1 citation from the LLM may still be missing
+  // citations for OTHER named models in the same sentence (the multi-citation bug).
+  // We skip chunk_ids already present as literal [CITATION:xxx] text in the sentence.
+  type Insertion = { pos: number; sentenceLen: number; chunks: string[] };
+  const partialInsertions: Insertion[] = [];
+  for (const target of partiallyCited) {
+    const newChunks = new Set<string>();
+
+    // Named backbone models — try each paperId in order, use first available
+    for (const { re, paperIds } of BACKBONE_MODEL_RULES) {
+      if (!re.test(target.sentence)) continue;
+      for (const paperId of paperIds) {
+        const chunkId = paperIdToChunkId.get(paperId);
+        if (!chunkId) continue;
+        if (target.sentence.includes(`[CITATION:${chunkId}]`)) break; // already cited — stop
+        newChunks.add(chunkId);
+        break; // use first available only
+      }
+    }
+
+    // Collective references ("these three models", "all three")
+    if (isThreeWayBERTGPTT5 && COLLECTIVE_REF_RE.test(target.sentence)) {
+      for (const pid of ["devlin2019", "radford2018", "raffel2020"]) {
+        const chunkId = paperIdToChunkId.get(pid);
+        if (chunkId && !newChunks.has(chunkId) && !target.sentence.includes(`[CITATION:${chunkId}]`)) {
+          newChunks.add(chunkId);
+        }
+      }
+    }
+
+    // Non-backbone papers: look up by title keyword
+    for (const { sentenceRe, titleRe } of TITLE_KEYWORD_RULES) {
+      if (!sentenceRe.test(target.sentence)) continue;
+      const block = evidenceBlocks.find((b) => titleRe.test(b.title));
+      if (block && !newChunks.has(block.chunk_id) && !target.sentence.includes(`[CITATION:${block.chunk_id}]`)) {
+        newChunks.add(block.chunk_id);
+      }
+    }
+
+    // Pattern 2: Generic evidence-block title matching — scan ALL retrieved paper
+    // titles for key terms that appear in the sentence. This catches multi-concept
+    // sentences where the second/third concept is not in BACKBONE_MODEL_RULES.
+    {
+      const sentLower = target.sentence.toLowerCase();
+      for (const block of evidenceBlocks) {
+        if (target.sentence.includes(`[CITATION:${block.chunk_id}]`)) continue;
+        if (newChunks.has(block.chunk_id)) continue;
+        const titleTerms = block.title
+          .toLowerCase()
+          .replace(/[^a-z0-9\s-]/g, " ")
+          .split(/\s+/)
+          .filter((w) => w.length >= 5 && !STOP_WORDS.has(w));
+        // Require 2+ title terms to appear in the sentence to avoid spurious matches
+        const matchCount = titleTerms.filter((t) => sentLower.includes(t)).length;
+        if (matchCount >= 2) {
+          newChunks.add(block.chunk_id);
+        }
+      }
+    }
+
+    if (newChunks.size === 0) continue;
+    const pos = answer.indexOf(target.sentence);
+    if (pos < 0) continue;
+    partialInsertions.push({ pos, sentenceLen: target.sentence.length, chunks: [...newChunks] });
+  }
+
+  // ── Insertion: apply chunk_ids per sentence in document order ──────────────
+  const insertions: Insertion[] = [];
+  for (const [sidx, chunkSet] of perSentence) {
+    if (chunkSet.size === 0) continue;
+    const target = uncited[sidx - 1];
+    if (!target) continue;
+    const pos = answer.indexOf(target.sentence);
+    if (pos < 0) {
+      console.log(`[repairUncited] indexOf MISS: sentence="${target.sentence.slice(0, 80)}" section=${target.sectionName}`);
+      continue;
+    }
+    insertions.push({ pos, sentenceLen: target.sentence.length, chunks: [...chunkSet] });
+  }
+  // Merge partial insertions and sort all by document position
+  insertions.push(...partialInsertions);
+  insertions.sort((a, b) => a.pos - b.pos);
+
+  let repaired = answer;
+  let cumulativeOffset = 0;
+  for (const ins of insertions) {
+    const insertAt = ins.pos + cumulativeOffset + ins.sentenceLen;
+    if (/^\s*\[CITATION:/.test(repaired.slice(insertAt, insertAt + 20))) continue;
+    const tag = ins.chunks.map((cid) => ` [CITATION:${cid}]`).join("");
+    repaired = repaired.slice(0, insertAt) + tag + repaired.slice(insertAt);
+    cumulativeOffset += tag.length;
+  }
+
+  // Pattern 7: Inline author mention scrubbing — remove "Author et al. (Year)"
+  // mentions that don't match any retrieved paper (hallucinated from parametric knowledge).
+  const INLINE_AUTHOR_GLOBAL_RE = /([A-Z][a-z]+)\s+et\s+al\.\s*\((\d{4})\)/g;
+  repaired = repaired.replace(
+    INLINE_AUTHOR_GLOBAL_RE,
+    (match, lastName, year) => {
+      // Check if this mention matches any retrieved paper's inlineCite
+      const isRetrieved = evidenceBlocks.some((b) => {
+        const cite = b.inlineCite.toLowerCase();
+        return (
+          cite.includes(lastName.toLowerCase()) && cite.includes(year)
+        );
+      });
+      if (!isRetrieved) {
+        // Replace with closest retrieved paper's inlineCite if one is nearby,
+        // otherwise remove the hallucinated mention.
+        return "";
+      }
+      return match;
+    },
+  );
+  // Clean up double spaces left by removed mentions
+  // Only collapse multiple SPACES — never touch newlines (\n) which carry markdown structure.
+  repaired = repaired.replace(/ {2,}/g, " ").replace(/ \./g, ".").replace(/ ,/g, ",");
+
+  return repaired;
 }
 
 // =============================================================

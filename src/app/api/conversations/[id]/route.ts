@@ -54,6 +54,7 @@ export async function GET(
       role: string;
       content: string;
       papers?: unknown[];
+      retrievedPapers?: unknown[];
       createdAt: Date;
     }[];
 
@@ -67,7 +68,8 @@ export async function GET(
         _id: m._id.toString(),
         role: m.role,
         content: m.content,
-        papers: m.papers ?? [],
+        papers: m.papers ?? [],                       // cited papers only
+        retrievedPapers: m.retrievedPapers ?? [],     // full ranked retrieval set
         createdAt: m.createdAt,
       })),
     });

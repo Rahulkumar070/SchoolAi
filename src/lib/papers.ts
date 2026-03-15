@@ -1,1 +1,1 @@
-export { searchAll } from "./rag";
+export { searchAllWithPubMed as searchAll } from "./rag";
