@@ -30,7 +30,8 @@ interface Message {
   _id: string;
   role: "user" | "assistant";
   content: string;
-  papers: Paper[];
+  papers: Paper[];            // cited papers only — rendered in the Sources panel
+  retrievedPapers: Paper[];   // full ranked retrieval set — available for "Retrieved papers" view
   createdAt: string;
 }
 interface ConvMeta {
@@ -244,6 +245,7 @@ function ChatPage() {
         role: "user",
         content: query,
         papers: [],
+        retrievedPapers: [],
         createdAt: new Date().toISOString(),
       };
       setMessages((prev) => [...prev, tempUserMsg]);
@@ -311,6 +313,7 @@ function ChatPage() {
                   role: "assistant",
                   content: fullAnswer,
                   papers: finalPapers,
+                  retrievedPapers: [],  // not available client-side; DB record has the full set
                   createdAt: new Date().toISOString(),
                 };
                 setMessages((prev) => [
@@ -452,177 +455,182 @@ function ChatPage() {
       <div className="chat-col">
         <div className="messages-wrap">
           <div className="messages-inner">
-          {loadingConv ? (
-            <>
-              <MsgShimmer />
-              <MsgShimmer />
-            </>
-          ) : (
-            <>
-              {messages.map((msg) => (
-                <div key={msg._id} className="msg-turn">
-                  {msg.role === "user" ? (
-                    <div className="msg-user-row">
-                      <div className="msg-user-bubble">{msg.content}</div>
-                    </div>
-                  ) : (
-                    <div className="msg-ai-row">
-                      <div className="msg-ai-content">
-                        <AnswerRenderer
-                          content={msg.content}
-                          papers={msg.papers ?? []}
-                        />
-                        <div className="action-bar">
-                          {msg.papers.length > 0 && (
+            {loadingConv ? (
+              <>
+                <MsgShimmer />
+                <MsgShimmer />
+              </>
+            ) : (
+              <>
+                {messages.map((msg) => (
+                  <div key={msg._id} className="msg-turn">
+                    {msg.role === "user" ? (
+                      <div className="msg-user-row">
+                        <div className="msg-user-bubble">{msg.content}</div>
+                      </div>
+                    ) : (
+                      <div className="msg-ai-row">
+                        <div className="msg-ai-content">
+                          <AnswerRenderer
+                            content={msg.content}
+                            citedPapers={msg.papers ?? []}
+                          />
+                          <div className="action-bar">
+                            {msg.papers.length > 0 && (
+                              <button
+                                onClick={() => {
+                                  setPanelMsg(msg);
+                                  setPanelTab("sources");
+                                }}
+                                className="chip"
+                              >
+                                <Layers size={11} /> {msg.papers.length} sources
+                              </button>
+                            )}
+                            <CopyBtn text={msg.content} />
                             <button
-                              onClick={() => {
-                                setPanelMsg(msg);
-                                setPanelTab("sources");
-                              }}
-                              className="chip"
+                              onClick={() =>
+                                downloadResearchPDF(
+                                  messages.find(
+                                    (m) =>
+                                      m.role === "user" &&
+                                      messages.indexOf(m) ===
+                                        messages.indexOf(msg) - 1,
+                                  )?.content ?? "",
+                                  msg.content,
+                                  msg.papers,
+                                  session?.user?.name ?? undefined,
+                                )
+                              }
+                              className="chip accent"
                             >
-                              <Layers size={11} /> {msg.papers.length} sources
+                              <FileDown size={11} /> PDF
                             </button>
-                          )}
-                          <CopyBtn text={msg.content} />
-                          <button
-                            onClick={() =>
-                              downloadResearchPDF(
-                                messages.find(
-                                  (m) =>
-                                    m.role === "user" &&
-                                    messages.indexOf(m) ===
-                                      messages.indexOf(msg) - 1,
-                                )?.content ?? "",
-                                msg.content,
-                                msg.papers,
-                                session?.user?.name ?? undefined,
-                              )
-                            }
-                            className="chip accent"
-                          >
-                            <FileDown size={11} /> PDF
-                          </button>
-                          {!atLimit && (
-                            <button
-                              onClick={() => {
-                                const userMsg =
-                                  messages[messages.indexOf(msg) - 1];
-                                if (userMsg) void doSend(userMsg.content);
-                              }}
-                              className="chip"
-                              title="Search again"
-                            >
-                              <RotateCcw size={11} /> Re-run
-                            </button>
-                          )}
+                            {!atLimit && (
+                              <button
+                                onClick={() => {
+                                  const userMsg =
+                                    messages[messages.indexOf(msg) - 1];
+                                  if (userMsg) void doSend(userMsg.content);
+                                }}
+                                className="chip"
+                                title="Search again"
+                              >
+                                <RotateCcw size={11} /> Re-run
+                              </button>
+                            )}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  )}
-                </div>
-              ))}
-
-              {/* Streaming message */}
-              {isStreaming && (
-                <div className="msg-turn">
-                  <div className="msg-ai-row">
-                    <div className="msg-ai-content">
-                      {streamingContent ? (
-                        <>
-                          <AnswerRenderer
-                            content={streamingContent}
-                            papers={streamingPapers}
-                            streaming={true}
-                          />
-                        </>
-                      ) : (
-                        <div className="typing-bubble">
-                          <span className="typing-dot" />
-                          <span className="typing-dot" />
-                          <span className="typing-dot" />
-                        </div>
-                      )}
-                    </div>
+                    )}
                   </div>
-                </div>
-              )}
+                ))}
 
-              {/* Errors */}
-              {limitError && !sending && (
-                <div className="msg-row">
-                  <div style={{ flex: 1 }}>
-                    <div
-                      style={{
-                        background: "rgba(224,92,92,.07)",
-                        border: "1px solid rgba(224,92,92,.2)",
-                        borderRadius: 12,
-                        padding: "16px 18px",
-                      }}
-                    >
-                      <p
-                        style={{
-                          fontSize: 13.5,
-                          fontWeight: 700,
-                          color: "var(--red)",
-                          marginBottom: 6,
-                        }}
-                      >
-                        {isFree
-                          ? "Daily limit reached (5/5)"
-                          : "Monthly limit reached (500/500)"}
-                      </p>
-                      <p
-                        style={{
-                          fontSize: 13,
-                          color: "var(--text-secondary)",
-                          marginBottom: 14,
-                          lineHeight: 1.6,
-                        }}
-                      >
-                        {isFree
-                          ? "Upgrade or come back tomorrow."
-                          : "Upgrade to Pro for unlimited searches."}
-                      </p>
-                      <Link
-                        href="/pricing"
-                        className="btn btn-brand"
-                        style={{
-                          textDecoration: "none",
-                          padding: "9px 18px",
-                          fontSize: 13,
-                        }}
-                      >
-                        {isFree ? (
+                {/* Streaming message */}
+                {isStreaming && (
+                  <div className="msg-turn">
+                    <div className="msg-ai-row">
+                      <div className="msg-ai-content">
+                        {streamingContent ? (
                           <>
-                            <Sparkles size={12} /> Upgrade to Student ₹199/mo
+                            <AnswerRenderer
+                              content={streamingContent}
+                              citedPapers={streamingPapers}
+                              streaming={true}
+                            />
                           </>
                         ) : (
-                          <>
-                            <Crown size={12} /> Upgrade to Pro ₹499/mo
-                          </>
+                          <div className="typing-bubble">
+                            <span className="typing-dot" />
+                            <span className="typing-dot" />
+                            <span className="typing-dot" />
+                          </div>
                         )}
-                      </Link>
+                      </div>
                     </div>
                   </div>
-                </div>
-              )}
+                )}
 
-              {errorMsg && !sending && !limitError && (
-                <div className="error-card">
-                  <AlertCircle
-                    size={14}
-                    style={{ color: "var(--red)", flexShrink: 0, marginTop: 1 }}
-                  />
-                  <p style={{ fontSize: 13.5, color: "var(--red)" }}>
-                    {errorMsg}
-                  </p>
-                </div>
-              )}
-            </>
-          )}
-          <div ref={endRef} style={{ height: 16 }} />
-          </div>{/* end messages-inner */}
+                {/* Errors */}
+                {limitError && !sending && (
+                  <div className="msg-row">
+                    <div style={{ flex: 1 }}>
+                      <div
+                        style={{
+                          background: "rgba(224,92,92,.07)",
+                          border: "1px solid rgba(224,92,92,.2)",
+                          borderRadius: 12,
+                          padding: "16px 18px",
+                        }}
+                      >
+                        <p
+                          style={{
+                            fontSize: 13.5,
+                            fontWeight: 700,
+                            color: "var(--red)",
+                            marginBottom: 6,
+                          }}
+                        >
+                          {isFree
+                            ? "Daily limit reached (5/5)"
+                            : "Monthly limit reached (500/500)"}
+                        </p>
+                        <p
+                          style={{
+                            fontSize: 13,
+                            color: "var(--text-secondary)",
+                            marginBottom: 14,
+                            lineHeight: 1.6,
+                          }}
+                        >
+                          {isFree
+                            ? "Upgrade or come back tomorrow."
+                            : "Upgrade to Pro for unlimited searches."}
+                        </p>
+                        <Link
+                          href="/pricing"
+                          className="btn btn-brand"
+                          style={{
+                            textDecoration: "none",
+                            padding: "9px 18px",
+                            fontSize: 13,
+                          }}
+                        >
+                          {isFree ? (
+                            <>
+                              <Sparkles size={12} /> Upgrade to Student ₹199/mo
+                            </>
+                          ) : (
+                            <>
+                              <Crown size={12} /> Upgrade to Pro ₹499/mo
+                            </>
+                          )}
+                        </Link>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {errorMsg && !sending && !limitError && (
+                  <div className="error-card">
+                    <AlertCircle
+                      size={14}
+                      style={{
+                        color: "var(--red)",
+                        flexShrink: 0,
+                        marginTop: 1,
+                      }}
+                    />
+                    <p style={{ fontSize: 13.5, color: "var(--red)" }}>
+                      {errorMsg}
+                    </p>
+                  </div>
+                )}
+              </>
+            )}
+            <div ref={endRef} style={{ height: 16 }} />
+          </div>
+          {/* end messages-inner */}
         </div>
       </div>
 

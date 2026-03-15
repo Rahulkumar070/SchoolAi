@@ -93,7 +93,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const papers = (await searchAll(topic.trim())) as Paper[];
+    const { papers } = await searchAll(topic.trim());
     if (!papers.length)
       return NextResponse.json(
         { error: "No papers found for this topic." },

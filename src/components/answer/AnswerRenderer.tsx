@@ -40,8 +40,46 @@ interface Paper {
 
 interface AnswerRendererProps {
   content: string;
-  papers?: Paper[];
+  citedPapers?: Paper[];
+  evidenceIdToPaperId?: Record<string, string>;
   streaming?: boolean;
+}
+
+// ─────────────────────────────────────────────
+// Citation resolution helpers
+// ─────────────────────────────────────────────
+
+// Maps evidenceId → "REF-N" using the server-supplied evidenceIdToPaperId
+// and the position of each paper in citedPapers (matching buildRefMap's numbering).
+function buildEvidenceToRefMap(
+  evidenceIdToPaperId: Record<string, string> | undefined,
+  citedPapers: Paper[],
+): Record<string, string> {
+  if (!evidenceIdToPaperId || !citedPapers.length) return {};
+  // citedPapers has no _refKey, so buildRefMap assigns REF-1, REF-2, ... in array order
+  const paperIdToRef = new Map<string, string>();
+  citedPapers.forEach((p, i) => {
+    if (p.id) paperIdToRef.set(p.id, `REF-${i + 1}`);
+  });
+  const map: Record<string, string> = {};
+  for (const [evidenceId, paperId] of Object.entries(evidenceIdToPaperId)) {
+    const refKey = paperIdToRef.get(paperId);
+    if (refKey) map[evidenceId] = refKey;
+  }
+  return map;
+}
+
+// Converts [CITATION:evidenceId] and [CITATION:evidenceId]⚠️ markers:
+//   - Known evidenceId → [REF-N]   (rendered as clickable badge by resolveRefMarkers)
+//   - Unknown evidenceId → ""      (stripped — fallback for chat history with no mapping)
+function resolveCitationMarkers(
+  body: string,
+  evidenceToRef: Record<string, string>,
+): string {
+  return body.replace(/\[CITATION:([a-z0-9]+)\](?:⚠️)?/g, (_, evidenceId) => {
+    const refKey = evidenceToRef[evidenceId];
+    return refKey ? `[${refKey}]` : "";
+  });
 }
 
 // ─────────────────────────────────────────────
@@ -1345,8 +1383,7 @@ function resolveRefMarkers(body: string, papers: Paper[]): React.ReactNode[] {
     const paper = refMap.get(key);
     if (!paper) return null;
     const rendered = globalBadgeCount.get(key) ?? 0;
-    // Hard cap: max 1 badge per key per section body passed to resolveRefMarkers
-    if (rendered >= 1) return null; // suppress — already showed this badge once
+    // Track badge count for PaperCitationCard dedup (count <= 1 check below)
     globalBadgeCount.set(key, rendered + 1);
     if (!citationDisplayNum.has(key)) {
       citationDisplayNum.set(key, nextNum++);
@@ -1394,9 +1431,19 @@ function resolveRefMarkers(body: string, papers: Paper[]): React.ReactNode[] {
           }
         }
       } else if (part) {
-        paraNodes.push(
-          <ReactMarkdownSegment key={`md-${pi}-${i}`} content={part} />,
-        );
+        // Check if the next part is a [REF-N] marker — if so, use inline span rendering
+        // to keep the citation badge on the same line as the text.
+        const nextPart = parts[i + 1];
+        const nextIsRef = nextPart !== undefined && /^\[REF-(?:FOUND-)?\d+\]$/.test(nextPart);
+        if (nextIsRef) {
+          paraNodes.push(
+            <ReactMarkdownInlineSegment key={`md-${pi}-${i}`} content={part} />,
+          );
+        } else {
+          paraNodes.push(
+            <ReactMarkdownSegment key={`md-${pi}-${i}`} content={part} />,
+          );
+        }
       }
     });
 
@@ -1598,18 +1645,45 @@ function ReactMarkdownSegment({ content }: { content: string }) {
   );
 }
 
+// Inline variant — overrides <p> → <span> so citation badges stay on the same line.
+// Use this for text segments that are immediately followed by a [REF-N] badge.
+function ReactMarkdownInlineSegment({ content }: { content: string }) {
+  const mdComponents = {
+    ...buildMdComponents(() => {}),
+    p: ({ children }: any) => (
+      <span
+        style={{
+          lineHeight: 1.9,
+          fontSize: 15,
+          color: "var(--text-primary)",
+          marginRight: 2,
+        }}
+      >
+        {children}
+      </span>
+    ),
+  };
+  return (
+    <ReactMarkdown remarkPlugins={[remarkGfm]} components={mdComponents as any}>
+      {content}
+    </ReactMarkdown>
+  );
+}
+
 // Strip noise patterns the model adds despite instructions
 function preprocessBody(body: string, papers: Paper[]): string {
   let cleaned = body;
 
-  // 0. Strip plain [1] bibliography — only matches standalone [1], not [REF-1]
-  cleaned = cleaned.replace(/\s*\[(?!REF-)1\][^\[]*[\s\S]*$/, "");
+  // 0. Strip ALL inline [N] numeric-citation artifacts the model adds alongside [CITATION:] tags.
+  //    [REF-N] markers (already resolved from [CITATION:]) are protected by the negative lookahead.
+  //    This replaces the old narrow rule that only matched [1] and stripped to end-of-string.
+  cleaned = cleaned.replace(/\s*\[(?!REF-)(?!FOUND-)\d+\]/g, "");
 
   // 1. Strip bibliography heading block
   cleaned = cleaned.replace(/\n+(references|bibliography)[\s\S]*/i, "");
 
-  // 1b. Strip [1] bibliography — catches "More [1]", " [1] Author", "\n[1] Author" patterns
-  cleaned = cleaned.replace(/\s*(More\s*)?\[1\][\s\S]*$/, "");
+  // 1b. Strip "More [N]..." trailing bibliography pattern (inline [N] already gone from rule 0)
+  cleaned = cleaned.replace(/\s*More\s*\[\d+\][\s\S]*$/i, "");
 
   // 1c. Strip any run of 2+ consecutive lines starting with [N]
   cleaned = cleaned.replace(/(\n|^)(\[\d+\][^\n]+\n?){2,}/gm, "\n");
@@ -1620,12 +1694,9 @@ function preprocessBody(body: string, papers: Paper[]): string {
     "",
   );
 
-  // 3. Replace ALL "(From general knowledge...)" variants with [REF-1]
+  // 3. Strip ALL "(From general knowledge...)" variants — never convert to a citation
   const fgkPattern = new RegExp("\\(From general knowledge[^)]*\\)", "gi");
-  cleaned =
-    papers.length > 0
-      ? cleaned.replace(fgkPattern, "[REF-1]")
-      : cleaned.replace(fgkPattern, "");
+  cleaned = cleaned.replace(fgkPattern, "");
 
   // 4. Strip "Foundational Paper/citation/Reference: ..." lines
   cleaned = cleaned.replace(
@@ -1654,6 +1725,16 @@ function preprocessBody(body: string, papers: Paper[]): string {
   // 9. Strip lone ** lines
   cleaned = cleaned.replace(/^\*\*\s*$/gm, "");
 
+  // 9b. Strip [REF-N] markers from markdown table rows.
+  // resolveRefMarkers splits body at every [REF-N] position; if a citation sits inside a
+  // table cell the table markdown is fragmented across separate ReactMarkdownSegment calls
+  // and ReactMarkdown can no longer parse it as a valid table — all rows collapse into text.
+  cleaned = cleaned.replace(/^\|[^\n]+$/gm, (row) =>
+    row.replace(/\s*\[REF-(?:FOUND-)?\d+\]/g, ""),
+  );
+
+  // 9c. (removed — stripping [REF-N] from numbered list items was suppressing citation badges)
+
   // 10. Merge orphan [REF-N] lines onto the end of the preceding content line
   // Handles both mid-body and end-of-body orphan markers
   cleaned = cleaned.replace(
@@ -1664,32 +1745,41 @@ function preprocessBody(body: string, papers: Paper[]): string {
   // 11. Collapse 3+ blank lines into 2
   cleaned = cleaned.replace(/\n{3,}/g, "\n\n");
 
-  // 12. NUCLEAR DEDUP: keep only the FIRST occurrence of each [REF-N] key
-  // This is the last line of defence — runs after all other transforms
-  const seenRefs = new Set<string>();
-  cleaned = cleaned.replace(/\[REF-(?:FOUND-)?\d+\]/g, (match) => {
-    if (seenRefs.has(match)) return "";
-    seenRefs.add(match);
-    return match;
-  });
+  // 11b. Strip bare standalone digit lines — orphaned citation numbers left after [N] stripping.
+  //      Matches lines that are only whitespace + digits + whitespace (no other content).
+  cleaned = cleaned.replace(/^\s*\d+\s*$/gm, "");
+
+  // 11c. Strip bare numbers immediately following [REF-N] markers (citation-number artifacts).
+  // When the model writes "[CITATION:xxx] 1" the [N] stripping in rule 0 removes "[1]" but
+  // if the model wrote a bare " 1" after the marker (not a bracketed [1]) it survives as
+  // a stray number. e.g. "[REF-2] 1" → "[REF-2]", "result [REF-3] 3." → "result [REF-3]."
+  cleaned = cleaned.replace(
+    /(\[REF-(?:FOUND-)?\d+\])\s{0,4}\d{1,3}(?=[\s,;.!?\n]|$)/g,
+    "$1",
+  );
 
   return cleaned;
 }
 
-// Per-section citation hard cap — enforced in the frontend regardless of model output
+// Per-section citation hard cap — must match RAG_SYSTEM prompt limits so the renderer
+// never silently strips citations the model was explicitly told to produce.
 const SECTION_CITATION_LIMIT: Record<string, number> = {
-  overview: 1,
-  "key concepts": 1,
-  "system architecture": 0,
-  "technical details": 1,
-  "technical details or comparison": 1,
-  limitations: 0,
-  "key takeaways": 1,
-  "what to search next": 0,
-  "quick revision points": 0,
+  overview: 2,                          // prompt: max 2
+  "key concepts": 4,                    // prompt: max 4, every concept must have 1
+  "system architecture": 0,            // prompt: 0 — structural diagrams, no citations
+  "technical details": 3,              // prompt: max 3
+  "technical details or comparison": 3, // prompt: max 3
+  limitations: 2,                       // was 0 — now allows factual limitation claims
+  "key takeaways": 4,                   // prompt: every takeaway must have 1 citation; max 4
+  "what to search next": 0,            // prompt: 0 — suggestions only
+  "quick revision points": 0,          // exam-style summaries, no citations needed
 };
 
-// Strip extra [REF-N] markers beyond the per-section limit
+// Strip extra [REF-N] markers beyond the per-section limit.
+// The cap counts UNIQUE [REF-N] keys, not total marker occurrences.
+// Repeat appearances of an already-introduced key always pass through —
+// they are needed so superscript badges render on every sentence that
+// cites that paper (not just the first sentence).
 function enforceMaxCitations(body: string, max: number): string {
   if (max === 0) {
     // Remove all [REF-N] markers
@@ -1697,10 +1787,13 @@ function enforceMaxCitations(body: string, max: number): string {
       .replace(/\[REF-(?:FOUND-)?\d+\]/g, "")
       .replace(/\n{3,}/g, "\n\n");
   }
-  let count = 0;
+  const seenKeys = new Set<string>();
   return body.replace(/\[REF-(?:FOUND-)?\d+\]/g, (match) => {
-    count++;
-    return count <= max ? match : "";
+    const key = match.slice(1, -1); // strip [ and ]
+    if (seenKeys.has(key)) return match; // repeat of known key — always keep
+    if (seenKeys.size >= max) return ""; // new key beyond cap — strip
+    seenKeys.add(key);
+    return match;
   });
 }
 
@@ -1708,17 +1801,23 @@ function SectionContent({
   body,
   papers,
   sectionTitle,
+  evidenceToRef,
 }: {
   body: string;
   papers: Paper[];
   sectionTitle?: string;
+  evidenceToRef?: Record<string, string>;
 }) {
   const key = (sectionTitle ?? "").toLowerCase().trim();
   const maxCitations = SECTION_CITATION_LIMIT[key] ?? 2;
 
+  // Step 0: resolve [CITATION:evidenceId] → [REF-N] (or strip if no mapping).
+  // Must run before preprocessBody so the REF markers are in place for step 1.
+  const withRefsResolved = resolveCitationMarkers(body, evidenceToRef ?? {});
+
   // Run preprocessBody FIRST (it may inject [REF-1] from "From general knowledge" replacements)
   // THEN enforce the per-section cap — order matters
-  const preprocessed = preprocessBody(body, papers);
+  const preprocessed = preprocessBody(withRefsResolved, papers);
   const processedBody = enforceMaxCitations(preprocessed, maxCitations);
 
   // If body contains [REF-N] markers, resolve them into cards
@@ -1762,16 +1861,25 @@ function extractTldr(content: string): string | null {
   if (!overviewMatch) return null;
 
   const overviewBody = overviewMatch[1].trim();
-  // Remove any [REF-N] markers and markdown bold for clean summary text
   const cleaned = overviewBody
-    .replace(/\[REF-(?:FOUND-)?\d+\]/g, "")
-    .replace(/\*\*/g, "")
+    .replace(/\[REF-(?:FOUND-)?\d+\]/g, "") // old REF markers
+    .replace(/\[CITATION:[^\]]+\]/g, "") // citation tags — match ANY chunk_id including future formats
+    .replace(/⚠️/g, "") // leftover weak-citation flags (stripped separately to avoid emoji regex fragility)
+    .replace(/\(From general knowledge\)/gi, "") // verifyAnswer labels
+    // Strip full inline cite patterns: "Vaswani et al. (2017)", "Smith (2020)", "Smith & Jones (2019)"
+    .replace(
+      /[A-Z][a-záéíóúñ\-]+(?:\s+(?:et al\.|&\s+[A-Z][a-z]+))?\s+\(\d{4}\)/g,
+      "",
+    )
+    // Strip orphaned bare year fragments like "(2017)" left after the above
+    .replace(/\s*\(\d{4}\)/g, "")
+    .replace(/\*\*/g, "") // markdown bold
     .replace(/\n+/g, " ")
+    .replace(/\s{2,}/g, " ")
     .trim();
 
   if (!cleaned || cleaned.length < 40) return null;
 
-  // Split into sentences and take first 2
   const sentences = cleaned
     .split(/(?<=[.!?])\s+/)
     .map((s) => s.trim())
@@ -1884,11 +1992,13 @@ function TldrCard({ summary }: { summary: string }) {
 
 export default function AnswerRenderer({
   content,
-  papers,
+  citedPapers,
+  evidenceIdToPaperId,
   streaming = false,
 }: AnswerRendererProps) {
   const sections = splitIntoSections(content);
   const tldr = !streaming ? extractTldr(content) : null;
+  const evidenceToRef = buildEvidenceToRefMap(evidenceIdToPaperId, citedPapers ?? []);
 
   return (
     <div
@@ -1920,8 +2030,9 @@ export default function AnswerRenderer({
         >
           <SectionContent
             body={sections[0].body}
-            papers={papers ?? []}
+            papers={citedPapers ?? []}
             sectionTitle=""
+            evidenceToRef={evidenceToRef}
           />
         </div>
       )}
@@ -1933,8 +2044,9 @@ export default function AnswerRenderer({
           <SectionCard key={i} title={section.title!}>
             <SectionContent
               body={section.body}
-              papers={papers ?? []}
+              papers={citedPapers ?? []}
               sectionTitle={section.title ?? ""}
+              evidenceToRef={evidenceToRef}
             />
           </SectionCard>
         ))}

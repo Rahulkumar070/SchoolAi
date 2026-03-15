@@ -14,9 +14,7 @@
 
 import Anthropic from "@anthropic-ai/sdk";
 import { Paper, ChatMessage } from "@/types";
-import { generateRAGAnswer, lastChunkIdToPaperId } from "./rag";
-
-export { lastChunkIdToPaperId } from "./rag";
+import { generateRAGAnswer } from "./rag";
 
 const ant = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 

@@ -47,6 +47,7 @@ interface Turn {
   related?: string[];
   status?: string;
   feedback?: "up" | "down" | null;
+  evidenceIdToPaperId?: Record<string, string>;
 }
 
 // ── Animated waveform (from uploaded UI) ──────────────────────
@@ -803,6 +804,7 @@ function SearchApp() {
                 conversationId?: string;
                 isNewConversation?: boolean;
                 related?: string[];
+                evidenceIdToPaperId?: Record<string, string>;
               };
               let answerLocked = false;
               if (evt.type === "meta" && evt.conversationId) {
@@ -822,7 +824,11 @@ function SearchApp() {
               } else if (evt.type === "papers" && evt.papers) {
                 setTurns((prev) => {
                   const u = [...prev];
-                  u[u.length - 1] = { ...u[u.length - 1], papers: evt.papers! };
+                  u[u.length - 1] = {
+                    ...u[u.length - 1],
+                    papers: evt.papers!,
+                    evidenceIdToPaperId: evt.evidenceIdToPaperId,
+                  };
                   return u;
                 });
                 setPanelTurn(
@@ -1570,7 +1576,8 @@ function SearchApp() {
                         <>
                           <AnswerRenderer
                             content={turn.answer}
-                            papers={turn.papers}
+                            citedPapers={turn.papers}
+                            evidenceIdToPaperId={turn.evidenceIdToPaperId}
                             streaming={turn.streaming}
                           />
                           {!turn.streaming && (

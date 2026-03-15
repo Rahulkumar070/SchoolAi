@@ -1,0 +1,22 @@
+{
+  "runAt": "2026-03-15T06:55:43.378Z",
+  "server": "http://localhost:3001",
+  "summary": {
+    "total": 1,
+    "passed": 0,
+    "failed": 1
+  },
+  "reports": [
+    {
+      "id": "general-rag-quality",
+      "description": "General RAG quality check — no artifact regressions, sane citation count.",
+      "query": "neural network training optimization gradient descent",
+      "pass": false,
+      "durationMs": 716,
+      "citedPaperCount": 0,
+      "citedPaperTitles": [],
+      "failures": [],
+      "error": "HTTP 404"
+    }
+  ]
+}

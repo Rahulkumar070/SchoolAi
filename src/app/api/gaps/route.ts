@@ -165,7 +165,7 @@ export async function POST(req: NextRequest) {
     const t = topic.trim();
 
     // Fetch papers
-    const rawPapers = (await searchAll(t)) as Paper[];
+    const { papers: rawPapers } = await searchAll(t);
     if (!rawPapers.length) {
       return NextResponse.json({ error: "No papers found for this topic" }, { status: 404 });
     }

@@ -647,7 +647,7 @@ function DetailView({
         {content ? (
           <>
             <div style={{ marginBottom: 20 }}>
-              <AnswerRenderer content={content} papers={papers ?? []} />
+              <AnswerRenderer content={content} citedPapers={papers ?? []} />
             </div>
             {papers?.length > 0 && (
               <div style={{ marginBottom: 24 }}>

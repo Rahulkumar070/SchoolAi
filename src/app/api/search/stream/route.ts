@@ -12,8 +12,11 @@ import {
   formatEvidenceBlocks,
   guaranteeFoundationalChunks,
   verifyClaimCitations,
+  verifyAnswer,
+  repairUncitedSentences,
   badgePapers,
-  STATIC_PAPER_IDS,
+  RAG_SYSTEM,
+  buildRAGPrompt,
 } from "@/lib/rag";
 import { detectIntent, getIntentSystemAddendum } from "@/lib/intent";
 import { connectDB } from "@/lib/mongodb";
@@ -25,7 +28,7 @@ import { checkGuestLimit } from "@/lib/guestLimit";
 import Anthropic from "@anthropic-ai/sdk";
 import mongoose from "mongoose";
 import { generateRelatedQuestions } from "@/lib/ai";
-import { EvidenceBlock } from "@/types"; // ✅ CHANGE #1 — new import [Upgrade #1]
+import { EvidenceBlock } from "@/types";
 
 const ant = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -60,19 +63,19 @@ type UserDoc = {
   }[];
 };
 
-// ✅ CHANGE #2 — PromptResult now also returns topChunks and evidenceBlocks
-// so we can run verifyClaimCitations after streaming without re-building
+// PromptResult carries everything needed to derive citedPapers in code after streaming
 interface PromptResult {
   prompt: string;
-  chunkIdToPaperId: Map<string, string>;
-  evidenceBlocks: EvidenceBlock[]; // needed for claim verification
-  intentAddendum: string; // v7 NEW: intent-specific system instructions
+  chunkIdToPaperId: Map<string, string>; // request-local — not shared state
+  evidenceBlocks: EvidenceBlock[];
+  intentAddendum: string;
 }
 
 async function buildPrompt(
   query: string,
   papers: PaperRow[],
   intentAddendum: string = "",
+  requiredIds: Set<string> = new Set(),
 ): Promise<PromptResult> {
   const emptyMap = new Map<string, string>();
 
@@ -86,66 +89,19 @@ async function buildPrompt(
       reranked,
       chunks,
       papers as any,
+      requiredIds,
     );
 
-    // Build citation-grounded evidence blocks (includes authors, citationCount, doi, inlineCite)
     const evidenceBlocks = buildEvidenceBlocks(topChunks, papers as any);
     const formattedEvidence = formatEvidenceBlocks(evidenceBlocks);
+
+    // Request-local citation map — no global mutation
     const chunkIdToPaperId = new Map(
       evidenceBlocks.map((b) => [b.chunk_id, b.paper_id]),
     );
 
-    // v7: append intent-specific instructions (math equations, comparison table, etc.)
-    const intentSection = intentAddendum ? `\n\n${intentAddendum}` : "";
-
-    const prompt = `You are Researchly, a citation-grounded research assistant.
-You must answer the user using ONLY the retrieved evidence blocks provided below.
-Do not use prior knowledge, world knowledge, or unstated assumptions.
-GROUNDING RULES
-1. Every factual sentence must end with one or more citations in this exact format: [CITATION:chunk_id]
-2. Only cite chunk IDs that appear in the EVIDENCE BLOCKS section.
-3. Do not cite a paper unless at least one cited chunk belongs to that paper.
-4. If a claim is supported by multiple chunks, cite all of them.
-5. If the evidence is insufficient, say exactly: "I cannot support that from the retrieved papers."
-6. If sources conflict, state the conflict explicitly and cite both sides.
-7. Do not invent authors, years, venues, URLs, DOI values, or paper titles.
-8. Do not output a citation for stylistic or general statements unless they contain a factual claim.
-9. Prefer direct evidence from the most relevant chunks over broad summary language.
-10. Never output a claim first and search for a citation later; form each sentence from evidence.
-CITATION FORMAT
-- Use the inline_cite field for the FIRST mention of a paper:
-  "Vaswani et al. (2017) [CITATION:c01]"
-- For subsequent mentions of the same paper: just [CITATION:cXX]
-OUTPUT RULES
-- Write in 4 to 6 short sections with clear headings.
-- After every factual sentence, append citation tags like [CITATION:c12][CITATION:c19].
-- Do not use any citation tag that is not present in the evidence.
-- At the end, output a section titled "## Cited Papers" listing only papers that were actually cited.
-- For each cited paper, include:
-  - paper_id
-  - title
-  - year
-  - url
-  - cited_chunk_ids
-- Do not include papers that were retrieved but not cited.
-- If no evidence supports the answer, output only: "I cannot support that from the retrieved papers."
-EVIDENCE BLOCKS
-Each block has:
-- chunk_id
-- paper_id
-- title
-- authors
-- year
-- venue
-- citations       (citation count — e.g. 80,000)
-- doi             (DOI string or "Not available")
-- url
-- section         (which part of the paper: abstract/introduction/methods/results/conclusion)
-- inline_cite     (pre-formatted "Author et al. (Year)" — use this for first mention)
-- text
-${formattedEvidence}
-USER QUESTION
-${query}${intentSection}`;
+    // Use shared buildRAGPrompt so the user prompt contract is identical to generateRAGAnswer
+    const prompt = buildRAGPrompt(query, formattedEvidence, intentAddendum);
 
     return { prompt, chunkIdToPaperId, evidenceBlocks, intentAddendum };
   }
@@ -159,65 +115,8 @@ ${query}${intentSection}`;
   };
 }
 
-const SYSTEM = `You are Researchly, a citation-grounded academic research assistant for Indian students and researchers.
-You ONLY help with academic, research, and study topics.
-You must answer using ONLY the retrieved evidence blocks in the user message.
-
-GROUNDING RULES
-1. Every factual sentence must end with [CITATION:chunk_id] — use the exact chunk_id from the evidence blocks.
-2. Only cite chunk IDs present in the EVIDENCE BLOCKS section of the user message.
-3. Never cite a paper unless a cited chunk belongs to that paper.
-4. If a claim is supported by multiple chunks, cite all of them: [CITATION:c01][CITATION:c03]
-5. If evidence is insufficient, write: "I cannot support that from the retrieved papers."
-6. Never invent authors, years, venues, URLs, DOI values, or paper titles.
-
-CITATION FORMAT
-- Use inline_cite field from the evidence block for the FIRST mention of each paper.
-  Example: "The Transformer uses only attention mechanisms. Vaswani et al. (2017) [CITATION:c01]"
-- For subsequent mentions of the same paper: just [CITATION:cXX]
-
-MANDATORY RESPONSE STRUCTURE — output ALL 7 sections in order:
-1. ## Overview
-2. ## Key Concepts
-3. ## System Architecture  (include ASCII diagram for any AI system or pipeline)
-4. ## Technical Details or Comparison  (include comparison table when comparing 2+ models)
-5. ## Limitations
-6. ## Key Takeaways
-7. ## What To Search Next  (3 query suggestions, no citations needed here)
-
-CITATION PLACEMENT — hard limits per section:
-- ## Overview: max 2 citations
-- ## Key Concepts: EVERY concept sub-item MUST have at least 1 citation. Max 4 total.
-- ## System Architecture: 0 citations
-- ## Technical Details or Comparison: max 3 citations
-- ## Limitations: 0 citations
-- ## Key Takeaways: max 2 citations on first two takeaways only
-- ## What To Search Next: 0 citations
-- TOTAL: maximum 10 [CITATION:*] markers across the whole answer
-
-KEY CONCEPTS RULE: For each named concept listed in ## Key Concepts, you MUST append
-a [CITATION:chunk_id] at the end of its description. Do not leave any concept uncited.
-
-CITATION SAFETY RULES:
-- ONLY cite chunk_ids listed in the EVIDENCE BLOCKS section.
-- Never repeat the same chunk_id more than 2 times.
-- Never write plain-text citations like "Devlin et al." — use [CITATION:chunk_id] only.
-- Never append a bibliography or references list at the end.
-
-After ## What To Search Next, output a "## Cited Papers" section in YAML format:
-## Cited Papers
-- paper_id: <paper_id>
-  title: <title>
-  year: <year>
-  url: <url>
-  cited_chunk_ids: [<chunk_id>, ...]
-
-Include ONLY papers actually cited in the answer body. Then STOP completely.
-
-WRITING RULES
-- Never start with filler phrases.
-- Bold **key terms** on first use.
-- Research answers: 600–900 words. Study: 400–600 words.`;
+// Use the single shared RAG_SYSTEM from rag.ts — one prompt contract everywhere
+const SYSTEM = RAG_SYSTEM;
 
 export async function POST(req: NextRequest) {
   try {
@@ -338,7 +237,6 @@ export async function POST(req: NextRequest) {
     }
 
     // ── Papers ────────────────────────────────────────────────
-    // v7 NEW: Detect query intent FIRST — drives retrieval strategy + system prompt
     const intentResult = await detectIntent(q).catch(() => null);
     const intentAddendum = intentResult
       ? getIntentSystemAddendum(intentResult)
@@ -346,6 +244,7 @@ export async function POST(req: NextRequest) {
 
     const cached = await getCachedResult(q);
     let papers: PaperRow[];
+    let requiredIds: Set<string> = new Set();
     let fromCache: boolean;
 
     const routeJunkFilter = (p: PaperRow, query: string): boolean => {
@@ -524,8 +423,11 @@ export async function POST(req: NextRequest) {
         routeJunkFilter(p, q),
       );
       fromCache = true;
+      // On cache hit requiredIds stay empty — the answer is already generated
     } else {
-      const rawPapers = (await searchAll(q)) as PaperRow[];
+      const searchResult = await searchAll(q);
+      const rawPapers = searchResult.papers as PaperRow[];
+      requiredIds = searchResult.requiredIds;
       const enriched = (await enrichWithFullText(
         rawPapers as any,
         3,
@@ -556,7 +458,7 @@ export async function POST(req: NextRequest) {
           chunkIdToPaperId,
           evidenceBlocks,
           intentAddendum: resolvedAddendum,
-        } = await buildPrompt(q, papers, intentAddendum);
+        } = await buildPrompt(q, papers, intentAddendum, requiredIds);
 
         // v7 NEW: dynamic system prompt — append intent-specific rules
         const dynamicSystem = resolvedAddendum
@@ -569,6 +471,21 @@ export async function POST(req: NextRequest) {
             /\n+##\s*Cited Papers[\s\S]*$/i,
             "",
           );
+
+          // Run repair pass on cached answers too — fixes stale entries saved
+          // before the repair pass was deployed, and is idempotent on correct ones.
+          if (evidenceBlocks.length > 0) {
+            const repairedCached = await repairUncitedSentences(
+              cachedAnswer,
+              evidenceBlocks,
+            ).catch(() => cachedAnswer);
+            if (repairedCached !== cachedAnswer) {
+              cachedAnswer = repairedCached;
+              // Save the improved version back so future cache hits are correct
+              void saveToCache(q, cachedAnswer, papers);
+            }
+          }
+
           const words = cachedAnswer.split(" ");
           for (let i = 0; i < words.length; i += 4) {
             const chunk =
@@ -618,56 +535,292 @@ export async function POST(req: NextRequest) {
         const rawAnswer = fullAnswer;
         fullAnswer = fullAnswer.replace(/\n+##\s*Cited Papers[\s\S]*$/i, "");
 
-        // SERVER-SIDE: deduplicate [CITATION:chunk_id] markers
-        const seenCitations = new Set<string>();
-        fullAnswer = fullAnswer.replace(/\[CITATION:[a-z0-9]+\]/g, (match) => {
-          if (seenCitations.has(match)) return "";
-          seenCitations.add(match);
-          return match;
-        });
+        // Strip ** bold artifacts from "What To Search Next" items.
+        // The model sometimes wraps suggestions in **"..."** or ** "..."**.
+        // Match and remove any ** markers surrounding or adjacent to quoted suggestions.
+        fullAnswer = fullAnswer.replace(
+          /(##\s*What To Search Next[\s\S]*?)$/im,
+          (section) =>
+            section.replace(/\*{1,2}\s*(".*?"|\S[^\n]*?)\s*\*{1,2}/g, "$1"),
+        );
 
         // SERVER-SIDE: per-section citation cap
+        // Split on section boundaries rather than using a greedy regex —
+        // the old (?=^##|\s*$) lookahead silently dropped the last section.
         const SERVER_SECTION_LIMITS: Record<string, number> = {
           "key concepts": 4,
           overview: 2,
           "system architecture": 0,
           "technical details": 3,
           "technical details or comparison": 3,
-          limitations: 0,
-          "key takeaways": 2,
+          limitations: 2,
+          "key takeaways": 4,
           "what to search next": 0,
           "cited papers": 0,
         };
-        fullAnswer = fullAnswer.replace(
-          /^##\s+(.+)$([\s\S]*?)(?=^##|\s*$)/gm,
-          (block, heading, body) => {
-            const limit = SERVER_SECTION_LIMITS[heading.trim().toLowerCase()];
-            if (limit === undefined) return block;
-            let count = 0;
-            const cappedBody = body.replace(
-              /\[CITATION:[a-z0-9]+\]/g,
-              (m: string) => {
-                count++;
-                return count <= limit ? m : "";
-              },
-            );
-            return `## ${heading}${cappedBody}`;
-          },
-        );
 
-        // ✅ CHANGE #4 — Claim-to-citation verification pass [Upgrade #2]
-        // Runs Claude Haiku to score each citation 0-10 and removes weak ones (<6)
+        // Split the answer on ## headings, process each section independently
+        const sectionParts = fullAnswer.split(/(^##\s+.+$)/m);
+        // sectionParts alternates: [pre-content, ## Heading, body, ## Heading, body, ...]
+        const cappedParts: string[] = [];
+        for (let si = 0; si < sectionParts.length; si++) {
+          const part = sectionParts[si];
+          if (/^##\s+/.test(part)) {
+            // This is a heading — peek at the next part (the body)
+            const heading = part
+              .replace(/^##\s+/, "")
+              .trim()
+              .toLowerCase();
+            const limit = SERVER_SECTION_LIMITS[heading];
+            cappedParts.push(part);
+            si++; // advance to body
+            const body = sectionParts[si] ?? "";
+            if (limit !== undefined) {
+              const seenIds = new Set<string>();
+              cappedParts.push(
+                body.replace(/\[CITATION:[a-z0-9]+\]/g, (m: string) => {
+                  if (seenIds.has(m)) return m; // repeat of known citation — always keep
+                  if (seenIds.size >= limit) return ""; // new citation beyond cap — strip
+                  seenIds.add(m);
+                  return m;
+                }),
+              );
+            } else {
+              cappedParts.push(body);
+            }
+          } else {
+            cappedParts.push(part);
+          }
+        }
+        fullAnswer = cappedParts.join("");
+
+        // Pass 1: hallucination guard — runs on every answer, including short ones
+        if (evidenceBlocks.length > 0) {
+          const verified1 = await verifyAnswer(
+            fullAnswer,
+            formatEvidenceBlocks(evidenceBlocks),
+          ).catch(() => fullAnswer);
+          if (verified1 !== fullAnswer) {
+            fullAnswer = verified1;
+          }
+        }
+
+        // Pass 2: per-citation strength check — strict thresholds (keep>=7, flag 4-6, remove<=3)
         if (evidenceBlocks.length > 0) {
           const { verified_answer } = await verifyClaimCitations(
             fullAnswer,
             evidenceBlocks,
           ).catch(() => ({
             verified_answer: fullAnswer,
-            removed_citations: 0,
-            flagged_citations: 0,
-            verification_log: "",
           }));
           fullAnswer = verified_answer;
+        }
+
+        // Pass 3: uncited-sentence repair for Overview + Key Concepts
+        // Detects factual sentences with no [CITATION:...] tag and triggers a
+        // targeted Haiku repair that inserts the correct evidenceId in place.
+        if (evidenceBlocks.length > 0) {
+          fullAnswer = await repairUncitedSentences(
+            fullAnswer,
+            evidenceBlocks,
+          ).catch(() => fullAnswer);
+        }
+
+        // Required-paper completeness injection.
+        // After all verification passes, some required papers may still be absent from
+        // citedPapers because their citations were in a capped section (e.g. Limitations)
+        // or were stripped by verifyClaimCitations. Scan fullAnswer for author+year mentions
+        // of required papers; if one is mentioned by text but has no [CITATION:xxx] tag,
+        // inject the citation immediately after its first mention.
+        if (requiredIds.size > 0 && !fromCache) {
+          // Key-term patterns for required papers whose authors the LLM may not name
+          // explicitly. Used as fallback when author+year text is absent from the answer.
+          // IMPORTANT: keys must match block.paper_id (the paper's .id field),
+          // NOT the STATIC_PAPERS key name (e.g. "vaswani2017" not "attention-transformer").
+          const PAPER_KEY_TERM_RE: Record<string, RegExp> = {
+            vaswani2017:
+              /\b(transformer\b|transformer architecture|transformer model|transformer.based|attention is all you need|multi.?head attention|encoder.{0,20}decoder)\b/i,
+            raffel2020: /\bT5\b|\btext.?to.?text\b|unified.*text.?to.?text/i,
+            devlin2019:
+              /\bBERT\b|bidirectional.*transformer|masked language model/i,
+            radford2018: /\bGPT[-\s]?1\b|generative pre.?training/i,
+            brown2020:
+              /\bGPT[-\s]?3\b|few.?shot learner|175.{0,10}billion param/i,
+          };
+
+          const currentlyCitedPaperIds = new Set<string>();
+          for (const [, eid] of fullAnswer.matchAll(
+            /\[CITATION:([a-z0-9]+)\]/g,
+          )) {
+            const pid = chunkIdToPaperId.get(eid);
+            if (pid) currentlyCitedPaperIds.add(pid);
+          }
+          for (const block of evidenceBlocks) {
+            if (!requiredIds.has(block.paper_id)) continue;
+            if (currentlyCitedPaperIds.has(block.paper_id)) continue;
+
+            // Strategy 1: author last-name + year within 80 chars
+            const lastName = (block.authors[0] ?? "").split(/\s+/).pop() ?? "";
+            const yearStr = block.year?.toString() ?? "";
+            let matchResult: RegExpExecArray | null = null;
+            if (lastName && yearStr) {
+              const mentionRe = new RegExp(
+                `${lastName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}[^.!?\\n]{0,80}${yearStr}`,
+                "i",
+              );
+              matchResult = mentionRe.exec(fullAnswer);
+            }
+
+            // Strategy 2: paper-specific key terms (handles cases where LLM
+            // writes "T5 framework" without mentioning Raffel, or "Transformer"
+            // without mentioning Vaswani)
+            if (!matchResult) {
+              const keyTermRe = PAPER_KEY_TERM_RE[block.paper_id];
+              if (keyTermRe) matchResult = keyTermRe.exec(fullAnswer);
+            }
+
+            if (!matchResult) continue;
+            const insertAt = matchResult.index + matchResult[0].length;
+            // Don't double-inject if a citation already immediately follows
+            if (
+              /^\s*\[CITATION:/.test(fullAnswer.slice(insertAt, insertAt + 20))
+            )
+              continue;
+            fullAnswer =
+              fullAnswer.slice(0, insertAt) +
+              ` [CITATION:${block.chunk_id}]` +
+              fullAnswer.slice(insertAt);
+            currentlyCitedPaperIds.add(block.paper_id);
+          }
+        }
+
+        // Key Concepts derivative-paper filter for named comparison queries.
+        // After all repair passes, scan Key Concepts bullet points. For comparison
+        // queries (≥2 of BERT/GPT/T5 named with a comparison word), remove any
+        // bullet whose [CITATION:xxx] tags ALL map to non-required papers AND whose
+        // text does not mention any backbone model by name. This prevents TinyBERT,
+        // MPNet, BART etc. from occupying primary Key Concept slots.
+        if (requiredIds.size > 0 && !fromCache) {
+          const mentionsBert2 = /\bbert\b/i.test(q);
+          const mentionsGpt2 = /\bgpt[\s\-]?\d*\b/i.test(q);
+          const mentionsT52 = /\bt5\b/i.test(q);
+          const namedCount2 = +mentionsBert2 + +mentionsGpt2 + +mentionsT52;
+          const hasComparisonWord2 =
+            /\bvs\.?\b|\bversus\b|\bcompar|\bdiffer|\bcontrast/i.test(q);
+          const isComparisonQuery =
+            (namedCount2 >= 2 && hasComparisonWord2) || namedCount2 === 3;
+
+          if (isComparisonQuery) {
+            const BACKBONE_NAMES =
+              /\btransformer\b|\bbert\b|\bgpt\b|\bt5\b|\battention is all you need\b/i;
+            const kParts = fullAnswer.split(/(^##\s+.+$)/m);
+            const kSanitized: string[] = [];
+            for (let si = 0; si < kParts.length; si++) {
+              const part = kParts[si];
+              if (
+                /^##\s+/.test(part) &&
+                part
+                  .replace(/^##\s+/, "")
+                  .trim()
+                  .toLowerCase() === "key concepts"
+              ) {
+                kSanitized.push(part);
+                si++;
+                const body = kParts[si] ?? "";
+                const sanitizedLines = body.split("\n").filter((line) => {
+                  const trimmed = line.trim();
+                  if (!trimmed.startsWith("-") && !trimmed.startsWith("*"))
+                    return true; // not a bullet — keep
+                  // Extract all citation IDs from this bullet
+                  const eids = [
+                    ...trimmed.matchAll(/\[CITATION:([a-z0-9]+)\]/g),
+                  ].map((m) => m[1]);
+                  if (eids.length === 0) return true; // uncited — keep (repair pass will handle it)
+                  // Keep if any citation maps to a required (backbone) paper
+                  const hasBackbone = eids.some((eid) => {
+                    const pid = chunkIdToPaperId.get(eid);
+                    return pid !== undefined && requiredIds.has(pid);
+                  });
+                  if (hasBackbone) return true;
+                  // Keep if bullet text explicitly names a backbone model
+                  if (BACKBONE_NAMES.test(trimmed)) return true;
+                  // All citations are to derivative papers and no backbone name — remove
+                  return false;
+                });
+                kSanitized.push(sanitizedLines.join("\n"));
+              } else {
+                kSanitized.push(part);
+              }
+            }
+            fullAnswer = kSanitized.join("");
+          }
+        }
+
+        // ── Final backbone validator for named comparison queries ───────────────
+        // Runs after ALL repair passes (including completeness injection and Key
+        // Concepts filter). For BERT/GPT/T5 comparison queries, any required
+        // backbone paper still absent from the answer gets a citation injected
+        // deterministically — guaranteed before citedPapers is built.
+        if (requiredIds.size > 0 && !fromCache) {
+          const _bMentionsBert = /\bbert\b/i.test(q);
+          const _bMentionsGpt = /\bgpt[\s\-]?\d*\b/i.test(q);
+          const _bMentionsT5 = /\bt5\b/i.test(q);
+          const _bNamed = +_bMentionsBert + +_bMentionsGpt + +_bMentionsT5;
+          const _bIsComparison =
+            (_bNamed >= 2 &&
+              /\bvs\.?\b|\bversus\b|\bcompar|\bdiffer|\bcontrast/i.test(q)) ||
+            _bNamed === 3;
+
+          if (_bIsComparison) {
+            // Broad key-term patterns used only for final injection-point search.
+            // Deliberately broader than completeness injection so any phrasing qualifies.
+            const BACKBONE_FIND_RE: Record<string, RegExp> = {
+              vaswani2017:
+                /\btransformer\b|\battention is all you need\b|\bmulti.?head attention\b/i,
+              raffel2020: /\bT5\b|\btext.?to.?text\b|\braffel\b/i,
+              devlin2019: /\bBERT\b|\bdevlin\b/i,
+              radford2018:
+                /\bGPT[-\s]?1\b|\bradford\b|\bgenerative pre.?training\b/i,
+              brown2020:
+                /\bGPT[-\s]?3\b|\bfew.?shot learner\b|\bbrown.*2020\b/i,
+            };
+
+            // Re-scan current citation state after all passes
+            const _bCurPids = new Set<string>();
+            for (const [, eid] of fullAnswer.matchAll(
+              /\[CITATION:([a-z0-9]+)\]/g,
+            )) {
+              const pid = chunkIdToPaperId.get(eid);
+              if (pid) _bCurPids.add(pid);
+            }
+
+            for (const block of evidenceBlocks) {
+              if (!requiredIds.has(block.paper_id)) continue;
+              if (_bCurPids.has(block.paper_id)) continue; // already cited
+
+              const findRe = BACKBONE_FIND_RE[block.paper_id];
+              if (!findRe) continue;
+
+              const m = findRe.exec(fullAnswer);
+              if (!m) continue;
+
+              // Inject right after the matched mention
+              const afterMatch = m.index + m[0].length;
+              // Skip if already immediately followed by a citation
+              if (
+                /^\s*\[CITATION:/.test(
+                  fullAnswer.slice(afterMatch, afterMatch + 25),
+                )
+              )
+                continue;
+
+              fullAnswer =
+                fullAnswer.slice(0, afterMatch) +
+                ` [CITATION:${block.chunk_id}]` +
+                fullAnswer.slice(afterMatch);
+              _bCurPids.add(block.paper_id);
+            }
+          }
         }
 
         // Save CLEAN answer to cache
@@ -678,29 +831,40 @@ export async function POST(req: NextRequest) {
           send({ type: "answer_replace", text: fullAnswer });
         }
 
-        // Extract cited papers from [CITATION:cXX] markers using chunk map
-        const citedPaperIds = new Set<string>();
-        for (const [, chunkId] of fullAnswer.matchAll(
+        // Build citedPapers entirely from actually-used evidenceIds in the answer body
+        // — never from the full retrieved list, and never from STATIC_PAPER_IDS auto-add
+        const usedEvidenceIds = new Set<string>();
+        for (const [, evidenceId] of fullAnswer.matchAll(
           /\[CITATION:([a-z0-9]+)\]/g,
         )) {
-          const paperId = chunkIdToPaperId.get(chunkId);
+          usedEvidenceIds.add(evidenceId);
+        }
+
+        const citedPaperIds = new Set<string>();
+        for (const evidenceId of usedEvidenceIds) {
+          const paperId = chunkIdToPaperId.get(evidenceId);
           if (paperId) citedPaperIds.add(paperId);
         }
 
-        for (const [, paperId] of chunkIdToPaperId) {
-          if (STATIC_PAPER_IDS.has(paperId)) {
-            citedPaperIds.add(paperId);
-          }
+        // Only show papers that were genuinely cited — no fallback to full results
+        const citedPapers = allPapers.filter((p) => citedPaperIds.has(p.id));
+
+        // Attach credibility badges and send to client
+        const badgedCitedPapers = badgePapers(citedPapers as any);
+
+        // Build evidenceId → paperId map so the client can resolve [CITATION:evidenceId] markers
+        const evidenceIdToPaperId: Record<string, string> = {};
+        for (const evidenceId of usedEvidenceIds) {
+          const paperId = chunkIdToPaperId.get(evidenceId);
+          if (paperId) evidenceIdToPaperId[evidenceId] = paperId;
         }
 
-        const citedPapers =
-          citedPaperIds.size > 0
-            ? allPapers.filter((p) => citedPaperIds.has(p.id))
-            : allPapers.slice(0, 6);
-
-        // ✅ CHANGE #5 — Attach credibility badges before sending to client [Upgrade #10]
-        const badgedCitedPapers = badgePapers(citedPapers as any);
-        send({ type: "papers", papers: badgedCitedPapers });
+        send({
+          type: "papers",
+          papers: badgedCitedPapers,
+          usedEvidenceIds: [...usedEvidenceIds],
+          evidenceIdToPaperId,
+        });
 
         // Generate personalized related questions
         const recentHistory = (u?.searchHistory ?? [])
@@ -737,7 +901,8 @@ export async function POST(req: NextRequest) {
             userId: u._id,
             role: "assistant",
             content: fullAnswer,
-            papers,
+            papers: citedPapers, // only papers actually cited in the answer
+            retrievedPapers: papers, // full ranked retrieval set (for future "Retrieved papers" panel)
           });
 
           await ConversationModel.findByIdAndUpdate(conversationId, {

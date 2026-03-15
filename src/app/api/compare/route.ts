@@ -105,7 +105,7 @@ export async function POST(req: NextRequest) {
     const searchQuery = topic ?? `${models.join(" vs ")} comparison architecture`;
 
     // Fetch relevant papers
-    const papers = (await searchAll(searchQuery)) as Paper[];
+    const { papers } = await searchAll(searchQuery);
     if (!papers.length) {
       return NextResponse.json(
         { error: "No papers found for these models" },

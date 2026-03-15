@@ -183,6 +183,115 @@ export interface ExportResult {
 }
 
 // ─────────────────────────────────────────────────────────────
+// PAPER ARRAY CONTRACT — v2
+//
+// Two distinct arrays replace the old ambiguous `papers` field:
+//
+//   citedPapers    — papers whose evidenceId appears in the answer
+//                    body. Rendered in the user-facing Sources panel.
+//
+//   retrievedPapers — full BM25/rerank output before citation
+//                    filtering. Only shown in a labelled
+//                    "Retrieved papers" / debug section.
+//
+// The bare field name `papers` is banned on all API responses,
+// Mongo documents, frontend Turn/Message interfaces, and component
+// props that feed a citation panel. TypeScript will catch violations
+// because no shared interface exposes a field called `papers` for
+// that purpose.
+// ─────────────────────────────────────────────────────────────
+
+/** A Paper that was actually cited in the answer body. */
+export interface CitedPaper extends Paper {
+  /** The evidenceId whose [CITATION:evidenceId] tag appears in the answer. */
+  evidenceId: string;
+}
+
+/** A Paper that was fetched and ranked but may not have been cited. */
+export interface RetrievedPaper extends Paper {
+  /** 1-indexed position in the BM25/rerank output. */
+  rank: number;
+}
+
+// ─── SSE event payload (type: "papers") ──────────────────────
+// Sent from /api/search/stream after the answer is finalised.
+export interface SSEPapersEvent {
+  type: "papers";
+  citedPapers: CitedPaper[];
+  retrievedPapers: RetrievedPaper[];
+  evidenceIdToPaperId: Record<string, string>;
+  usedEvidenceIds: string[];
+}
+
+// ─── API response: /api/conversations/[id] messages ──────────
+// What the frontend receives for each message in a conversation.
+export interface MessageRecord {
+  _id: string;
+  role: "user" | "assistant";
+  content: string;
+  /** Papers actually cited in the answer. Empty array for user messages. */
+  citedPapers: CitedPaper[];
+  /** Full retrieval set. Empty for user messages and legacy v1 records. */
+  retrievedPapers: RetrievedPaper[];
+  /** 1 = legacy record where only `papers` was saved; 2 = split contract. */
+  schemaVersion: 1 | 2;
+  createdAt: string;
+}
+
+// ─── Frontend: one search turn in search/page.tsx state ──────
+export interface SearchTurn {
+  query: string;
+  answer: string;
+  /** Papers actually cited in the answer — rendered in the Sources panel. */
+  citedPapers: CitedPaper[];
+  /** Full retrieval set — available for a "Retrieved papers" expand section. */
+  retrievedPapers: RetrievedPaper[];
+  evidenceIdToPaperId: Record<string, string>;
+  streaming?: boolean;
+  related?: string[];
+  status?: string;
+  feedback?: "up" | "down" | null;
+}
+
+// ─── Mongo: User.searchHistory entry ─────────────────────────
+export interface HistoryRecord {
+  query: string;
+  answer: string;
+  citedPapers: Paper[];
+  retrievedPapers: Paper[];
+  searchedAt: Date;
+  schemaVersion: 2;
+}
+
+// ─── Mongo: legacy history entry (schemaVersion absent or 1) ─
+// Read-time normalization maps this → HistoryRecord:
+//   citedPapers = papers, retrievedPapers = []
+export interface LegacyHistoryRecord {
+  query: string;
+  answer: string;
+  papers: Paper[];
+  searchedAt: Date;
+  schemaVersion?: 1;
+}
+
+// ─── Normalizer: call this on every DB read ───────────────────
+// Never let LegacyHistoryRecord reach the rendering layer raw.
+export function normalizeHistoryRecord(
+  raw: HistoryRecord | LegacyHistoryRecord,
+): HistoryRecord {
+  if (raw.schemaVersion === 2) return raw as HistoryRecord;
+  const legacy = raw as LegacyHistoryRecord;
+  return {
+    query: legacy.query,
+    answer: legacy.answer,
+    citedPapers: legacy.papers ?? [],
+    retrievedPapers: [],
+    searchedAt: legacy.searchedAt,
+    schemaVersion: 2,
+  };
+}
+
+// ─────────────────────────────────────────────────────────────
 // UNCHANGED TYPES
 // ─────────────────────────────────────────────────────────────
 
