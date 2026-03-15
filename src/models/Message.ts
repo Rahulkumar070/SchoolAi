@@ -28,8 +28,9 @@ const MessageSchema = new Schema(
     userId: { type: Types.ObjectId, required: true, ref: "User", index: true },
     role: { type: String, enum: ["user", "assistant"], required: true },
     content: { type: String, required: true, default: "" },
-    papers: { type: [PaperSchema], default: [] },           // cited papers only (used in answer)
+    papers: { type: [PaperSchema], default: [] }, // cited papers only (used in answer)
     retrievedPapers: { type: [PaperSchema], default: [] }, // full ranked retrieval set
+    evidenceIdToPaperId: { type: Schema.Types.Mixed, default: {} }, // maps evidenceId → paperId for citation resolution
     createdAt: { type: Date, default: Date.now },
   },
   { timestamps: false },

@@ -55,6 +55,7 @@ export async function GET(
       content: string;
       papers?: unknown[];
       retrievedPapers?: unknown[];
+      evidenceIdToPaperId?: Record<string, string>;
       createdAt: Date;
     }[];
 
@@ -68,8 +69,9 @@ export async function GET(
         _id: m._id.toString(),
         role: m.role,
         content: m.content,
-        papers: m.papers ?? [],                       // cited papers only
-        retrievedPapers: m.retrievedPapers ?? [],     // full ranked retrieval set
+        papers: m.papers ?? [], // cited papers only
+        retrievedPapers: m.retrievedPapers ?? [], // full ranked retrieval set
+        evidenceIdToPaperId: m.evidenceIdToPaperId ?? {}, // citation resolution map
         createdAt: m.createdAt,
       })),
     });

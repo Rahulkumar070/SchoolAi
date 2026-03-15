@@ -903,6 +903,7 @@ export async function POST(req: NextRequest) {
             content: fullAnswer,
             papers: citedPapers, // only papers actually cited in the answer
             retrievedPapers: papers, // full ranked retrieval set (for future "Retrieved papers" panel)
+            evidenceIdToPaperId, // maps evidenceId → paperId for citation resolution in history
           });
 
           await ConversationModel.findByIdAndUpdate(conversationId, {
