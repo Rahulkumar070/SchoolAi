@@ -30,8 +30,8 @@ interface Message {
   _id: string;
   role: "user" | "assistant";
   content: string;
-  papers: Paper[];            // cited papers only — rendered in the Sources panel
-  retrievedPapers: Paper[];   // full ranked retrieval set — available for "Retrieved papers" view
+  papers: Paper[]; // cited papers only — rendered in the Sources panel
+  retrievedPapers: Paper[]; // full ranked retrieval set — available for "Retrieved papers" view
   createdAt: string;
 }
 interface ConvMeta {
@@ -298,7 +298,8 @@ function ChatPage() {
                   _id: "streaming",
                   role: "assistant",
                   content: "",
-                  papers: evt.papers,
+                  papers: [],
+                  retrievedPapers: [], // ← add this line
                   createdAt: new Date().toISOString(),
                 });
                 setPanelTab("sources");
@@ -313,7 +314,7 @@ function ChatPage() {
                   role: "assistant",
                   content: fullAnswer,
                   papers: finalPapers,
-                  retrievedPapers: [],  // not available client-side; DB record has the full set
+                  retrievedPapers: [], // not available client-side; DB record has the full set
                   createdAt: new Date().toISOString(),
                 };
                 setMessages((prev) => [
