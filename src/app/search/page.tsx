@@ -165,9 +165,20 @@ function CopyBtn({ text }: { text: string }) {
   );
 }
 
+function slugify(q: string): string {
+  return q
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, "")
+    .trim()
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 80);
+}
+
 function ShareBar({ query }: { query: string }) {
   const [copied, setCopied] = useState(false);
-  const url = typeof window !== "undefined" ? window.location.href : "";
+  const url = `https://researchly.in/research/${slugify(query)}`;
 
   const waText = encodeURIComponent(`Check out this research on: ${query} — ${url}`);
   const twText = encodeURIComponent(`Found this research on ${query} using @researchly_in — ${url}`);
