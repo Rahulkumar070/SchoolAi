@@ -1434,7 +1434,8 @@ function resolveRefMarkers(body: string, papers: Paper[]): React.ReactNode[] {
         // Check if the next part is a [REF-N] marker — if so, use inline span rendering
         // to keep the citation badge on the same line as the text.
         const nextPart = parts[i + 1];
-        const nextIsRef = nextPart !== undefined && /^\[REF-(?:FOUND-)?\d+\]$/.test(nextPart);
+        const nextIsRef =
+          nextPart !== undefined && /^\[REF-(?:FOUND-)?\d+\]$/.test(nextPart);
         if (nextIsRef) {
           paraNodes.push(
             <ReactMarkdownInlineSegment key={`md-${pi}-${i}`} content={part} />,
@@ -1764,15 +1765,15 @@ function preprocessBody(body: string, papers: Paper[]): string {
 // Per-section citation hard cap — must match RAG_SYSTEM prompt limits so the renderer
 // never silently strips citations the model was explicitly told to produce.
 const SECTION_CITATION_LIMIT: Record<string, number> = {
-  overview: 2,                          // prompt: max 2
-  "key concepts": 4,                    // prompt: max 4, every concept must have 1
-  "system architecture": 0,            // prompt: 0 — structural diagrams, no citations
-  "technical details": 3,              // prompt: max 3
+  overview: 2, // prompt: max 2
+  "key concepts": 4, // prompt: max 4, every concept must have 1
+  "system architecture": 0, // prompt: 0 — structural diagrams, no citations
+  "technical details": 3, // prompt: max 3
   "technical details or comparison": 3, // prompt: max 3
-  limitations: 2,                       // was 0 — now allows factual limitation claims
-  "key takeaways": 4,                   // prompt: every takeaway must have 1 citation; max 4
-  "what to search next": 0,            // prompt: 0 — suggestions only
-  "quick revision points": 0,          // exam-style summaries, no citations needed
+  limitations: 2, // was 0 — now allows factual limitation claims
+  "key takeaways": 5, // prompt: every takeaway must have 1 citation; max 4
+  "what to search next": 0, // prompt: 0 — suggestions only
+  "quick revision points": 0, // exam-style summaries, no citations needed
 };
 
 // Strip extra [REF-N] markers beyond the per-section limit.
@@ -1998,7 +1999,10 @@ export default function AnswerRenderer({
 }: AnswerRendererProps) {
   const sections = splitIntoSections(content);
   const tldr = !streaming ? extractTldr(content) : null;
-  const evidenceToRef = buildEvidenceToRefMap(evidenceIdToPaperId, citedPapers ?? []);
+  const evidenceToRef = buildEvidenceToRefMap(
+    evidenceIdToPaperId,
+    citedPapers ?? [],
+  );
 
   return (
     <div
