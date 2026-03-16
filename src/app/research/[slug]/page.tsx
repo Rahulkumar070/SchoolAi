@@ -18,6 +18,11 @@ function stripCitations(text: string): string {
     .trim();
 }
 
+// Split answer on ## section headings, keeping each heading with its content
+function splitIntoSections(text: string): string[] {
+  return text.split(/(?=^##\s)/m).filter((s) => s.trim().length > 0);
+}
+
 type ResearchDoc = {
   slug: string;
   query: string;
@@ -99,14 +104,75 @@ export default async function PublicResearchPage({ params }: Props) {
     day: "numeric",
   });
 
+  const sections = splitIntoSections(data.answer);
+
   return (
     <>
       <style>{`
+        :root {
+          --bg:              #141414;
+          --bg-raised:       #1a1a1a;
+          --bg-overlay:      #1e1e1e;
+          --surface:         #222222;
+          --border:          rgba(255,255,255,0.06);
+          --border-mid:      rgba(255,255,255,0.09);
+          --text-primary:    #e8e3dc;
+          --text-secondary:  #b0aa9e;
+          --text-muted:      #666;
+          --text-faint:      #3a3a3a;
+          --brand:           #c9b99a;
+          --brand-dim:       rgba(201,185,154,0.07);
+          --brand-border:    rgba(201,185,154,0.18);
+          --brand-hover:     #b8a589;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { background: var(--bg); color: var(--text-primary); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+
         .pr-page {
           min-height: 100vh;
           background: var(--bg);
           color: var(--text-primary);
-          font-family: var(--font-ui, -apple-system, sans-serif);
+        }
+
+        /* ── STICKY TOP BANNER ── */
+        .pr-top-banner {
+          position: sticky;
+          top: 0;
+          z-index: 60;
+          background: var(--brand);
+          padding: 10px 20px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 14px;
+          flex-wrap: wrap;
+        }
+        .pr-top-banner-text {
+          font-size: 13px;
+          font-weight: 500;
+          color: #1a1408;
+          letter-spacing: -0.01em;
+        }
+        .pr-top-banner-btn {
+          display: inline-flex;
+          align-items: center;
+          gap: 5px;
+          font-size: 12.5px;
+          font-weight: 700;
+          color: #fff;
+          background: rgba(0,0,0,0.25);
+          border: 1px solid rgba(0,0,0,0.18);
+          padding: 5px 13px;
+          border-radius: 7px;
+          text-decoration: none;
+          white-space: nowrap;
+          transition: background 0.15s;
+        }
+        .pr-top-banner-btn:hover { background: rgba(0,0,0,0.38); }
+        @media (max-width: 600px) {
+          .pr-top-banner { gap: 10px; padding: 9px 16px; }
+          .pr-top-banner-text { font-size: 12px; text-align: center; }
         }
 
         /* ── NAV ── */
@@ -114,7 +180,7 @@ export default async function PublicResearchPage({ params }: Props) {
           display: flex; align-items: center; justify-content: space-between;
           padding: 14px 28px;
           border-bottom: 1px solid var(--border);
-          position: sticky; top: 0; z-index: 50;
+          position: sticky; top: 41px; z-index: 50;
           background: rgba(20,20,20,0.92);
           backdrop-filter: blur(20px);
           -webkit-backdrop-filter: blur(20px);
@@ -190,42 +256,88 @@ export default async function PublicResearchPage({ params }: Props) {
           border: 1px solid var(--border-mid);
           border-radius: 16px;
           padding: 32px 36px;
-          margin-bottom: 48px;
+          margin-bottom: 24px;
         }
+
+        /* ── INLINE CTA ── */
+        .pr-inline-cta {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          padding: 13px 20px;
+          margin: 0 0 24px;
+          background: var(--brand-dim);
+          border: 1px solid var(--brand-border);
+          border-radius: 10px;
+          font-size: 13px;
+          color: var(--text-muted);
+        }
+        .pr-inline-cta a {
+          color: var(--brand);
+          text-decoration: none;
+          font-weight: 600;
+          white-space: nowrap;
+        }
+        .pr-inline-cta a:hover { text-decoration: underline; }
+
+        /* ── BOTTOM CTA BLOCK ── */
+        .pr-bottom-cta {
+          background: var(--bg-raised);
+          border: 1px solid var(--brand-border);
+          border-radius: 16px;
+          padding: 36px 40px;
+          margin-bottom: 48px;
+          text-align: center;
+        }
+        .pr-bottom-cta h2 {
+          font-size: clamp(1.1rem, 2.5vw, 1.4rem);
+          font-weight: 700;
+          color: var(--text-primary);
+          letter-spacing: -0.025em;
+          line-height: 1.3;
+          margin-bottom: 12px;
+        }
+        .pr-bottom-cta p {
+          font-size: 14px;
+          color: var(--text-muted);
+          line-height: 1.65;
+          max-width: 460px;
+          margin: 0 auto 24px;
+        }
+        .pr-bottom-cta-btns {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 12px;
+          flex-wrap: wrap;
+        }
+        .pr-cta-btn-primary {
+          display: inline-flex; align-items: center; gap: 7px;
+          font-size: 14px; font-weight: 700;
+          color: #000; background: var(--brand);
+          padding: 11px 24px; border-radius: 9px;
+          text-decoration: none; white-space: nowrap;
+          transition: background 0.15s;
+        }
+        .pr-cta-btn-primary:hover { background: var(--brand-hover, #b8a589); }
+        .pr-cta-btn-outline {
+          display: inline-flex; align-items: center; gap: 7px;
+          font-size: 14px; font-weight: 600;
+          color: var(--text-secondary);
+          border: 1px solid var(--border-mid);
+          padding: 11px 24px; border-radius: 9px;
+          text-decoration: none; white-space: nowrap;
+          transition: border-color 0.15s, color 0.15s;
+        }
+        .pr-cta-btn-outline:hover { border-color: var(--brand-border); color: var(--brand); }
+
         @media (max-width: 600px) {
           .pr-answer-card { padding: 20px 16px; }
           .pr-main { padding: 32px 16px 60px; }
-          .pr-nav { padding: 12px 16px; }
+          .pr-nav { padding: 12px 16px; top: 39px; }
+          .pr-bottom-cta { padding: 28px 20px; }
         }
-
-        /* ── CTA BANNER ── */
-        .pr-cta-banner {
-          background: var(--brand-dim);
-          border: 1px solid var(--brand-border);
-          border-radius: 14px;
-          padding: 28px 32px;
-          display: flex; align-items: center;
-          justify-content: space-between; gap: 20px;
-          flex-wrap: wrap;
-        }
-        .pr-cta-text h2 {
-          font-size: 16px; font-weight: 700;
-          color: var(--text-primary); letter-spacing: -0.02em;
-          margin-bottom: 5px;
-        }
-        .pr-cta-text p {
-          font-size: 13px; color: var(--text-muted); line-height: 1.5;
-        }
-        .pr-cta-link {
-          display: inline-flex; align-items: center; gap: 7px;
-          font-size: 13.5px; font-weight: 600;
-          color: #000; background: var(--brand);
-          padding: 10px 20px; border-radius: 9px;
-          text-decoration: none; white-space: nowrap;
-          transition: background 0.15s;
-          flex-shrink: 0;
-        }
-        .pr-cta-link:hover { background: var(--brand-hover, #b8a589); }
 
         /* ── FOOTER ── */
         .pr-footer {
@@ -244,6 +356,16 @@ export default async function PublicResearchPage({ params }: Props) {
       `}</style>
 
       <div className="pr-page">
+        {/* ── STICKY TOP BANNER ── */}
+        <div className="pr-top-banner">
+          <span className="pr-top-banner-text">
+            🔍 Research any topic with AI-powered citations — Try Researchly free
+          </span>
+          <Link href="/search" className="pr-top-banner-btn">
+            Start Researching <ArrowRight size={12} />
+          </Link>
+        </div>
+
         {/* ── NAV ── */}
         <nav className="pr-nav">
           <Link href="/" className="pr-logo">
@@ -285,28 +407,42 @@ export default async function PublicResearchPage({ params }: Props) {
             {publishedDate} · Powered by Researchly AI
           </p>
 
-          {/* Answer */}
-          <div className="pr-answer-card">
-            <AnswerRenderer
-              content={data.answer}
-              citedPapers={data.papers as any}
-              evidenceIdToPaperId={data.evidenceIdToPaperId}
-              streaming={false}
-            />
-          </div>
-
-          {/* CTA Banner */}
-          <div className="pr-cta-banner">
-            <div className="pr-cta-text">
-              <h2>Research any topic with AI-powered citations</h2>
-              <p>
-                Search 200M+ academic papers, generate literature reviews, and
-                get cited answers in seconds.
-              </p>
+          {/* Answer — split into sections, inject inline CTA after every 2nd section */}
+          {sections.map((section, i) => (
+            <div key={i}>
+              <div className="pr-answer-card">
+                <AnswerRenderer
+                  content={section}
+                  citedPapers={data.papers as any}
+                  evidenceIdToPaperId={data.evidenceIdToPaperId}
+                  streaming={false}
+                />
+              </div>
+              {/* Inject inline CTA after every 2nd section, but not after the last */}
+              {(i + 1) % 2 === 0 && i < sections.length - 1 && (
+                <div className="pr-inline-cta">
+                  Want to research your own topic?{" "}
+                  <Link href="/search">Try it free →</Link>
+                </div>
+              )}
             </div>
-            <Link href="/search" className="pr-cta-link">
-              Try Researchly free <ArrowRight size={14} />
-            </Link>
+          ))}
+
+          {/* Bottom CTA Block */}
+          <div className="pr-bottom-cta">
+            <h2>Research smarter with AI-powered citations</h2>
+            <p>
+              Researchly finds and cites academic papers for any research topic
+              in seconds. Used by students across India.
+            </p>
+            <div className="pr-bottom-cta-btns">
+              <Link href="/search" className="pr-cta-btn-primary">
+                Try Free <ArrowRight size={14} />
+              </Link>
+              <Link href="/pricing" className="pr-cta-btn-outline">
+                See Pricing
+              </Link>
+            </div>
           </div>
         </main>
 

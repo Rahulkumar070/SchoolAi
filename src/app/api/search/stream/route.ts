@@ -618,7 +618,17 @@ export async function POST(req: NextRequest) {
           }
         }
 
-        // Pass 2: per-citation strength check — strict thresholds (keep>=7, flag 4-6, remove<=3)
+        // Pass 2: uncited-sentence repair for Overview + Key Concepts
+        // Detects factual sentences with no [CITATION:...] tag and triggers a
+        // targeted Haiku repair that inserts the correct evidenceId in place.
+        if (evidenceBlocks.length > 0) {
+          fullAnswer = await repairUncitedSentences(
+            fullAnswer,
+            evidenceBlocks,
+          ).catch(() => fullAnswer);
+        }
+
+        // Pass 3: per-citation strength check — strict thresholds (keep>=7, flag 4-6, remove<=3)
         if (evidenceBlocks.length > 0) {
           const { verified_answer } = await verifyClaimCitations(
             fullAnswer,
@@ -627,16 +637,6 @@ export async function POST(req: NextRequest) {
             verified_answer: fullAnswer,
           }));
           fullAnswer = verified_answer;
-        }
-
-        // Pass 3: uncited-sentence repair for Overview + Key Concepts
-        // Detects factual sentences with no [CITATION:...] tag and triggers a
-        // targeted Haiku repair that inserts the correct evidenceId in place.
-        if (evidenceBlocks.length > 0) {
-          fullAnswer = await repairUncitedSentences(
-            fullAnswer,
-            evidenceBlocks,
-          ).catch(() => fullAnswer);
         }
 
         // Required-paper completeness injection.

@@ -2663,6 +2663,8 @@ class PaperDeduplicator {
 
   isDuplicate(paper: Paper): boolean {
     const titleKey = paper.title
+      .replace(/\\n/g, " ")
+      .replace(/\n/g, " ")
       .toLowerCase()
       .replace(/[^a-z0-9]/g, "")
       .slice(0, 60);

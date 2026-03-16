@@ -213,6 +213,10 @@ function ChatPage() {
   // Fetch conversation + messages
   useEffect(() => {
     if (status !== "authenticated") return;
+    // Reset panel state when switching conversations to avoid showing
+    // stale papers from a previously viewed conversation
+    setPanelMsg(null);
+    setPanelTab("sources");
     setLoadingConv(true);
     setNotFound(false);
     fetch(`/api/conversations/${convId}`)
@@ -223,11 +227,14 @@ function ChatPage() {
       .then((d: { conversation: ConvMeta; messages: Message[] }) => {
         setConv(d.conversation);
         setMessages(d.messages);
-        // Show last assistant message in panel if it has papers
+        // Auto-open Sources panel for the last assistant message that has papers
         const lastAsst = [...d.messages]
           .reverse()
           .find((m) => m.role === "assistant" && m.papers?.length > 0);
-        if (lastAsst) setPanelMsg(lastAsst);
+        if (lastAsst) {
+          setPanelMsg(lastAsst);
+          setPanelTab("sources");
+        }
       })
       .catch((e) => {
         if (e.message === "404") setNotFound(true);
@@ -416,7 +423,7 @@ function ChatPage() {
         <div className="panel-body">
           {panelTab === "sources" ? (
             panelMsg.papers.map((p, i) => (
-              <PaperCard key={p.id} paper={p} index={i + 1} />
+              <PaperCard key={p.id ?? i} paper={p} index={i + 1} />
             ))
           ) : (
             <CitationPanel papers={panelMsg.papers} />
@@ -527,7 +534,8 @@ function ChatPage() {
                                   setPanelMsg(msg);
                                   setPanelTab("sources");
                                 }}
-                                className="chip"
+                                className={`chip${panelMsg?._id === msg._id ? " accent" : ""}`}
+                                title="View cited papers"
                               >
                                 <Layers size={11} /> {msg.papers.length} sources
                               </button>
