@@ -930,8 +930,9 @@ export async function POST(req: NextRequest) {
             userId: u._id,
             role: "assistant",
             content: fullAnswer,
-            papers: citedPapers, // only papers actually cited in the answer
-            retrievedPapers: papers, // full ranked retrieval set (for future "Retrieved papers" panel)
+            papers: badgedCitedPapers, // cited papers with credibility badges
+            retrievedPapers: papers, // full ranked retrieval set
+            evidenceIdToPaperId, // citation resolution map
           });
 
           await ConversationModel.findByIdAndUpdate(conversationId, {
