@@ -13,6 +13,7 @@ const PaperSchema = new Schema(
     url: String,
     citationCount: Number,
     source: String,
+    badges: [String],
   },
   { _id: false },
 );
