@@ -1345,7 +1345,7 @@ function SearchApp() {
       </div>
       <div className="panel-body">
         {panelTab === "sources" ? (
-          panelTurn.papers.map((p, i) => (
+          (panelTurn.papers ?? []).map((p, i) => (
             <PaperCard key={p.id} paper={p} index={i + 1} />
           ))
         ) : (
@@ -1360,7 +1360,7 @@ function SearchApp() {
       rightPanel={RightPanel}
       activeConversationId={conversationId ?? undefined}
       rightPanelTitle={
-        panelTurn ? `Sources (${panelTurn.papers.length})` : "Sources"
+        panelTurn ? `Sources (${panelTurn.papers?.length ?? 0})` : "Sources"
       }
     >
       <style>{searchPageStyles}</style>
