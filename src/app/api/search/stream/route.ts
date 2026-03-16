@@ -29,8 +29,20 @@ import Anthropic from "@anthropic-ai/sdk";
 import mongoose from "mongoose";
 import { generateRelatedQuestions } from "@/lib/ai";
 import { EvidenceBlock } from "@/types";
+import { PublicResearchModel } from "@/models/PublicResearch";
 
 const ant = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+
+function slugify(q: string): string {
+  return q
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, "")
+    .trim()
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 80);
+}
 
 const FREE_DAILY_LIMIT = 5;
 const STUDENT_MONTHLY_LIMIT = 500;
@@ -883,6 +895,22 @@ export async function POST(req: NextRequest) {
           related: relatedQuestions,
         });
         controller.close();
+
+        // ── Save to PublicResearch for SEO pages (all users) ──
+        void PublicResearchModel.updateOne(
+          { slug: slugify(q) },
+          {
+            $set: {
+              slug: slugify(q),
+              query: q,
+              answer: fullAnswer,
+              papers: badgedCitedPapers,
+              evidenceIdToPaperId,
+              createdAt: new Date(),
+            },
+          },
+          { upsert: true },
+        ).catch(() => null);
 
         // ── Persist after stream closes ───────────────────────
         if (u && session?.user?.email && conversationId) {
