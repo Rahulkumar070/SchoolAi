@@ -1267,7 +1267,7 @@ function SearchApp() {
             className={`tab-btn${panelTab === "sources" ? " active" : ""}`}
             onClick={() => setPanelTab("sources")}
           >
-            Sources ({panelTurn.papers.length})
+            Sources ({panelTurn.papers?.length ?? 0})
           </button>
           <button
             className={`tab-btn${panelTab === "cite" ? " active" : ""}`}

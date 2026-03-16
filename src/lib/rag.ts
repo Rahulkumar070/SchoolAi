@@ -3169,7 +3169,8 @@ function passesAllFilters(paper: Paper, originalQuery: string): boolean {
 // "TCP vs UDP" → ["TCP", "UDP"]
 // "Kubernetes vs Docker Swarm" → ["Kubernetes", "Docker Swarm"]
 function parseComparisonEntities(query: string): string[] {
-  if (!/\bvs\.?\b|\bversus\b|\bcompare\b|\bcomparison\b/i.test(query)) return [];
+  if (!/\bvs\.?\b|\bversus\b|\bcompare\b|\bcomparison\b/i.test(query))
+    return [];
   const stripped = query
     .replace(/^(compare|comparison\s+of|difference\s+between)\s+/i, "")
     .replace(/\bvs\.?\b|\bversus\b/gi, "|||");
@@ -3993,7 +3994,7 @@ export async function verifyAnswer(
       system: `You are an academic answer verifier. Your task:
 1. Remove any 📄 citation cards that reference papers NOT mentioned in the provided context.
 2. Remove fabricated URLs, DOIs, or author names absent from the context.
-3. Remove claims that cannot be supported by any evidence block. Do NOT add markers like "(From general knowledge)" — simply delete the unsupported sentence.
+3. If a claim has no citation but COULD be supported by an evidence block about the same topic, KEEP IT unchanged — a later pass will add the citation. Only remove claims that are completely fabricated or contradicted by the evidence.
 4. Preserve the original section structure, headings, and all supported content exactly.
 5. Never add new content or alter correct, well-supported claims.
 Return the cleaned answer only. If the answer is already accurate, return it unchanged.`,
@@ -4107,9 +4108,9 @@ CITATION PLACEMENT — hard limits per section:
 - ## System Architecture: 0 citations
 - ## Technical Details or Comparison: max 3 citations
 - ## Limitations: max 2 citations — every factual limitation claim must cite its evidence
-- ## Key Takeaways: every factual takeaway MUST have exactly 1 citation; max 4 citations total
+- ## Key Takeaways: every factual takeaway MUST have exactly 1 citation; max 5 citations total
 - ## What To Search Next: 0 citations
-- TOTAL across whole answer: maximum 14 [CITATION:*] markers
+- TOTAL across whole answer: maximum 16 [CITATION:*] markers
 
 KEY CONCEPTS RULE: For EVERY named concept in ## Key Concepts, you MUST append [CITATION:evidenceId] at the end of its description. No exceptions — not even for well-known models.
 Example of correct formatting for a comparison query:
@@ -4118,13 +4119,32 @@ Example of correct formatting for a comparison query:
   - T5 (...description...) Raffel et al. (2020) [CITATION:eXXXXXX]
 If a concept has no matching evidence block, write "I cannot support that from the retrieved papers." instead of leaving it uncited.
 
-UNCITED SENTENCE RULE: Every factual sentence in ## Overview, ## Key Concepts, ## Technical Details or Comparison, and ## Limitations that does not end with a [CITATION:evidenceId] tag is a violation. Before finalising your answer, scan every sentence in those four sections and confirm each one ends with a citation tag.
+UNCITED SENTENCE RULE: Every factual sentence in ## Overview, ## Key Concepts, ## Technical Details or Comparison, ## Limitations, and ## Key Takeaways that does not end with a [CITATION:evidenceId] tag is a VIOLATION. Before finalising your answer, scan every sentence in those five sections and confirm each one ends with a citation tag. A sentence without a citation MUST be deleted — do not include uncited factual claims.
 
 IMPORTANT — DO NOT output any of the following:
 - Citation cards like "> **[N]** Author et al. (Year) — Title — Venue..."
 - A "## Cited Papers" section, bibliography, YAML block, or references list
 - Any paper metadata section at the end of your answer
 The system builds the citation list from the evidence IDs you used — you do not need to write it.
+
+EXAMPLE OF PERFECTLY CITED SECTIONS — follow this pattern exactly:
+
+## Overview
+The Transformer architecture relies solely on attention mechanisms, dispensing with recurrence and convolutions entirely. Vaswani et al. (2017) [CITATION:e10ufee] Building on this foundation, BERT, GPT, and T5 each adapt the Transformer for distinct pre-training paradigms. [CITATION:e1ywxwk][CITATION:elyuh92][CITATION:e1ddrwe]
+
+## Key Concepts
+- **Transformer** — A network architecture based solely on attention mechanisms. Vaswani et al. (2017) [CITATION:e10ufee]
+- **BERT** — Pre-trains deep bidirectional representations by jointly conditioning on left and right context. Devlin et al. (2019) [CITATION:e1ywxwk]
+- **GPT** — Demonstrates large gains via generative pre-training on unlabeled text. Radford et al. (2018) [CITATION:elyuh92]
+- **T5** — Converts every NLP problem into a text-to-text format. Raffel et al. (2020) [CITATION:e1ddrwe]
+
+## Key Takeaways
+- The Transformer is the shared foundation for all three models. [CITATION:e10ufee]
+- BERT excels at language understanding tasks through bidirectional context. [CITATION:e1ywxwk]
+- GPT-3 achieves strong few-shot performance at 175B parameters. [CITATION:ebrown1]
+- T5 unifies all NLP tasks into a single text-to-text framework. [CITATION:e1ddrwe]
+
+NOTICE: Every single sentence ends with [CITATION:evidenceId]. Every Key Concept has an inline_cite + citation. Every Key Takeaway has a citation. Follow this pattern for ALL your answers.
 
 WRITING RULES
 - Never start with filler phrases like "Great question!" or "Certainly!".
@@ -4337,7 +4357,8 @@ export async function repairUncitedSentences(
   const validChunkIds = new Set(evidenceBlocks.map((b) => b.chunk_id));
   const paperIdToChunkId = new Map<string, string>();
   for (const b of evidenceBlocks) {
-    if (!paperIdToChunkId.has(b.paper_id)) paperIdToChunkId.set(b.paper_id, b.chunk_id);
+    if (!paperIdToChunkId.has(b.paper_id))
+      paperIdToChunkId.set(b.paper_id, b.chunk_id);
   }
 
   // ── Deterministic rules (defined early — used in both scanning and augmentation) ──
@@ -4347,9 +4368,10 @@ export async function repairUncitedSentences(
   // any Devlin chunk to Vaswani.
   const TRANSFORMER_ARCH_RE =
     /\btransformer architecture\b|\bshared foundation\b|\battention mechanism\b|\bbackbone\b|\bself.?attention\b|\bmulti.?head\b|\bencoder.{0,30}decoder\b/i;
-  const BERT_SPECIFIC_RE = /\bBERT\b|\bbidirectional\b|\bmasked language\b|\bMLM\b|\bNSP\b/i;
+  const BERT_SPECIFIC_RE =
+    /\bBERT\b|\bbidirectional\b|\bmasked language\b|\bMLM\b|\bNSP\b/i;
 
-  const devlinChunk  = paperIdToChunkId.get("devlin2019");
+  const devlinChunk = paperIdToChunkId.get("devlin2019");
   const vaswaniChunk = paperIdToChunkId.get("vaswani2017");
 
   // Bug B: explicit backbone-model rules — ordered so GPT-3 check precedes
@@ -4358,11 +4380,20 @@ export async function repairUncitedSentences(
   // This allows a graceful fallback (e.g. radford2018 → brown2020 for generic "GPT"
   // when only the GPT-3 paper was retrieved).
   const BACKBONE_MODEL_RULES: Array<{ re: RegExp; paperIds: string[] }> = [
-    { re: /\bBERT\b/,                                                                paperIds: ["devlin2019"]               },
-    { re: /\bGPT[-\s]?3\b|\bGPT3\b|\bfew.?shot learner\b|\b175.{0,10}billion\b/,  paperIds: ["brown2020"]                },
-    { re: /\bGPT(?![-\s]?3)\b|\bGPT[-\s]?1\b|\bgenerative pre.?training\b/,        paperIds: ["radford2018", "brown2020"] },
-    { re: /\bT5\b|\btext.?to.?text\b/,                                               paperIds: ["raffel2020"]               },
-    { re: /\btransformer architecture\b|\battention is all you need\b|\bVaswani\b/i, paperIds: ["vaswani2017"]              },
+    { re: /\bBERT\b/, paperIds: ["devlin2019"] },
+    {
+      re: /\bGPT[-\s]?3\b|\bGPT3\b|\bfew.?shot learner\b|\b175.{0,10}billion\b/,
+      paperIds: ["brown2020"],
+    },
+    {
+      re: /\bGPT(?![-\s]?3)\b|\bGPT[-\s]?1\b|\bgenerative pre.?training\b/,
+      paperIds: ["radford2018", "brown2020"],
+    },
+    { re: /\bT5\b|\btext.?to.?text\b/, paperIds: ["raffel2020"] },
+    {
+      re: /\btransformer architecture\b|\battention is all you need\b|\bVaswani\b/i,
+      paperIds: ["vaswani2017"],
+    },
   ];
 
   // Collective-reference rule: "these three models" / "all three" / "each model"
@@ -4376,10 +4407,10 @@ export async function repairUncitedSentences(
   // Title-keyword rules: for papers not in STATIC_PAPERS (e.g. MPNet, RoBERTa)
   // we find their chunk by matching against evidenceBlock titles at runtime.
   const TITLE_KEYWORD_RULES: Array<{ sentenceRe: RegExp; titleRe: RegExp }> = [
-    { sentenceRe: /\bMPNet\b/i,   titleRe: /mpnet/i   },
+    { sentenceRe: /\bMPNet\b/i, titleRe: /mpnet/i },
     { sentenceRe: /\bRoBERTa\b/i, titleRe: /roberta/i },
-    { sentenceRe: /\bXLNet\b/i,   titleRe: /xlnet/i   },
-    { sentenceRe: /\bALBERT\b/i,  titleRe: /albert/i  },
+    { sentenceRe: /\bXLNet\b/i, titleRe: /xlnet/i },
+    { sentenceRe: /\bALBERT\b/i, titleRe: /albert/i },
     { sentenceRe: /\bELECTRA\b/i, titleRe: /electra/i },
   ];
 
@@ -4404,13 +4435,24 @@ export async function repairUncitedSentences(
   // Root cause of sentences 1+2: the old scanner did `if (hasCitation) skip` which
   // prevented multi-model sentences that already had ONE citation from ever receiving
   // additional citations for the other models they mentioned.
-  const uncited: Array<{ sentence: string; sectionIdx: number; sectionName: string }> = [];
-  const partiallyCited: Array<{ sentence: string; sectionIdx: number; sectionName: string }> = [];
+  const uncited: Array<{
+    sentence: string;
+    sectionIdx: number;
+    sectionName: string;
+  }> = [];
+  const partiallyCited: Array<{
+    sentence: string;
+    sectionIdx: number;
+    sectionName: string;
+  }> = [];
 
   for (let si = 0; si < sectionParts.length; si++) {
     const part = sectionParts[si];
     if (!/^##\s+/.test(part)) continue;
-    const heading = part.replace(/^##\s+/, "").trim().toLowerCase();
+    const heading = part
+      .replace(/^##\s+/, "")
+      .trim()
+      .toLowerCase();
     if (!targetSections.includes(heading)) continue;
 
     const bodyIdx = si + 1;
@@ -4419,9 +4461,9 @@ export async function repairUncitedSentences(
     for (const line of body.split("\n")) {
       const trimmed = line.trim();
       if (trimmed.length < 20) continue;
-      if (/^[#|]/.test(trimmed)) continue;          // markdown headers, table pipes
-      if (/[│├└┐┘┌─▼]/.test(trimmed)) continue;    // diagram chars
-      if (/^\|.+\|$/.test(trimmed)) continue;       // full table rows
+      if (/^[#|]/.test(trimmed)) continue; // markdown headers, table pipes
+      if (/[│├└┐┘┌─▼]/.test(trimmed)) continue; // diagram chars
+      if (/^\|.+\|$/.test(trimmed)) continue; // full table rows
 
       // Split line into sub-sentences at `. ` / `! ` / `? ` boundaries followed
       // by an uppercase letter. Em-dashes (—) are intentionally NOT sentence breaks.
@@ -4444,11 +4486,19 @@ export async function repairUncitedSentences(
         if (!endsOk) continue;
 
         if (!hasCitation) {
-          uncited.push({ sentence: s, sectionIdx: bodyIdx, sectionName: heading });
+          uncited.push({
+            sentence: s,
+            sectionIdx: bodyIdx,
+            sectionName: heading,
+          });
         } else {
           // Already has at least one citation — may still need more for other
           // named models in the same sentence (the primary multi-citation bug).
-          partiallyCited.push({ sentence: s, sectionIdx: bodyIdx, sectionName: heading });
+          partiallyCited.push({
+            sentence: s,
+            sectionIdx: bodyIdx,
+            sectionName: heading,
+          });
         }
       }
     }
@@ -4457,31 +4507,46 @@ export async function repairUncitedSentences(
   // DEBUG: log extracted sentences by section — helps diagnose missing Key Concepts citations
   const keyConcepts = uncited.filter((u) => u.sectionName === "key concepts");
   if (keyConcepts.length > 0) {
-    console.log("[repairUncited] Key Concepts uncited sentences:", keyConcepts.map((u) => u.sentence));
+    console.log(
+      "[repairUncited] Key Concepts uncited sentences:",
+      keyConcepts.map((u) => u.sentence),
+    );
   }
-  const keyConceptsPartial = partiallyCited.filter((u) => u.sectionName === "key concepts");
+  const keyConceptsPartial = partiallyCited.filter(
+    (u) => u.sectionName === "key concepts",
+  );
   if (keyConceptsPartial.length > 0) {
-    console.log("[repairUncited] Key Concepts partially-cited sentences:", keyConceptsPartial.map((u) => u.sentence));
+    console.log(
+      "[repairUncited] Key Concepts partially-cited sentences:",
+      keyConceptsPartial.map((u) => u.sentence),
+    );
   }
-  console.log("[repairUncited] evidenceBlock paperIds:", [...new Set(evidenceBlocks.map((b) => b.paper_id))]);
+  console.log("[repairUncited] evidenceBlock paperIds:", [
+    ...new Set(evidenceBlocks.map((b) => b.paper_id)),
+  ]);
 
   if (uncited.length === 0 && partiallyCited.length === 0) return answer;
 
   // ── Haiku primary citation matching (uncited sentences only) ─────────────
   const evidenceSummary = evidenceBlocks
-    .map((b) => `[${b.chunk_id}] "${b.title}" (${b.inlineCite}): ${b.text.slice(0, 200)}`)
+    .map(
+      (b) =>
+        `[${b.chunk_id}] "${b.title}" (${b.inlineCite}): ${b.text.slice(0, 200)}`,
+    )
     .join("\n");
 
   type HaikuRaw = {
     sentence_index: number;
     chunk_ids?: (string | null)[];
-    chunk_id?: string | null;       // backward compat: old single-id format
+    chunk_id?: string | null; // backward compat: old single-id format
     confidence: number;
   };
 
   let haikuRaw: HaikuRaw[] = [];
   if (uncited.length > 0) {
-    const sentencesCtx = uncited.map((u, i) => `Sentence ${i + 1}: "${u.sentence}"`).join("\n");
+    const sentencesCtx = uncited
+      .map((u, i) => `Sentence ${i + 1}: "${u.sentence}"`)
+      .join("\n");
     try {
       const r = await ant.messages.create({
         model: "claude-haiku-4-5-20251001",
@@ -4499,7 +4564,12 @@ export async function repairUncitedSentences(
       });
       const b = r.content[0];
       if (b.type === "text") {
-        haikuRaw = JSON.parse(b.text.trim().replace(/```json|```/g, "").trim()) as HaikuRaw[];
+        haikuRaw = JSON.parse(
+          b.text
+            .trim()
+            .replace(/```json|```/g, "")
+            .trim(),
+        ) as HaikuRaw[];
       }
     } catch {
       // Haiku failed — Phase 2 deterministic pass will still run
@@ -4537,7 +4607,10 @@ export async function repairUncitedSentences(
           const b2 = r2.content[0];
           if (b2.type === "text") {
             const tailRaw = JSON.parse(
-              b2.text.trim().replace(/```json|```/g, "").trim(),
+              b2.text
+                .trim()
+                .replace(/```json|```/g, "")
+                .trim(),
             ) as HaikuRaw[];
             haikuRaw.push(...tailRaw);
           }
@@ -4549,13 +4622,19 @@ export async function repairUncitedSentences(
   }
 
   // Normalize + Bug C: filter hallucinated chunk_ids not in evidenceBlocks
-  type HaikuNorm = { sentence_index: number; chunk_ids: string[]; confidence: number };
+  type HaikuNorm = {
+    sentence_index: number;
+    chunk_ids: string[];
+    confidence: number;
+  };
   const haikuMatches: HaikuNorm[] = haikuRaw.map((m) => {
     const raw = m.chunk_ids ?? (m.chunk_id ? [m.chunk_id] : []);
     return {
       sentence_index: m.sentence_index,
       confidence: m.confidence,
-      chunk_ids: raw.filter((id): id is string => typeof id === "string" && validChunkIds.has(id)),
+      chunk_ids: raw.filter(
+        (id): id is string => typeof id === "string" && validChunkIds.has(id),
+      ),
     };
   });
 
@@ -4571,7 +4650,8 @@ export async function repairUncitedSentences(
 
     // Bug A: re-attribute Devlin → Vaswani for general Transformer-arch sentences
     if (
-      devlinChunk && vaswaniChunk &&
+      devlinChunk &&
+      vaswaniChunk &&
       chunkSet.has(devlinChunk) &&
       TRANSFORMER_ARCH_RE.test(target.sentence) &&
       !BERT_SPECIFIC_RE.test(target.sentence)
@@ -4636,10 +4716,16 @@ export async function repairUncitedSentences(
     for (const { re, paperIds } of BACKBONE_MODEL_RULES) {
       if (!re.test(target.sentence)) continue;
       const matched = paperIds.find((pid) => paperIdToChunkId.has(pid));
-      console.log(`[repairUncited] backbone match: re=${re} sentence="${target.sentence.slice(0, 60)}" tried=${paperIds.join(",")} found=${matched ?? "NONE"}`);
+      console.log(
+        `[repairUncited] backbone match: re=${re} sentence="${target.sentence.slice(0, 60)}" tried=${paperIds.join(",")} found=${matched ?? "NONE"}`,
+      );
       for (const paperId of paperIds) {
         const chunkId = paperIdToChunkId.get(paperId);
-        if (chunkId && !chunkSet.has(chunkId)) { chunkSet.add(chunkId); modified = true; break; }
+        if (chunkId && !chunkSet.has(chunkId)) {
+          chunkSet.add(chunkId);
+          modified = true;
+          break;
+        }
       }
     }
 
@@ -4647,7 +4733,10 @@ export async function repairUncitedSentences(
     if (isThreeWayBERTGPTT5 && COLLECTIVE_REF_RE.test(target.sentence)) {
       for (const pid of ["devlin2019", "radford2018", "raffel2020"]) {
         const chunkId = paperIdToChunkId.get(pid);
-        if (chunkId && !chunkSet.has(chunkId)) { chunkSet.add(chunkId); modified = true; }
+        if (chunkId && !chunkSet.has(chunkId)) {
+          chunkSet.add(chunkId);
+          modified = true;
+        }
       }
     }
 
@@ -4655,7 +4744,10 @@ export async function repairUncitedSentences(
     for (const { sentenceRe, titleRe } of TITLE_KEYWORD_RULES) {
       if (!sentenceRe.test(target.sentence)) continue;
       const block = evidenceBlocks.find((b) => titleRe.test(b.title));
-      if (block && !chunkSet.has(block.chunk_id)) { chunkSet.add(block.chunk_id); modified = true; }
+      if (block && !chunkSet.has(block.chunk_id)) {
+        chunkSet.add(block.chunk_id);
+        modified = true;
+      }
     }
 
     // Pattern 3+7: Inline author mention → look up matching evidence block and
@@ -4737,7 +4829,11 @@ export async function repairUncitedSentences(
     if (isThreeWayBERTGPTT5 && COLLECTIVE_REF_RE.test(target.sentence)) {
       for (const pid of ["devlin2019", "radford2018", "raffel2020"]) {
         const chunkId = paperIdToChunkId.get(pid);
-        if (chunkId && !newChunks.has(chunkId) && !target.sentence.includes(`[CITATION:${chunkId}]`)) {
+        if (
+          chunkId &&
+          !newChunks.has(chunkId) &&
+          !target.sentence.includes(`[CITATION:${chunkId}]`)
+        ) {
           newChunks.add(chunkId);
         }
       }
@@ -4747,7 +4843,11 @@ export async function repairUncitedSentences(
     for (const { sentenceRe, titleRe } of TITLE_KEYWORD_RULES) {
       if (!sentenceRe.test(target.sentence)) continue;
       const block = evidenceBlocks.find((b) => titleRe.test(b.title));
-      if (block && !newChunks.has(block.chunk_id) && !target.sentence.includes(`[CITATION:${block.chunk_id}]`)) {
+      if (
+        block &&
+        !newChunks.has(block.chunk_id) &&
+        !target.sentence.includes(`[CITATION:${block.chunk_id}]`)
+      ) {
         newChunks.add(block.chunk_id);
       }
     }
@@ -4766,7 +4866,9 @@ export async function repairUncitedSentences(
           .split(/\s+/)
           .filter((w) => w.length >= 5 && !STOP_WORDS.has(w));
         // Require 2+ title terms to appear in the sentence to avoid spurious matches
-        const matchCount = titleTerms.filter((t) => sentLower.includes(t)).length;
+        const matchCount = titleTerms.filter((t) =>
+          sentLower.includes(t),
+        ).length;
         if (matchCount >= 2) {
           newChunks.add(block.chunk_id);
         }
@@ -4776,7 +4878,11 @@ export async function repairUncitedSentences(
     if (newChunks.size === 0) continue;
     const pos = answer.indexOf(target.sentence);
     if (pos < 0) continue;
-    partialInsertions.push({ pos, sentenceLen: target.sentence.length, chunks: [...newChunks] });
+    partialInsertions.push({
+      pos,
+      sentenceLen: target.sentence.length,
+      chunks: [...newChunks],
+    });
   }
 
   // ── Insertion: apply chunk_ids per sentence in document order ──────────────
@@ -4787,10 +4893,16 @@ export async function repairUncitedSentences(
     if (!target) continue;
     const pos = answer.indexOf(target.sentence);
     if (pos < 0) {
-      console.log(`[repairUncited] indexOf MISS: sentence="${target.sentence.slice(0, 80)}" section=${target.sectionName}`);
+      console.log(
+        `[repairUncited] indexOf MISS: sentence="${target.sentence.slice(0, 80)}" section=${target.sectionName}`,
+      );
       continue;
     }
-    insertions.push({ pos, sentenceLen: target.sentence.length, chunks: [...chunkSet] });
+    insertions.push({
+      pos,
+      sentenceLen: target.sentence.length,
+      chunks: [...chunkSet],
+    });
   }
   // Merge partial insertions and sort all by document position
   insertions.push(...partialInsertions);
@@ -4800,7 +4912,8 @@ export async function repairUncitedSentences(
   let cumulativeOffset = 0;
   for (const ins of insertions) {
     const insertAt = ins.pos + cumulativeOffset + ins.sentenceLen;
-    if (/^\s*\[CITATION:/.test(repaired.slice(insertAt, insertAt + 20))) continue;
+    if (/^\s*\[CITATION:/.test(repaired.slice(insertAt, insertAt + 20)))
+      continue;
     const tag = ins.chunks.map((cid) => ` [CITATION:${cid}]`).join("");
     repaired = repaired.slice(0, insertAt) + tag + repaired.slice(insertAt);
     cumulativeOffset += tag.length;
@@ -4815,9 +4928,7 @@ export async function repairUncitedSentences(
       // Check if this mention matches any retrieved paper's inlineCite
       const isRetrieved = evidenceBlocks.some((b) => {
         const cite = b.inlineCite.toLowerCase();
-        return (
-          cite.includes(lastName.toLowerCase()) && cite.includes(year)
-        );
+        return cite.includes(lastName.toLowerCase()) && cite.includes(year);
       });
       if (!isRetrieved) {
         // Replace with closest retrieved paper's inlineCite if one is nearby,
@@ -4829,7 +4940,10 @@ export async function repairUncitedSentences(
   );
   // Clean up double spaces left by removed mentions
   // Only collapse multiple SPACES — never touch newlines (\n) which carry markdown structure.
-  repaired = repaired.replace(/ {2,}/g, " ").replace(/ \./g, ".").replace(/ ,/g, ",");
+  repaired = repaired
+    .replace(/ {2,}/g, " ")
+    .replace(/ \./g, ".")
+    .replace(/ ,/g, ",");
 
   return repaired;
 }

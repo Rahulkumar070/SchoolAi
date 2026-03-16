@@ -499,6 +499,7 @@ export async function POST(req: NextRequest) {
           const streamResp = await ant.messages.stream({
             model: "claude-sonnet-4-6",
             max_tokens: 4000,
+            temperature: 0,
             system: dynamicSystem,
             messages: [{ role: "user", content: builtPrompt }],
           });
@@ -554,7 +555,7 @@ export async function POST(req: NextRequest) {
           "technical details": 3,
           "technical details or comparison": 3,
           limitations: 2,
-          "key takeaways": 4,
+          "key takeaways": 5,
           "what to search next": 0,
           "cited papers": 0,
         };
@@ -903,7 +904,6 @@ export async function POST(req: NextRequest) {
             content: fullAnswer,
             papers: citedPapers, // only papers actually cited in the answer
             retrievedPapers: papers, // full ranked retrieval set (for future "Retrieved papers" panel)
-            evidenceIdToPaperId, // maps evidenceId → paperId for citation resolution in history
           });
 
           await ConversationModel.findByIdAndUpdate(conversationId, {
