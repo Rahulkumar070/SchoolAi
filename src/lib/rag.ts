@@ -1842,6 +1842,453 @@ const STATIC_PAPERS: Record<string, Paper> = {
     citationCount: 130000,
     source: "arXiv",
   },
+  // ── Deep Learning Foundations ─────────────────────────────────
+  "deep-learning-lecun": {
+    id: "lecun2015",
+    title: "Deep Learning",
+    authors: ["Yann LeCun", "Yoshua Bengio", "Geoffrey Hinton"],
+    year: 2015,
+    abstract:
+      "Deep learning allows computational models composed of multiple processing layers to learn representations of data with multiple levels of abstraction. These methods have dramatically improved the state of the art in speech recognition, visual object recognition, object detection, and many other domains.",
+    journal: "Nature",
+    doi: "10.1038/nature14539",
+    url: "https://www.nature.com/articles/nature14539",
+    citationCount: 50000,
+    source: "Nature",
+  },
+  backprop: {
+    id: "rumelhart1986",
+    title: "Learning representations by back-propagating errors",
+    authors: ["David E. Rumelhart", "Geoffrey E. Hinton", "Ronald J. Williams"],
+    year: 1986,
+    abstract:
+      "We describe a new learning procedure, back-propagation, for networks of neuron-like units that adjusts connection weights to minimize the difference between actual and desired output. This procedure enables networks to learn internal representations that capture the statistical structure of the data.",
+    journal: "Nature",
+    doi: "10.1038/323533a0",
+    url: "https://www.nature.com/articles/323533a0",
+    citationCount: 25000,
+    source: "Nature",
+  },
+  "transfer-learning-pan": {
+    id: "pan2010",
+    title: "A Survey on Transfer Learning",
+    authors: ["Sinno Jialin Pan", "Qiang Yang"],
+    year: 2010,
+    abstract:
+      "A major assumption in traditional machine learning is that training and test data share the same feature space and distribution. Transfer learning relaxes this assumption, allowing knowledge from source domains to improve learning in related target domains. This survey categorizes approaches and reviews progress in this field.",
+    journal: "IEEE Transactions on Knowledge and Data Engineering",
+    doi: "10.1109/TKDE.2009.191",
+    url: "https://ieeexplore.ieee.org/document/5288526",
+    citationCount: 25000,
+    source: "IEEE",
+  },
+  "transferable-features": {
+    id: "yosinski2014",
+    title: "How transferable are features in deep neural networks?",
+    authors: [
+      "Jason Yosinski",
+      "Jeff Clune",
+      "Yoshua Bengio",
+      "Hod Lipson",
+    ],
+    year: 2014,
+    abstract:
+      "We experimentally quantify the generality and specificity of neurons in each layer of a deep convolutional neural network, finding that transferability drops as the distance between source and target tasks increases. Fine-tuning transferred features significantly improves generalization even far from the original domain.",
+    journal: "Advances in Neural Information Processing Systems (NeurIPS)",
+    doi: "10.48550/arXiv.1411.1792",
+    url: "https://arxiv.org/abs/1411.1792",
+    citationCount: 10000,
+    source: "arXiv",
+  },
+  lstm: {
+    id: "hochreiter1997",
+    title: "Long Short-Term Memory",
+    authors: ["Sepp Hochreiter", "Jürgen Schmidhuber"],
+    year: 1997,
+    abstract:
+      "Long short-term memory (LSTM) recurrent networks address the vanishing gradient problem by introducing a memory cell with gating mechanisms that regulate information flow. LSTMs can learn to bridge very long time lags and have become the dominant architecture for sequential data modeling.",
+    journal: "Neural Computation",
+    doi: "10.1162/neco.1997.9.8.1735",
+    url: "https://www.mitpressjournals.org/doi/10.1162/neco.1997.9.8.1735",
+    citationCount: 80000,
+    source: "MIT Press",
+  },
+  "rnn-encoder-decoder": {
+    id: "cho2014",
+    title:
+      "Learning Phrase Representations using RNN Encoder-Decoder for Statistical Machine Translation",
+    authors: [
+      "Kyunghyun Cho",
+      "Bart van Merriënboer",
+      "Caglar Gulcehre",
+      "Dzmitry Bahdanau",
+      "Fethi Bougares",
+      "Holger Schwenk",
+      "Yoshua Bengio",
+    ],
+    year: 2014,
+    abstract:
+      "We propose an RNN Encoder-Decoder consisting of two recurrent neural networks that encodes a variable-length sequence into a fixed-length vector and decodes the vector into another variable-length sequence. The model significantly improves translation performance and learns meaningful phrase representations.",
+    journal: "EMNLP 2014",
+    doi: "10.48550/arXiv.1406.1078",
+    url: "https://arxiv.org/abs/1406.1078",
+    citationCount: 25000,
+    source: "arXiv",
+  },
+  dropout: {
+    id: "srivastava2014",
+    title:
+      "Dropout: A Simple Way to Prevent Neural Networks from Overfitting",
+    authors: [
+      "Nitish Srivastava",
+      "Geoffrey Hinton",
+      "Alex Krizhevsky",
+      "Ilya Sutskever",
+      "Ruslan Salakhutdinov",
+    ],
+    year: 2014,
+    abstract:
+      "Dropout is a regularization technique that randomly drops units along with their connections from the neural network during training. This prevents units from co-adapting too much and significantly reduces overfitting, yielding major improvements across vision, speech, and text tasks.",
+    journal: "Journal of Machine Learning Research",
+    url: "https://jmlr.org/papers/v15/srivastava14a.html",
+    citationCount: 55000,
+    source: "JMLR",
+  },
+  "batch-norm": {
+    id: "ioffe2015",
+    title: "Batch Normalization: Accelerating Deep Network Training by Reducing Internal Covariate Shift",
+    authors: ["Sergey Ioffe", "Christian Szegedy"],
+    year: 2015,
+    abstract:
+      "Batch normalization normalizes layer inputs for each mini-batch, reducing internal covariate shift and allowing much higher learning rates. The technique acts as a regularizer and dramatically accelerates training of deep networks, becoming a standard component of modern architectures.",
+    journal: "ICML 2015",
+    doi: "10.48550/arXiv.1502.03167",
+    url: "https://arxiv.org/abs/1502.03167",
+    citationCount: 50000,
+    source: "arXiv",
+  },
+  // ── Diffusion Models ──────────────────────────────────────────
+  ddpm: {
+    id: "ho2020",
+    title: "Denoising Diffusion Probabilistic Models",
+    authors: ["Jonathan Ho", "Ajay Jain", "Pieter Abbeel"],
+    year: 2020,
+    abstract:
+      "We present high quality image synthesis results using diffusion probabilistic models, which are parameterized Markov chains trained using variational inference. By reweighting a variational lower bound, the models learn to reverse a gradual noising process and produce samples competitive with state-of-the-art generative models.",
+    journal: "Advances in Neural Information Processing Systems (NeurIPS)",
+    doi: "10.48550/arXiv.2006.11239",
+    url: "https://arxiv.org/abs/2006.11239",
+    citationCount: 20000,
+    source: "arXiv",
+  },
+  "score-sde": {
+    id: "song2021",
+    title: "Score-Based Generative Modeling through Stochastic Differential Equations",
+    authors: [
+      "Yang Song",
+      "Jascha Sohl-Dickstein",
+      "Diederik P. Kingma",
+      "Abhishek Kumar",
+      "Stefano Ermon",
+      "Ben Poole",
+    ],
+    year: 2021,
+    abstract:
+      "We present a unified framework for score-based generative models using stochastic differential equations (SDEs) that continuously transform data to noise and reverse the process. This formulation subsumes prior diffusion and score-matching approaches and enables flexible sampling procedures with controllable quality-speed tradeoffs.",
+    journal: "ICLR 2021",
+    doi: "10.48550/arXiv.2011.13456",
+    url: "https://arxiv.org/abs/2011.13456",
+    citationCount: 8000,
+    source: "arXiv",
+  },
+  // ── Parameter-Efficient Fine-Tuning ───────────────────────────
+  lora: {
+    id: "hu2022",
+    title: "LoRA: Low-Rank Adaptation of Large Language Models",
+    authors: [
+      "Edward J. Hu",
+      "Yelong Shen",
+      "Phillip Wallis",
+      "Zeyuan Allen-Zhu",
+      "Yuanzhi Li",
+      "Shean Wang",
+      "Lu Wang",
+      "Weizhu Chen",
+    ],
+    year: 2022,
+    abstract:
+      "LoRA freezes pretrained model weights and injects trainable low-rank decomposition matrices into each layer of the Transformer architecture, reducing the number of trainable parameters for downstream tasks by up to 10,000-fold. This enables efficient fine-tuning of large language models with no added inference latency.",
+    journal: "ICLR 2022",
+    doi: "10.48550/arXiv.2106.09685",
+    url: "https://arxiv.org/abs/2106.09685",
+    citationCount: 15000,
+    source: "arXiv",
+  },
+  // ── Reinforcement Learning ────────────────────────────────────
+  dqn: {
+    id: "mnih2015",
+    title: "Human-level control through deep reinforcement learning",
+    authors: [
+      "Volodymyr Mnih",
+      "Koray Kavukcuoglu",
+      "David Silver",
+      "Andrei A. Rusu",
+      "Joel Veness",
+      "Marc G. Bellemare",
+      "Alex Graves",
+      "Martin Riedmiller",
+      "Andreas K. Fidjeland",
+      "Georg Ostrovski",
+      "Stig Petersen",
+      "Charles Beattie",
+      "Amir Sadik",
+      "Ioannis Antonoglou",
+      "Helen King",
+      "Dharshan Kumaran",
+      "Daan Wierstra",
+      "Shane Legg",
+      "Demis Hassabis",
+    ],
+    year: 2015,
+    abstract:
+      "We present a deep reinforcement learning agent that combines deep neural networks with Q-learning to achieve human-level performance on 49 Atari games from raw pixel inputs. The agent uses a replay memory and a separate target network to stabilize training and overcome instabilities in deep RL.",
+    journal: "Nature",
+    doi: "10.1038/nature14236",
+    url: "https://www.nature.com/articles/nature14236",
+    citationCount: 20000,
+    source: "Nature",
+  },
+  ppo: {
+    id: "schulman2017",
+    title: "Proximal Policy Optimization Algorithms",
+    authors: [
+      "John Schulman",
+      "Filip Wolski",
+      "Prafulla Dhariwal",
+      "Alec Radford",
+      "Oleg Klimov",
+    ],
+    year: 2017,
+    abstract:
+      "We propose proximal policy optimization (PPO), a family of policy gradient methods that use clipped surrogate objectives to limit policy updates. PPO achieves state-of-the-art performance on continuous control and Atari tasks while being simpler and more sample-efficient than prior methods.",
+    journal: "arXiv",
+    doi: "10.48550/arXiv.1707.06347",
+    url: "https://arxiv.org/abs/1707.06347",
+    citationCount: 15000,
+    source: "arXiv",
+  },
+  // ── RLHF / Instruction Tuning ─────────────────────────────────
+  instruct: {
+    id: "ouyang2022",
+    title: "Training language models to follow instructions with human feedback",
+    authors: [
+      "Long Ouyang",
+      "Jeff Wu",
+      "Xu Jiang",
+      "Diogo Almeida",
+      "Carroll L. Wainwright",
+      "Pamela Mishkin",
+      "Chong Zhang",
+      "Sandhini Agarwal",
+      "Katarina Slama",
+      "Alex Ray",
+    ],
+    year: 2022,
+    abstract:
+      "We fine-tune GPT-3 using reinforcement learning from human feedback (RLHF) to align it with human intent, producing InstructGPT. InstructGPT models are preferred over GPT-3 by human evaluators while being more truthful and less toxic, despite having fewer parameters.",
+    journal: "Advances in Neural Information Processing Systems (NeurIPS)",
+    doi: "10.48550/arXiv.2203.02155",
+    url: "https://arxiv.org/abs/2203.02155",
+    citationCount: 15000,
+    source: "arXiv",
+  },
+  rlhf: {
+    id: "christiano2017",
+    title: "Deep Reinforcement Learning from Human Preferences",
+    authors: [
+      "Paul Christiano",
+      "Jan Leike",
+      "Tom B. Brown",
+      "Miljan Martic",
+      "Shane Legg",
+      "Dario Amodei",
+    ],
+    year: 2017,
+    abstract:
+      "We propose training RL agents from human preferences by learning a reward model from comparisons between pairs of trajectory segments. This approach achieves good performance on complex tasks with only a small number of human evaluations and provides a scalable alternative to hand-engineered reward functions.",
+    journal: "Advances in Neural Information Processing Systems (NeurIPS)",
+    doi: "10.48550/arXiv.1706.03741",
+    url: "https://arxiv.org/abs/1706.03741",
+    citationCount: 5000,
+    source: "arXiv",
+  },
+  // ── Chain-of-Thought / Prompting ──────────────────────────────
+  cot: {
+    id: "wei2022",
+    title: "Chain-of-Thought Prompting Elicits Reasoning in Large Language Models",
+    authors: [
+      "Jason Wei",
+      "Xuezhi Wang",
+      "Dale Schuurmans",
+      "Maarten Bosma",
+      "Brian Ichter",
+      "Fei Xia",
+      "Ed Chi",
+      "Quoc Le",
+      "Denny Zhou",
+    ],
+    year: 2022,
+    abstract:
+      "We show that generating a chain of intermediate reasoning steps substantially improves the ability of large language models to perform complex reasoning. Chain-of-thought prompting is a simple and emergent capability that arises in sufficiently large language models and requires no additional training.",
+    journal: "Advances in Neural Information Processing Systems (NeurIPS)",
+    doi: "10.48550/arXiv.2201.11903",
+    url: "https://arxiv.org/abs/2201.11903",
+    citationCount: 10000,
+    source: "arXiv",
+  },
+  // ── Attention / Seq2Seq ───────────────────────────────────────
+  bahdanau: {
+    id: "bahdanau2015",
+    title: "Neural Machine Translation by Jointly Learning to Align and Translate",
+    authors: ["Dzmitry Bahdanau", "Kyunghyun Cho", "Yoshua Bengio"],
+    year: 2015,
+    abstract:
+      "We propose an attention mechanism for neural machine translation that allows the model to jointly learn to align source words with output words. By focusing on relevant parts of the source sentence at each decoding step, the model handles long sequences much more effectively than fixed-length encoder vectors.",
+    journal: "ICLR 2015",
+    doi: "10.48550/arXiv.1409.0473",
+    url: "https://arxiv.org/abs/1409.0473",
+    citationCount: 30000,
+    source: "arXiv",
+  },
+  // ── Word Embeddings ───────────────────────────────────────────
+  glove: {
+    id: "pennington2014",
+    title: "GloVe: Global Vectors for Word Representation",
+    authors: ["Jeffrey Pennington", "Richard Socher", "Christopher D. Manning"],
+    year: 2014,
+    abstract:
+      "GloVe is an unsupervised learning algorithm that obtains word vector representations by training on aggregated global word-word co-occurrence statistics from a corpus. The resulting vectors exhibit meaningful linear substructures in the word vector space and outperform prior methods on word analogy tasks.",
+    journal: "EMNLP 2014",
+    doi: "10.3115/v1/D14-1162",
+    url: "https://aclanthology.org/D14-1162",
+    citationCount: 35000,
+    source: "ACL Anthology",
+  },
+  // ── Image Segmentation ────────────────────────────────────────
+  unet: {
+    id: "ronneberger2015",
+    title: "U-Net: Convolutional Networks for Biomedical Image Segmentation",
+    authors: ["Olaf Ronneberger", "Philipp Fischer", "Thomas Brox"],
+    year: 2015,
+    abstract:
+      "U-Net is a convolutional network architecture with a contracting path to capture context and a symmetric expanding path that enables precise localization. The network is trained end-to-end with very few images and outperforms prior methods in biomedical image segmentation tasks.",
+    journal: "MICCAI 2015",
+    doi: "10.1007/978-3-319-24574-4_28",
+    url: "https://arxiv.org/abs/1505.04597",
+    citationCount: 70000,
+    source: "arXiv",
+  },
+  fcn: {
+    id: "long2015",
+    title: "Fully Convolutional Networks for Semantic Segmentation",
+    authors: ["Jonathan Long", "Evan Shelhamer", "Trevor Darrell"],
+    year: 2015,
+    abstract:
+      "We adapt contemporary classification networks (AlexNet, VGG, GoogLeNet) into fully convolutional networks that produce dense predictions for any input size. By combining fine and coarse layer predictions, FCNs achieve state-of-the-art segmentation on PASCAL VOC, NYUDv2, and SIFT Flow.",
+    journal: "CVPR 2015",
+    doi: "10.1109/CVPR.2015.7298965",
+    url: "https://arxiv.org/abs/1411.4038",
+    citationCount: 35000,
+    source: "arXiv",
+  },
+  fpn: {
+    id: "lin2017",
+    title: "Feature Pyramid Networks for Object Detection",
+    authors: [
+      "Tsung-Yi Lin",
+      "Piotr Dollár",
+      "Ross Girshick",
+      "Kaiming He",
+      "Bharath Hariharan",
+      "Serge Belongie",
+    ],
+    year: 2017,
+    abstract:
+      "Feature Pyramid Networks (FPN) exploit the inherent multi-scale, pyramidal hierarchy of deep convolutional networks to construct feature pyramids with marginal extra cost. FPN achieves state-of-the-art results on COCO object detection and segmentation tasks by enabling detection at multiple scales.",
+    journal: "CVPR 2017",
+    doi: "10.1109/CVPR.2017.106",
+    url: "https://arxiv.org/abs/1612.03144",
+    citationCount: 20000,
+    source: "arXiv",
+  },
+  // ── Generative Models ─────────────────────────────────────────
+  vae: {
+    id: "kingma2014",
+    title: "Auto-Encoding Variational Bayes",
+    authors: ["Diederik P. Kingma", "Max Welling"],
+    year: 2014,
+    abstract:
+      "We introduce the variational autoencoder (VAE), a directed probabilistic model whose continuous latent variables are inferred with an approximate posterior learned by an encoder network. The model is trained by maximizing a variational lower bound and enables efficient generation and representation learning.",
+    journal: "ICLR 2014",
+    doi: "10.48550/arXiv.1312.6114",
+    url: "https://arxiv.org/abs/1312.6114",
+    citationCount: 30000,
+    source: "arXiv",
+  },
+  // ── Graph Neural Networks ─────────────────────────────────────
+  gcn: {
+    id: "kipf2017",
+    title: "Semi-Supervised Classification with Graph Convolutional Networks",
+    authors: ["Thomas N. Kipf", "Max Welling"],
+    year: 2017,
+    abstract:
+      "We introduce graph convolutional networks (GCN), a scalable approach to semi-supervised classification on graph-structured data. GCNs use a simple layer-wise propagation rule derived from spectral graph convolutions and achieve state-of-the-art results on several benchmark datasets.",
+    journal: "ICLR 2017",
+    doi: "10.48550/arXiv.1609.02907",
+    url: "https://arxiv.org/abs/1609.02907",
+    citationCount: 20000,
+    source: "arXiv",
+  },
+  gat: {
+    id: "velickovic2018",
+    title: "Graph Attention Networks",
+    authors: [
+      "Petar Veličković",
+      "Guillem Cucurull",
+      "Arantxa Casanova",
+      "Adriana Romero",
+      "Pietro Liò",
+      "Yoshua Bengio",
+    ],
+    year: 2018,
+    abstract:
+      "Graph attention networks (GAT) leverage masked self-attention to aggregate neighborhood features with learned, node-varying attention weights. GAT matches or outperforms GCN-based methods on transductive and inductive node classification benchmarks while being more flexible and computationally efficient.",
+    journal: "ICLR 2018",
+    doi: "10.48550/arXiv.1710.10903",
+    url: "https://arxiv.org/abs/1710.10903",
+    citationCount: 15000,
+    source: "arXiv",
+  },
+  // ── Federated Learning ────────────────────────────────────────
+  fedavg: {
+    id: "mcmahan2017",
+    title: "Communication-Efficient Learning of Deep Networks from Decentralized Data",
+    authors: [
+      "H. Brendan McMahan",
+      "Eider Moore",
+      "Daniel Ramage",
+      "Seth Hampson",
+      "Blaise Agüera y Arcas",
+    ],
+    year: 2017,
+    abstract:
+      "We introduce FedAvg, a practical federated learning algorithm that trains a shared global model by averaging locally computed updates from decentralized data. FedAvg dramatically reduces communication rounds compared to naive parameter averaging while maintaining accuracy on image and text classification tasks.",
+    journal: "AISTATS 2017",
+    doi: "10.48550/arXiv.1602.05629",
+    url: "https://arxiv.org/abs/1602.05629",
+    citationCount: 15000,
+    source: "arXiv",
+  },
   // ── CRISPR / Gene Editing ─────────────────────────────────────
   "crispr-doudna": {
     id: "doudna2012",
@@ -2358,6 +2805,43 @@ export const STATIC_PAPER_IDS: ReadonlySet<string> = new Set([
   "simonyan2014",
   "redmon2016",
   "dosovitskiy2020",
+  // Deep Learning Foundations
+  "lecun2015",
+  "rumelhart1986",
+  "pan2010",
+  "yosinski2014",
+  "hochreiter1997",
+  "cho2014",
+  "srivastava2014",
+  "ioffe2015",
+  // Diffusion Models
+  "ho2020",
+  "song2021",
+  // Parameter-Efficient Fine-Tuning
+  "hu2022",
+  // Reinforcement Learning
+  "mnih2015",
+  "schulman2017",
+  // RLHF / Instruction Tuning
+  "ouyang2022",
+  "christiano2017",
+  // Chain-of-Thought
+  "wei2022",
+  // Attention / Seq2Seq
+  "bahdanau2015",
+  // Word Embeddings
+  "pennington2014",
+  // Image Segmentation
+  "ronneberger2015",
+  "long2015",
+  "lin2017",
+  // Generative Models
+  "kingma2014",
+  // Graph Neural Networks
+  "kipf2017",
+  "velickovic2018",
+  // Federated Learning
+  "mcmahan2017",
 ]);
 
 // Foundational injection levels:
@@ -2588,6 +3072,227 @@ function getFoundationalPapers(query: string): {
     add("crispr-prime-editing", "helpful");
     add("crispr-sickle-cell", "optional");
   }
+
+  // ── Deep Learning Foundations ────────────────────────────────
+  if (
+    /\bdeep learning\b|neural network.*overview|history.*neural|lecun.*bengio.*hinton|deep.*representation/i.test(
+      query,
+    )
+  )
+    add(
+      "deep-learning-lecun",
+      /lecun.*2015|nature.*deep learning/i.test(query) ? "required" : "helpful",
+    );
+
+  if (
+    /\bback.?prop|backpropagation|gradient.*descent.*neural|rumelhart|learning.*representations.*back/i.test(
+      query,
+    )
+  )
+    add("backprop", /rumelhart|backprop.*1986/i.test(query) ? "required" : "helpful");
+
+  if (
+    /transfer learning|domain adaptation|fine.?tun.*pretrain|pan.*yang.*transfer|survey.*transfer/i.test(
+      query,
+    )
+  )
+    add(
+      "transfer-learning-pan",
+      /pan.*yang|survey.*transfer.*learn/i.test(query) ? "required" : "helpful",
+    );
+
+  if (
+    /transferable.*features|yosinski|how.*features.*transfer|feature.*reuse.*deep/i.test(
+      query,
+    )
+  )
+    add("transferable-features", "required");
+
+  if (
+    /\blstm\b|long short.?term memory|hochreiter|schmidhuber|vanishing gradient.*rnn|gated.*recurrent/i.test(
+      query,
+    )
+  )
+    add("lstm", /\blstm\b|hochreiter/i.test(query) ? "required" : "helpful");
+
+  if (
+    /rnn encoder.?decoder|cho.*2014|gru.*encoder|sequence.?to.?sequence.*rnn|seq2seq.*rnn/i.test(
+      query,
+    )
+  )
+    add("rnn-encoder-decoder", /cho.*2014/i.test(query) ? "required" : "helpful");
+
+  if (
+    /\bdropout\b|srivastava.*dropout|regulariz.*neural.*overfitting|drop.*units.*training/i.test(
+      query,
+    )
+  )
+    add("dropout", /\bdropout\b|srivastava/i.test(query) ? "required" : "helpful");
+
+  if (
+    /batch norm|batch normalization|ioffe.*szegedy|internal covariate shift|batchnorm/i.test(
+      query,
+    )
+  )
+    add("batch-norm", /ioffe|batch norm/i.test(query) ? "required" : "helpful");
+
+  // ── Diffusion Models ─────────────────────────────────────────
+  if (
+    /diffusion model|denoising diffusion|ddpm|score.*based.*generat|probabilistic.*diffusion|latent diffusion|stable diffusion/i.test(
+      query,
+    )
+  ) {
+    add("ddpm", /\bddpm\b|ho.*2020|denoising diffusion probabilistic/i.test(query) ? "required" : "helpful");
+    add("score-sde", "helpful");
+  }
+  if (
+    /score.?based.*generat|stochastic.*differential.*generat|song.*sde|sde.*generat/i.test(
+      query,
+    )
+  )
+    add("score-sde", /song.*2021|score.*sde/i.test(query) ? "required" : "helpful");
+
+  // ── Parameter-Efficient Fine-Tuning ──────────────────────────
+  if (
+    /\blora\b|low.?rank adaptation|parameter.?efficient.*fine.?tun|peft.*lora|hu.*2022/i.test(
+      query,
+    )
+  )
+    add("lora", /\blora\b|hu.*2022/i.test(query) ? "required" : "helpful");
+
+  // ── Reinforcement Learning ────────────────────────────────────
+  if (
+    /\bdqn\b|deep q.?network|deep reinforcement learning.*atari|mnih.*2015|human.level.*atari|q.?learn.*deep/i.test(
+      query,
+    )
+  )
+    add("dqn", /\bdqn\b|mnih.*2015/i.test(query) ? "required" : "helpful");
+
+  if (
+    /\bppo\b|proximal policy optim|schulman.*2017|policy gradient.*clip|policy optim.*rl/i.test(
+      query,
+    )
+  )
+    add("ppo", /\bppo\b|schulman.*2017/i.test(query) ? "required" : "helpful");
+
+  if (
+    /deep reinforcement learning|reinforcement learning.*neural|rl.*policy gradient|actor.?critic.*deep/i.test(
+      query,
+    )
+  ) {
+    add("dqn", "helpful");
+    add("ppo", "helpful");
+  }
+
+  // ── RLHF / Instruction Tuning ────────────────────────────────
+  if (
+    /\brlhf\b|reinforcement learning.*human feedback|instruct.*gpt|instructgpt|ouyang.*2022|align.*language model/i.test(
+      query,
+    )
+  )
+    add("instruct", /\brlhf\b|ouyang.*2022|instructgpt/i.test(query) ? "required" : "helpful");
+
+  if (
+    /human preference.*rl|rl.*human preference|christiano.*2017|reward.*human.*comparison/i.test(
+      query,
+    )
+  )
+    add("rlhf", /christiano.*2017/i.test(query) ? "required" : "helpful");
+
+  if (/\brlhf\b|reinforcement learning.*human feedback/i.test(query)) {
+    add("rlhf", "helpful");
+    add("instruct", "helpful");
+    add("ppo", "optional");
+  }
+
+  // ── Chain-of-Thought / Prompting ─────────────────────────────
+  if (
+    /chain.?of.?thought|cot prompting|wei.*2022.*reasoning|step.?by.?step.*reasoning.*llm|few.?shot.*reasoning.*chain/i.test(
+      query,
+    )
+  )
+    add("cot", /chain.?of.?thought|wei.*2022/i.test(query) ? "required" : "helpful");
+
+  // ── Attention / Seq2Seq ───────────────────────────────────────
+  if (
+    /\bbahdanau\b|neural machine translation.*align|attention.*nmt|jointly.*learn.*align|seq2seq.*attention/i.test(
+      query,
+    )
+  )
+    add("bahdanau", /bahdanau/i.test(query) ? "required" : "helpful");
+
+  // ── Word Embeddings ───────────────────────────────────────────
+  if (/\bglove\b|global vectors.*word|pennington.*2014|word.*co.?occurrence.*vector/i.test(query))
+    add("glove", /\bglove\b|pennington/i.test(query) ? "required" : "helpful");
+
+  // ── Image Segmentation ────────────────────────────────────────
+  if (
+    /\bu.?net\b|ronneberger|biomedical.*segment|medical.*image.*segment|encoder.*decoder.*segment/i.test(
+      query,
+    )
+  )
+    add("unet", /\bu.?net\b|ronneberger/i.test(query) ? "required" : "helpful");
+
+  if (
+    /fully convolutional|semantic segmentation|fcn.*segment|long.*shelhamer|pixel.*classif.*cnn/i.test(
+      query,
+    )
+  )
+    add("fcn", /\bfcn\b|long.*shelhamer/i.test(query) ? "required" : "helpful");
+
+  if (
+    /segmentation.*deep|semantic.*segment.*deep|instance.*segment/i.test(query)
+  ) {
+    add("unet", "helpful");
+    add("fcn", "helpful");
+  }
+
+  if (
+    /\bfpn\b|feature pyramid|lin.*2017.*detect|multi.?scale.*detect.*pyramid/i.test(
+      query,
+    )
+  )
+    add("fpn", /\bfpn\b|lin.*2017/i.test(query) ? "required" : "helpful");
+
+  // ── Generative Models ─────────────────────────────────────────
+  if (
+    /\bvae\b|variational autoencoder|auto.?encoding variational|kingma.*welling|latent variable.*encoder/i.test(
+      query,
+    )
+  )
+    add("vae", /\bvae\b|kingma.*welling/i.test(query) ? "required" : "helpful");
+
+  // ── Graph Neural Networks ─────────────────────────────────────
+  if (
+    /\bgcn\b|graph convolutional network|kipf.*welling|semi.?supervised.*graph|spectral.*graph.*convol/i.test(
+      query,
+    )
+  )
+    add("gcn", /\bgcn\b|kipf/i.test(query) ? "required" : "helpful");
+
+  if (
+    /graph attention|graph neural network|gnn.*attention|\bgat\b|velickovic/i.test(
+      query,
+    )
+  )
+    add("gat", /\bgat\b|velickovic/i.test(query) ? "required" : "helpful");
+
+  if (
+    /graph neural network|message passing.*graph|node classif.*graph|gnn.*overview/i.test(
+      query,
+    )
+  ) {
+    add("gcn", "helpful");
+    add("gat", "helpful");
+  }
+
+  // ── Federated Learning ────────────────────────────────────────
+  if (
+    /federated learning|fedavg|mcmahan.*2017|decentralized.*training|privacy.?preserving.*machine learn|local.*sgd.*federat/i.test(
+      query,
+    )
+  )
+    add("fedavg", /fedavg|mcmahan.*2017/i.test(query) ? "required" : "helpful");
 
   // ── Misc ─────────────────────────────────────────────────────
   if (/word2vec|word embeddings|skip.?gram/i.test(query))
