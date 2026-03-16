@@ -31,7 +31,7 @@ const NAV = [
   { href: "/review", label: "Literature Review", icon: BookOpen },
   { href: "/upload", label: "PDF Chat", icon: FileText },
   { href: "/dashboard", label: "My Library", icon: Library },
-  { href: "/pricing", label: "Plans & Billing", icon: CreditCard },
+  { href: "/pricing", label: "Pricing", icon: CreditCard },
 ];
 
 export interface Conversation {

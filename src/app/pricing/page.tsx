@@ -71,7 +71,7 @@ const PLANS = [
     period: "/ month",
     planId: process.env.NEXT_PUBLIC_RAZORPAY_STUDENT_PLAN_ID ?? "",
     planLabel: "Student Plan",
-    ctaText: "Subscribe to Student",
+    ctaText: "Upgrade",
     ctaStyle: "solid" as const,
     popular: true,
     Icon: GraduationCap,
@@ -94,7 +94,7 @@ const PLANS = [
     period: "/ month",
     planId: process.env.NEXT_PUBLIC_RAZORPAY_PRO_PLAN_ID ?? "",
     planLabel: "Pro Plan",
-    ctaText: "Subscribe to Pro",
+    ctaText: "Upgrade",
     ctaStyle: "outline" as const,
     popular: false,
     Icon: Crown,
@@ -113,28 +113,20 @@ const PLANS = [
 
 const FAQS = [
   {
-    q: "Is payment secure?",
-    a: "All payments are processed by Razorpay — PCI-DSS certified, used by Zomato, Swiggy, and 5M+ businesses across India.",
+    q: "What counts as a search?",
+    a: "Each time you submit a question and receive an AI-generated answer with cited papers, that counts as one search. Browsing previously saved results or viewing your library does not consume searches.",
   },
   {
     q: "Can I cancel anytime?",
-    a: "Yes. Cancel from your dashboard in one click. Your plan stays active until the billing period ends, then reverts to Free.",
+    a: "Yes. Cancel from your dashboard in one click. Your plan stays active until the end of the current billing period, then automatically reverts to Free — no questions asked.",
   },
   {
-    q: "Does it auto-renew?",
-    a: "Yes, monthly. You'll receive an email before each charge. Cancel anytime with no questions asked.",
+    q: "What payment methods are accepted?",
+    a: "We accept all major credit and debit cards (Visa, Mastercard, RuPay), UPI, net banking, and popular wallets — all processed securely through Razorpay.",
   },
   {
-    q: "Do you store card details?",
-    a: "No. Razorpay handles all card data with bank-level encryption. We never see or store your payment information.",
-  },
-  {
-    q: "What if my payment fails?",
-    a: "Razorpay retries automatically. If it keeps failing, reach us at hello.researchly@gmail.com — we'll sort it out.",
-  },
-  {
-    q: "Is there a student discount?",
-    a: "₹199/mo is already our student-friendly price. Email us with your college ID for special institutional rates.",
+    q: "Do I lose my search history if I downgrade?",
+    a: "No. Your saved papers and search history remain intact when you downgrade. You simply return to the Free plan limits for new searches going forward.",
   },
 ];
 
@@ -173,16 +165,20 @@ function PlanCard({
   idx,
   onSubscribe,
   paying,
+  userPlan,
 }: {
   plan: (typeof PLANS)[0];
   idx: number;
   onSubscribe: (p: (typeof PLANS)[0]) => void;
   paying: string;
+  userPlan: string;
 }) {
   const ref = useRef(null);
   const inView = useInView(ref, { once: true, margin: "-40px" });
   const busy = paying === plan.id;
   const { Icon } = plan;
+  const isCurrent = userPlan === plan.id;
+  const ctaLabel = isCurrent ? "Current Plan" : plan.ctaText;
 
   return (
     <motion.div
@@ -233,16 +229,16 @@ function PlanCard({
 
       {/* CTA */}
       <button
-        className={`pr-cta-btn pr-cta-btn--${plan.ctaStyle}`}
-        onClick={() => onSubscribe(plan)}
-        disabled={busy}
+        className={`pr-cta-btn pr-cta-btn--${plan.ctaStyle}${isCurrent ? " pr-cta-btn--current" : ""}`}
+        onClick={() => !isCurrent && onSubscribe(plan)}
+        disabled={busy || isCurrent}
       >
         {busy ? (
           <>
             <Loader2 size={13} className="pr-spin" /> Opening checkout…
           </>
         ) : (
-          plan.ctaText
+          ctaLabel
         )}
       </button>
 
@@ -271,6 +267,7 @@ function PlanCard({
 export default function Pricing() {
   const { data: session } = useSession();
   const router = useRouter();
+  const userPlan = session?.user?.plan ?? "free";
   const [paying, setPaying] = useState("");
 
   const faqRef = useRef(null);
@@ -570,6 +567,13 @@ export default function Pricing() {
           background: rgba(126,168,201,0.07);
           border-color: rgba(126,168,201,0.55);
         }
+        .pr-cta-btn--current {
+          background: transparent !important;
+          color: var(--text-muted) !important;
+          border: 1px solid var(--border-mid) !important;
+          cursor: default !important;
+          opacity: 0.7 !important;
+        }
 
         /* Divider */
         .pr-card-divider {
@@ -741,6 +745,7 @@ export default function Pricing() {
                 idx={idx}
                 onSubscribe={subscribe}
                 paying={paying}
+                userPlan={userPlan}
               />
             ))}
           </div>
