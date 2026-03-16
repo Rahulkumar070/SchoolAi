@@ -1178,7 +1178,7 @@ export async function rerankPapersWithSemantic(
     /\bvs\b|\bversus\b|compare.*\b(bert|gpt|t5|llm|resnet|vit)\b|\b(bert|gpt|t5)\b.*\bvs\b/i.test(
       originalQuery ?? query,
     );
-  const MIN_CITATIONS_COMPARISON = 100;
+  const MIN_CITATIONS_COMPARISON = 10;
 
   const scored = papers.map((paper, i) => {
     const paperEmb = embeddings[i + 1] ?? [];
@@ -4121,7 +4121,7 @@ const SECTION_PRIORITY: Record<string, number> = {
 export async function chunkPapersWithSections(
   papers: Paper[],
   queryKeywords: string[] = [],
-  sectionFetchLimit = 5, // only fetch full-text sections for top N papers
+  sectionFetchLimit = 8, // only fetch full-text sections for top N papers
 ): Promise<Chunk[]> {
   const chunks: Chunk[] = [];
 
