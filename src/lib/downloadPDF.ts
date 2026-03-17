@@ -102,20 +102,20 @@ function buildHTML(
       align-items: flex-start;
       justify-content: space-between;
       padding-bottom: 12px;
-      border-bottom: 2.5px solid #e8a045;
+      border-bottom: 2.5px solid #7F77DD;
       margin-bottom: 20px;
     }
     .logo-wrap { display: flex; align-items: center; gap: 10px; }
     .logo-box {
       width: 36px; height: 36px;
-      background: #7c3aed;
+      background: #7F77DD;
       border-radius: 8px;
       display: flex; align-items: center; justify-content: center;
       font-size: 12pt; font-weight: 900; color: #fff; letter-spacing: -0.5px;
       font-family: Georgia, serif;
     }
-    .logo-text { font-family: Georgia, serif; font-size: 17pt; font-weight: bold; color: #111; }
-    .logo-text span { color: #7c3aed; }
+    .logo-text { font-family: Georgia, serif; font-size: 17pt; font-weight: bold; color: #1a1a1a; }
+    .logo-text span { color: #1a1a1a; }
     .meta-right { text-align: right; font-size: 8.5pt; color: #888; line-height: 1.7; }
 
     .query-block {
@@ -222,7 +222,7 @@ function buildHTML(
       <div class="logo-box">[R]</div>
       <div>
         <div class="logo-text">Research<span>ly</span></div>
-        <div style="font-size:8pt;color:#aaa;margin-top:1px">AI Research Assistant</div>
+        <div style="font-size:8pt;color:#666666;margin-top:1px">AI Research Assistant</div>
       </div>
     </div>
     <div class="meta-right">
@@ -388,13 +388,13 @@ function buildSavedPaperHTML(paper: SavedPaper, userName?: string): string {
       align-items: flex-start;
       justify-content: space-between;
       padding-bottom: 12px;
-      border-bottom: 2.5px solid #e8a045;
+      border-bottom: 2.5px solid #7F77DD;
       margin-bottom: 20px;
     }
     .logo-wrap { display: flex; align-items: center; gap: 10px; }
     .logo-box { width: 36px; height: 36px; background: #7c3aed; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 12pt; font-weight: 900; color: #fff; letter-spacing: -0.5px; font-family: Georgia, serif; }
-    .logo-text { font-family: Georgia, serif; font-size: 17pt; font-weight: bold; color: #111; }
-    .logo-text span { color: #7c3aed; }
+    .logo-text { font-family: Georgia, serif; font-size: 17pt; font-weight: bold; color: #1a1a1a; }
+    .logo-text span { color: #1a1a1a; }
     .meta-right { text-align: right; font-size: 8.5pt; color: #888; line-height: 1.7; }
     .tag {
       display: inline-block;
@@ -533,7 +533,7 @@ function buildSavedPaperHTML(paper: SavedPaper, userName?: string): string {
       <div class="logo-box">[R]</div>
       <div>
         <div class="logo-text">Research<span>ly</span></div>
-        <div style="font-size:8pt;color:#aaa;margin-top:1px">AI Research Assistant</div>
+        <div style="font-size:8pt;color:#666666;margin-top:1px">AI Research Assistant</div>
       </div>
     </div>
     <div class="meta-right">
