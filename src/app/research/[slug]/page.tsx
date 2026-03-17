@@ -375,8 +375,7 @@ export default async function PublicResearchPage({ params }: Props) {
         {/* ── NAV ── */}
         <nav className="pr-nav">
           <Link href="/" className="pr-logo">
-            <img src="/researchly-logo-light.svg" alt="Researchly" height="32" className="logo-light" />
-            <img src="/researchly-logo-full.svg"  alt="Researchly" height="32" className="logo-dark" />
+            <img src="/researchly-logo-full.svg" alt="Researchly" height="32" />
           </Link>
           <Link href="/search" className="pr-nav-cta">
             Try free <ArrowRight size={13} />
