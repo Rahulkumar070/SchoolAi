@@ -106,14 +106,6 @@ function buildHTML(
       margin-bottom: 20px;
     }
     .logo-wrap { display: flex; align-items: center; gap: 10px; }
-    .logo-box {
-      width: 36px; height: 36px;
-      background: #7F77DD;
-      border-radius: 8px;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 12pt; font-weight: 900; color: #fff; letter-spacing: -0.5px;
-      font-family: Georgia, serif;
-    }
     .logo-text { font-family: Georgia, serif; font-size: 17pt; font-weight: bold; color: #1a1a1a; }
     .logo-text span { color: #1a1a1a; }
     .meta-right { text-align: right; font-size: 8.5pt; color: #888; line-height: 1.7; }
@@ -219,7 +211,7 @@ function buildHTML(
 
   <div class="header">
     <div class="logo-wrap">
-      <div class="logo-box">[R]</div>
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="40" height="40" style="flex-shrink:0"><rect width="64" height="64" rx="14" fill="#f5f5f0"/><text font-family="monospace" font-size="30" font-weight="400" fill="#7F77DD" letter-spacing="-2" x="8" y="42">[</text><text font-family="sans-serif" font-size="24" font-weight="600" fill="#1a1a1a" x="22" y="40">R</text><text font-family="monospace" font-size="30" font-weight="400" fill="#7F77DD" letter-spacing="-2" x="40" y="42">]</text></svg>
       <div>
         <div class="logo-text">Research<span>ly</span></div>
         <div style="font-size:8pt;color:#666666;margin-top:1px">AI Research Assistant</div>
@@ -392,7 +384,6 @@ function buildSavedPaperHTML(paper: SavedPaper, userName?: string): string {
       margin-bottom: 20px;
     }
     .logo-wrap { display: flex; align-items: center; gap: 10px; }
-    .logo-box { width: 36px; height: 36px; background: #7c3aed; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 12pt; font-weight: 900; color: #fff; letter-spacing: -0.5px; font-family: Georgia, serif; }
     .logo-text { font-family: Georgia, serif; font-size: 17pt; font-weight: bold; color: #1a1a1a; }
     .logo-text span { color: #1a1a1a; }
     .meta-right { text-align: right; font-size: 8.5pt; color: #888; line-height: 1.7; }
@@ -530,7 +521,7 @@ function buildSavedPaperHTML(paper: SavedPaper, userName?: string): string {
 <div class="page">
   <div class="header">
     <div class="logo-wrap">
-      <div class="logo-box">[R]</div>
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="40" height="40" style="flex-shrink:0"><rect width="64" height="64" rx="14" fill="#f5f5f0"/><text font-family="monospace" font-size="30" font-weight="400" fill="#7F77DD" letter-spacing="-2" x="8" y="42">[</text><text font-family="sans-serif" font-size="24" font-weight="600" fill="#1a1a1a" x="22" y="40">R</text><text font-family="monospace" font-size="30" font-weight="400" fill="#7F77DD" letter-spacing="-2" x="40" y="42">]</text></svg>
       <div>
         <div class="logo-text">Research<span>ly</span></div>
         <div style="font-size:8pt;color:#666666;margin-top:1px">AI Research Assistant</div>
