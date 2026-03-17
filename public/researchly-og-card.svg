@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+  <rect width="1200" height="630" fill="#111110"/>
+  
+  <!-- Logo centered -->
+  <text font-family="'SF Mono', 'Fira Code', 'Consolas', monospace" font-size="72" font-weight="400" fill="#7F77DD" letter-spacing="-3" x="390" y="290">[</text>
+  <text font-family="'Inter', 'Helvetica Neue', sans-serif" font-size="58" font-weight="600" fill="#FFFFFF" x="430" y="287">R</text>
+  <text font-family="'SF Mono', 'Fira Code', 'Consolas', monospace" font-size="72" font-weight="400" fill="#7F77DD" letter-spacing="-3" x="472" y="290">]</text>
+  <text font-family="'Inter', 'Helvetica Neue', sans-serif" font-size="42" font-weight="500" fill="#FFFFFF" letter-spacing="-0.5" x="520" y="282">Researchly</text>
+  
+  <!-- Tagline -->
+  <text font-family="'Inter', 'Helvetica Neue', sans-serif" font-size="22" font-weight="400" fill="#888880" letter-spacing="0.5" x="600" y="360" text-anchor="middle">AI-powered academic research · 200M+ papers · Verified citations</text>
+  
+  <!-- URL -->
+  <text font-family="'Inter', 'Helvetica Neue', sans-serif" font-size="18" font-weight="400" fill="#7F77DD" x="600" y="420" text-anchor="middle">researchly.in</text>
+</svg>

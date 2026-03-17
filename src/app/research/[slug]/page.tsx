@@ -76,11 +76,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       url: pageUrl,
       siteName: "Researchly",
       type: "article",
+      images: [{ url: "/api/og", width: 1200, height: 630 }],
     },
     twitter: {
-      card: "summary",
+      card: "summary_large_image",
       title: doc.query,
       description,
+      images: ["/api/og"],
     },
     alternates: {
       canonical: pageUrl,
@@ -209,6 +211,10 @@ export default async function PublicResearchPage({ params }: Props) {
           transition: background 0.15s;
         }
         .pr-nav-cta:hover { background: var(--brand-hover, #b8a589); }
+        .logo-light { display: block; }
+        .logo-dark  { display: none; }
+        [data-theme="dark"] .logo-dark  { display: block; }
+        [data-theme="dark"] .logo-light { display: none; }
 
         /* ── MAIN CONTENT ── */
         .pr-main {
@@ -369,10 +375,8 @@ export default async function PublicResearchPage({ params }: Props) {
         {/* ── NAV ── */}
         <nav className="pr-nav">
           <Link href="/" className="pr-logo">
-            <div className="pr-logo-box">
-              <BookOpen size={14} style={{ color: "#000" }} strokeWidth={2.5} />
-            </div>
-            <span className="pr-logo-text">Researchly</span>
+            <img src="/researchly-logo-light.svg" alt="Researchly" height="32" className="logo-light" />
+            <img src="/researchly-logo-full.svg"  alt="Researchly" height="32" className="logo-dark" />
           </Link>
           <Link href="/search" className="pr-nav-cta">
             Try free <ArrowRight size={13} />

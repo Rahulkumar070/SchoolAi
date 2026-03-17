@@ -25,17 +25,9 @@ export const metadata: Metadata = {
   colorScheme: "dark",
   viewport: "width=device-width, initial-scale=1, maximum-scale=5",
   icons: {
-    icon: [
-      { url: "/favicon.ico", sizes: "any" },
-      { url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
-      { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
-      { url: "/favicon-48x48.png", sizes: "48x48", type: "image/png" },
-    ],
-    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180" }],
-    other: [
-      { rel: "mask-icon", url: "/icon-maskable-512.png" },
-      { rel: "msapplication-TileImage", url: "/mstile-150x150.png" },
-    ],
+    icon: "/researchly-icon-dark.svg",
+    shortcut: "/researchly-icon-dark.svg",
+    apple: "/researchly-icon-dark.svg",
   },
   openGraph: {
     title: "Researchly — AI Research Assistant",
@@ -44,12 +36,14 @@ export const metadata: Metadata = {
     type: "website",
     locale: "en_IN",
     siteName: "Researchly",
+    images: [{ url: "/api/og", width: 1200, height: 630 }],
   },
   twitter: {
-    card: "summary",
+    card: "summary_large_image",
     title: "Researchly — AI Research Assistant",
     description:
       "Search 200M+ papers, generate literature reviews, chat with PDFs. Free to start.",
+    images: ["/api/og"],
   },
 };
 
@@ -64,34 +58,6 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&family=Lora:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet" />
-
-        {/* Favicon — all browsers */}
-        <link rel="icon" href="/favicon.ico" sizes="any" />
-        <link
-          rel="icon"
-          href="/favicon-16x16.png"
-          type="image/png"
-          sizes="16x16"
-        />
-        <link
-          rel="icon"
-          href="/favicon-32x32.png"
-          type="image/png"
-          sizes="32x32"
-        />
-        <link
-          rel="icon"
-          href="/favicon-48x48.png"
-          type="image/png"
-          sizes="48x48"
-        />
-
-        {/* Apple / iOS */}
-        <link
-          rel="apple-touch-icon"
-          sizes="180x180"
-          href="/apple-touch-icon.png"
-        />
 
         {/* Android / PWA */}
         <meta name="theme-color" content="#e8a045" />

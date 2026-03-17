@@ -495,8 +495,12 @@ export default function Sidebar({
           ) : (
             /* When expanded — logo + brand + close button */
             <>
-              <div className="sb-logo-circle">R</div>
-              <span className="sb-brand">Researchly</span>
+              <img
+                src={dark ? "/researchly-logo-full.svg" : "/researchly-logo-light.svg"}
+                alt="Researchly"
+                height="28"
+                style={{ flex: 1, minWidth: 0, objectFit: "contain", objectPosition: "left" }}
+              />
               <button
                 className="sb-collapse-btn"
                 onClick={() => {
