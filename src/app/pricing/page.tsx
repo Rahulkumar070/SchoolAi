@@ -371,6 +371,10 @@ export default function Pricing() {
           backdrop-filter: blur(20px);
           -webkit-backdrop-filter: blur(20px);
         }
+        .logo-light { display: block; }
+        .logo-dark  { display: none; }
+        [data-theme="dark"] .logo-dark  { display: block; }
+        [data-theme="dark"] .logo-light { display: none; }
         .pr-logo {
           display: flex; align-items: center; gap: 8px;
           text-decoration: none;
@@ -690,14 +694,8 @@ export default function Pricing() {
         {/* ── NAV ── */}
         <nav className="pr-nav">
           <Link href="/search" className="pr-logo">
-            <div className="pr-logo-box">
-              <BookOpen
-                size={14}
-                style={{ color: "var(--brand-fg, #000)" }}
-                strokeWidth={2.5}
-              />
-            </div>
-            <span className="pr-logo-text">Researchly</span>
+            <img src="/researchly-logo-light.svg" alt="Researchly" height="32" className="logo-light" />
+            <img src="/researchly-logo-full.svg"  alt="Researchly" height="32" className="logo-dark" />
           </Link>
 
           <div className="pr-nav-actions">

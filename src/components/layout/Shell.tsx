@@ -278,6 +278,10 @@ export default function Shell({
         /* Mobile bar */
         .mobile-bar { background: var(--bg-raised) !important; border-bottom-color: var(--border) !important; }
         .mobile-logo span { color: var(--text-primary) !important; }
+        .logo-light { display: block; }
+        .logo-dark  { display: none; }
+        [data-theme="dark"] .logo-dark  { display: block; }
+        [data-theme="dark"] .logo-light { display: none; }
         .icon-btn { color: var(--text-muted) !important; }
         .icon-btn:hover { background: var(--surface) !important; color: var(--text-primary) !important; }
 
@@ -358,8 +362,8 @@ export default function Shell({
               <Menu size={18} />
             </motion.button>
             <Link href="/" className="mobile-logo">
-              <BookOpen size={15} style={{ color: "var(--brand)" }} />
-              <span style={{ fontFamily: "Georgia, serif" }}>Researchly</span>
+              <img src="/researchly-logo-light.svg" alt="Researchly" height="32" className="logo-light" />
+              <img src="/researchly-logo-full.svg"  alt="Researchly" height="32" className="logo-dark" />
             </Link>
             <div style={{ display: "flex", gap: 4 }}>
               {rightPanel && (
