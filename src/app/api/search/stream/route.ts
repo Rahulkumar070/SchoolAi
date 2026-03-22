@@ -242,7 +242,7 @@ export async function POST(req: NextRequest) {
 
       if (!conversationId) {
         const title = q.length > 60 ? q.slice(0, 57) + "…" : q;
-        const conv = await ConversationModel.create({ userId: u._id, title });
+        const conv = await ConversationModel.create({ userId: u._id, title, type: "search" });
         conversationId = conv._id.toString();
         isNewConversation = true;
       }
@@ -454,10 +454,15 @@ export async function POST(req: NextRequest) {
 
     const stream = new ReadableStream({
       async start(controller) {
-        const send = (obj: unknown) =>
-          controller.enqueue(
-            encoder.encode(`data: ${JSON.stringify(obj)}\n\n`),
-          );
+        const send = (obj: unknown) => {
+          try {
+            controller.enqueue(
+              encoder.encode(`data: ${JSON.stringify(obj)}\n\n`),
+            );
+          } catch {
+            // Client disconnected — continue processing server-side
+          }
+        };
 
         send({ type: "meta", conversationId, isNewConversation });
 
@@ -894,7 +899,7 @@ export async function POST(req: NextRequest) {
           conversationId,
           related: relatedQuestions,
         });
-        controller.close();
+        try { controller.close(); } catch {}
 
         // ── Save to PublicResearch for SEO pages (all users) ──
         void PublicResearchModel.updateOne(

@@ -670,6 +670,7 @@ function SearchApp() {
   const taRef = useRef<HTMLTextAreaElement>(null);
   const endRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   // ── PDF attachment state ───────────────────────────────
   const [attachedPdf, setAttachedPdf] = useState<{
@@ -726,10 +727,13 @@ function SearchApp() {
   }, [newKey]);
 
   const scrollDown = () =>
-    setTimeout(
-      () => endRef.current?.scrollIntoView({ behavior: "smooth" }),
-      60,
-    );
+    setTimeout(() => {
+      const container = scrollContainerRef.current;
+      if (!container) return;
+      const isNearBottom =
+        container.scrollHeight - container.scrollTop - container.clientHeight < 150;
+      if (isNearBottom) endRef.current?.scrollIntoView({ behavior: "smooth" });
+    }, 60);
   const resize = () => {
     const el = taRef.current;
     if (!el) return;
@@ -1614,7 +1618,7 @@ function SearchApp() {
           </motion.div>
         ) : (
           /* ── Messages ── */
-          <div className="sr-messages-wrap">
+          <div className="sr-messages-wrap" ref={scrollContainerRef}>
             <div className="sr-messages-inner">
               {turns.map((turn, i) => (
                 <motion.div

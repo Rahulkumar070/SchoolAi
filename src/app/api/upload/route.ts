@@ -3,8 +3,11 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { connectDB } from "@/lib/mongodb";
 import { UserModel } from "@/models/User";
+import { ConversationModel } from "@/models/Conversation";
+import { MessageModel } from "@/models/Message";
 import { ChatMessage } from "@/types";
 import Anthropic from "@anthropic-ai/sdk";
+import mongoose from "mongoose";
 
 const ant = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 const STUDENT_PDF_LIMIT = 20;
@@ -77,10 +80,11 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { question, pdfText, history } = (await req.json()) as {
+    const { question, pdfText, history, conversationId: existingConversationId } = (await req.json()) as {
       question: string;
       pdfText: string;
       history: ChatMessage[];
+      conversationId?: string;
     };
 
     if (!question?.trim() || !pdfText)
@@ -107,14 +111,44 @@ export async function POST(req: NextRequest) {
     const remaining =
       plan === "student" ? Math.max(0, STUDENT_PDF_LIMIT - uploadsUsed) : null;
 
+    // ── Create or reuse conversation before streaming ─────────
+    const isValidId =
+      existingConversationId &&
+      mongoose.Types.ObjectId.isValid(existingConversationId);
+    let uploadConversationId: string | null = isValidId
+      ? existingConversationId!
+      : null;
+    if (u && !uploadConversationId) {
+      const conv = await ConversationModel.create({
+        userId: u._id,
+        title: `PDF: ${question.trim().slice(0, 50)}`,
+        type: "upload",
+      });
+      uploadConversationId = conv._id.toString();
+    }
+    if (u && uploadConversationId) {
+      await MessageModel.create({
+        conversationId: uploadConversationId,
+        userId: u._id,
+        role: "user",
+        content: question.trim(),
+      });
+    }
+
     // ── SSE Streaming response ────────────────────────────────
     const encoder = new TextEncoder();
+    let fullAnswer = "";
     const stream = new ReadableStream({
       async start(controller) {
-        const send = (obj: unknown) =>
-          controller.enqueue(
-            encoder.encode(`data: ${JSON.stringify(obj)}\n\n`),
-          );
+        const send = (obj: unknown) => {
+          try {
+            controller.enqueue(
+              encoder.encode(`data: ${JSON.stringify(obj)}\n\n`),
+            );
+          } catch {
+            // Client disconnected — continue processing server-side
+          }
+        };
 
         try {
           const streamResp = await ant.messages.stream({
@@ -129,18 +163,31 @@ export async function POST(req: NextRequest) {
               event.type === "content_block_delta" &&
               event.delta.type === "text_delta"
             ) {
+              fullAnswer += event.delta.text;
               send({ type: "text", text: event.delta.text });
             }
           }
 
           send({ type: "done", remaining });
+          if (uploadConversationId)
+            send({ type: "meta", conversationId: uploadConversationId });
         } catch (e) {
           send({
             type: "error",
             message: (e as Error).message || "Chat failed",
           });
         } finally {
-          controller.close();
+          try { controller.close(); } catch {}
+        }
+
+        // ── Save assistant message after stream closes ────────
+        if (u && uploadConversationId && fullAnswer) {
+          await MessageModel.create({
+            conversationId: uploadConversationId,
+            userId: u._id,
+            role: "assistant",
+            content: fullAnswer,
+          });
         }
       },
     });

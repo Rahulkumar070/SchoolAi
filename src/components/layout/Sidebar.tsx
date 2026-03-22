@@ -38,6 +38,7 @@ export interface Conversation {
   _id: string;
   title: string;
   updatedAt: string;
+  type?: "search" | "review" | "upload";
 }
 
 function groupConversations(items: Conversation[]) {
@@ -335,19 +336,37 @@ export default function Sidebar({
           padding: 6px 4px 2px;
         }
         .sb-hist-btn {
-          display: block; width: 100%;
+          display: flex; align-items: center; gap: 6px;
+          width: 100%;
           padding: 7px 8px; border-radius: 7px;
           background: transparent; border: none;
           text-align: left; cursor: pointer;
           font-family: inherit; font-size: 13px;
           color: ${t.histText};
-          white-space: nowrap; overflow: hidden;
-          text-overflow: ellipsis;
+          overflow: hidden;
           transition: background 0.13s, color 0.13s;
           margin-bottom: 1px;
         }
         .sb-hist-btn:hover  { background: ${t.histBtnHov}; color: ${t.histTextAct}; }
         .sb-hist-btn.active { background: ${t.histBtnAct}; color: ${t.histTextAct}; font-weight: 500; }
+        .sb-hist-title {
+          flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .sb-type-badge {
+          flex-shrink: 0;
+          font-size: 9.5px; font-weight: 600;
+          letter-spacing: 0.04em; text-transform: uppercase;
+          padding: 1px 5px; border-radius: 4px;
+          line-height: 1.6;
+        }
+        .sb-type-badge.review {
+          background: ${dark ? "#2a2218" : "#fdf3e3"};
+          color: ${dark ? "#c89450" : "#9a6820"};
+        }
+        .sb-type-badge.upload {
+          background: ${dark ? "#181f2a" : "#e8f0fb"};
+          color: ${dark ? "#5a90d4" : "#2e5fa3"};
+        }
 
         /* Sign in promo */
         .sb-signin-promo {
@@ -591,7 +610,13 @@ export default function Sidebar({
                               onClose?.();
                             }}
                           >
-                            {conv.title}
+                            <span className="sb-hist-title">{conv.title}</span>
+                            {conv.type === "review" && (
+                              <span className="sb-type-badge review">Review</span>
+                            )}
+                            {conv.type === "upload" && (
+                              <span className="sb-type-badge upload">PDF</span>
+                            )}
                           </button>
                         );
                       })}
