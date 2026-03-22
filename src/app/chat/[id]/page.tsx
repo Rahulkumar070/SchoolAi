@@ -187,6 +187,7 @@ function ChatPage() {
 
   const taRef = useRef<HTMLTextAreaElement>(null);
   const endRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   const plan = session?.user?.plan ?? "free";
   const isFree = plan === "free";
@@ -256,10 +257,13 @@ function ChatPage() {
   }, [session]);
 
   const scrollDown = () =>
-    setTimeout(
-      () => endRef.current?.scrollIntoView({ behavior: "smooth" }),
-      60,
-    );
+    setTimeout(() => {
+      const container = scrollContainerRef.current;
+      if (!container) return;
+      const isNearBottom =
+        container.scrollHeight - container.scrollTop - container.clientHeight < 150;
+      if (isNearBottom) endRef.current?.scrollIntoView({ behavior: "smooth" });
+    }, 60);
 
   const resize = () => {
     const el = taRef.current;
@@ -504,7 +508,7 @@ function ChatPage() {
 
       {/* Messages */}
       <div className="chat-col">
-        <div className="messages-wrap">
+        <div className="messages-wrap" ref={scrollContainerRef}>
           <div className="messages-inner">
             {loadingConv ? (
               <>

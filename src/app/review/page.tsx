@@ -178,6 +178,8 @@ export default function ReviewPage() {
             } else if (evt.type === "done") {
               setStreaming(false);
               setStatus("");
+            } else if (evt.type === "meta") {
+              window.dispatchEvent(new Event("researchly:conversation-updated"));
             } else if (evt.type === "error" && evt.text) {
               toast.error(evt.text);
               setResult(null);

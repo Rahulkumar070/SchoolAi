@@ -4,6 +4,8 @@ import { authOptions } from "@/lib/auth";
 import { searchAll } from "@/lib/papers";
 import { connectDB } from "@/lib/mongodb";
 import { UserModel } from "@/models/User";
+import { ConversationModel } from "@/models/Conversation";
+import { MessageModel } from "@/models/Message";
 import Anthropic from "@anthropic-ai/sdk";
 import { Paper } from "@/types";
 
@@ -100,15 +102,37 @@ export async function POST(req: NextRequest) {
         { status: 404 },
       );
 
+    // ── Create conversation + user message before streaming ──
+    let reviewConversationId: string | null = null;
+    if (u) {
+      const conv = await ConversationModel.create({
+        userId: u._id,
+        title: `Review: ${topic.trim().slice(0, 60)}`,
+        type: "review",
+      });
+      reviewConversationId = conv._id.toString();
+      await MessageModel.create({
+        conversationId: conv._id,
+        userId: u._id,
+        role: "user",
+        content: topic.trim(),
+      });
+    }
+
     const encoder = new TextEncoder();
     let fullReview = "";
 
     const stream = new ReadableStream({
       async start(controller) {
-        const send = (obj: unknown) =>
-          controller.enqueue(
-            encoder.encode(`data: ${JSON.stringify(obj)}\n\n`),
-          );
+        const send = (obj: unknown) => {
+          try {
+            controller.enqueue(
+              encoder.encode(`data: ${JSON.stringify(obj)}\n\n`),
+            );
+          } catch {
+            // Client disconnected — continue processing server-side
+          }
+        };
 
         try {
           // Send papers first so UI can show sources while review streams
@@ -141,13 +165,26 @@ export async function POST(req: NextRequest) {
           }
 
           send({ type: "done", topic });
+          if (reviewConversationId)
+            send({ type: "meta", conversationId: reviewConversationId });
         } catch (e) {
           send({
             type: "error",
             message: (e as Error).message || "Review generation failed",
           });
         } finally {
-          controller.close();
+          try { controller.close(); } catch {}
+        }
+
+        // ── Save assistant message after stream closes ────────
+        if (u && fullReview && reviewConversationId) {
+          await MessageModel.create({
+            conversationId: reviewConversationId,
+            userId: u._id,
+            role: "assistant",
+            content: fullReview,
+            papers,
+          });
         }
 
         // ── Save to review history after stream closes ────────

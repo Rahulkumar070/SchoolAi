@@ -165,20 +165,25 @@ export default function UploadPage() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [remaining, setRemaining] = useState<number | null>(null);
+  const [conversationId, setConversationId] = useState<string | null>(null);
   const [quickQs, setQuickQs] = useState<string[]>(DEFAULT_QUESTIONS);
   const [loadingQs, setLoadingQs] = useState(false);
 
   const fileRef = useRef<HTMLInputElement>(null);
   const endRef = useRef<HTMLDivElement>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const { data: session } = useSession();
   const isFree = !session || (session?.user?.plan ?? "free") === "free";
 
   const scrollDown = () =>
-    setTimeout(
-      () => endRef.current?.scrollIntoView({ behavior: "smooth" }),
-      80,
-    );
+    setTimeout(() => {
+      const container = scrollContainerRef.current;
+      if (!container) return;
+      const isNearBottom =
+        container.scrollHeight - container.scrollTop - container.clientHeight < 150;
+      if (isNearBottom) endRef.current?.scrollIntoView({ behavior: "smooth" });
+    }, 80);
 
   const resize = () => {
     const el = taRef.current;
@@ -248,6 +253,7 @@ export default function UploadPage() {
     setParseErr("");
     setMsgs([]);
     setPdfText("");
+    setConversationId(null);
     setQuickQs(DEFAULT_QUESTIONS);
 
     try {
@@ -282,6 +288,7 @@ export default function UploadPage() {
     setPdfText("");
     setMsgs([]);
     setParseErr("");
+    setConversationId(null);
     setQuickQs(DEFAULT_QUESTIONS);
   };
 
@@ -300,7 +307,7 @@ export default function UploadPage() {
       const resp = await fetch("/api/upload", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question, pdfText, history: msgs.slice(-6) }),
+        body: JSON.stringify({ question, pdfText, history: msgs.slice(-6), conversationId }),
       });
 
       if (!resp.ok) {
@@ -334,6 +341,7 @@ export default function UploadPage() {
               type: string;
               text?: string;
               remaining?: number | null;
+              conversationId?: string;
             };
             if (evt.type === "text" && evt.text) {
               setMsgs((prev) => {
@@ -348,6 +356,9 @@ export default function UploadPage() {
             } else if (evt.type === "done") {
               if (evt.remaining !== undefined && evt.remaining !== null)
                 setRemaining(evt.remaining);
+            } else if (evt.type === "meta") {
+              if (evt.conversationId) setConversationId(evt.conversationId);
+              window.dispatchEvent(new Event("researchly:conversation-updated"));
             } else if (evt.type === "error") {
               toast.error(evt.text ?? "Chat failed");
             }
@@ -464,7 +475,7 @@ export default function UploadPage() {
             )}
           </motion.div>
         ) : (
-          <div className="messages-wrap">
+          <div className="messages-wrap" ref={scrollContainerRef}>
             <div className="messages-inner">
               {/* PDF info strip */}
               {file && pdfText && (

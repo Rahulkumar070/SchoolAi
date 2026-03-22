@@ -2762,6 +2762,729 @@ const STATIC_PAPERS: Record<string, Paper> = {
     citationCount: 40000,
     source: "arXiv",
   },
+  // ── Computer Networks ─────────────────────────────────────────
+  "tcp-rfc793": {
+    id: "postel1981",
+    title: "Transmission Control Protocol",
+    authors: ["Jon Postel"],
+    year: 1981,
+    abstract:
+      "The Transmission Control Protocol (TCP) provides reliable, ordered, and error-checked delivery of a stream of octets between applications running on hosts communicating over an IP network. TCP uses a three-way handshake to establish connections, sequence numbers for ordering, and acknowledgment with retransmission for reliability. RFC 793 defines the foundational specification that remains the dominant transport protocol for internet applications.",
+    journal: "RFC 793, IETF",
+    doi: "10.17487/RFC0793",
+    url: "https://www.rfc-editor.org/rfc/rfc793",
+    citationCount: 15000,
+    source: "IETF RFC",
+  },
+  "udp-rfc768": {
+    id: "postel1980",
+    title: "User Datagram Protocol",
+    authors: ["Jon Postel"],
+    year: 1980,
+    abstract:
+      "The User Datagram Protocol (UDP) is a connectionless transport-layer protocol that provides a minimal, unreliable datagram delivery service without establishing a connection or guaranteeing delivery, ordering, or duplicate protection. UDP is suitable for latency-sensitive applications where some packet loss is acceptable and the overhead of TCP connection management is undesirable. It is widely used for DNS queries, video streaming, VoIP, and online gaming where application-layer reliability can be implemented selectively.",
+    journal: "RFC 768, IETF",
+    doi: "10.17487/RFC0768",
+    url: "https://www.rfc-editor.org/rfc/rfc768",
+    citationCount: 5000,
+    source: "IETF RFC",
+  },
+  "rest-fielding": {
+    id: "fielding2000",
+    title: "Architectural Styles and the Design of Network-based Software Architectures",
+    authors: ["Roy Thomas Fielding"],
+    year: 2000,
+    abstract:
+      "Fielding's doctoral dissertation introduces Representational State Transfer (REST), an architectural style for distributed hypermedia systems derived from analyzing the design principles of the World Wide Web. REST defines six architectural constraints — statelessness, client-server separation, cacheability, uniform interface, layered system, and code-on-demand — that collectively produce scalable, reliable, and evolvable web services. The REST architectural style has become the dominant paradigm for web API design and underpins the modern internet.",
+    journal: "University of California, Irvine (PhD Thesis)",
+    url: "https://ics.uci.edu/~fielding/pubs/dissertation/top.htm",
+    citationCount: 20000,
+    source: "UC Irvine",
+  },
+  "www-berners-lee": {
+    id: "bernerslee1994",
+    title: "The World Wide Web",
+    authors: ["Tim Berners-Lee", "Robert Cailliau", "Ari Luotonen", "Henrik Frystyk Nielsen", "Arthur Secret"],
+    year: 1994,
+    abstract:
+      "Berners-Lee and colleagues describe the World Wide Web as a wide-area hypermedia information retrieval initiative providing universal access to a large universe of documents linked via uniform resource locators (URLs). The paper describes the architecture of the Web — including URLs, HTTP, and HTML — and the design goals of universality, decentralization, and interoperability that enabled the Web to scale globally. This paper traces the evolution from a CERN internal project to a global information system that transformed communication and commerce.",
+    journal: "Communications of the ACM",
+    doi: "10.1145/179606.179671",
+    url: "https://dl.acm.org/doi/10.1145/179606.179671",
+    citationCount: 8000,
+    source: "ACM",
+  },
+  "quic-rfc9000": {
+    id: "iyengar2021",
+    title: "QUIC: A UDP-Based Multiplexed and Secure Transport",
+    authors: ["Jana Iyengar", "Martin Thomson"],
+    year: 2021,
+    abstract:
+      "QUIC is a transport protocol built on UDP that provides reliable, ordered delivery with reduced connection establishment latency through 0-RTT and 1-RTT handshakes, subsetting the capabilities of TCP+TLS while adding stream multiplexing without head-of-line blocking. QUIC encrypts all transport header fields and payload by default, preventing ossification by middleboxes and improving privacy. RFC 9000 standardizes QUIC as the transport for HTTP/3, addressing many TCP limitations for modern latency-sensitive web applications.",
+    journal: "RFC 9000, IETF",
+    doi: "10.17487/RFC9000",
+    url: "https://www.rfc-editor.org/rfc/rfc9000",
+    citationCount: 3000,
+    source: "IETF RFC",
+  },
+  // ── Operating Systems ─────────────────────────────────────────
+  "unix-ritchie": {
+    id: "ritchie1974",
+    title: "The UNIX Time-Sharing System",
+    authors: ["Dennis M. Ritchie", "Ken Thompson"],
+    year: 1974,
+    abstract:
+      "Ritchie and Thompson describe the UNIX time-sharing system, a general-purpose, multi-user, interactive operating system featuring a hierarchical file system, separate processes for each user command, a shell command language, and a uniform interface through file descriptors. UNIX introduced foundational abstractions — pipes for process communication, fork for process creation, and the everything-is-a-file philosophy — that have shaped operating system design for five decades. The paper remains a landmark in systems software for its emphasis on simplicity and composability.",
+    journal: "Communications of the ACM",
+    doi: "10.1145/361011.361061",
+    url: "https://dl.acm.org/doi/10.1145/361011.361061",
+    citationCount: 12000,
+    source: "ACM",
+  },
+  "cooperating-dijkstra": {
+    id: "dijkstra1965",
+    title: "Cooperating Sequential Processes",
+    authors: ["Edsger W. Dijkstra"],
+    year: 1965,
+    abstract:
+      "Dijkstra introduces the concept of cooperating sequential processes sharing memory and presents the mutual exclusion problem, defining semaphores as a synchronization primitive to coordinate concurrent access to shared resources. The paper demonstrates semaphores solving the producer-consumer and dining philosophers problems, establishing key abstractions for concurrent programming. This work laid the mathematical foundation for concurrency theory and remains a cornerstone of operating systems and programming language design.",
+    journal: "Technical Report EWD-123, Eindhoven University of Technology",
+    url: "https://www.cs.utexas.edu/users/EWD/transcriptions/EWD01xx/EWD123.html",
+    citationCount: 8000,
+    source: "EWD",
+  },
+  "time-clocks-lamport": {
+    id: "lamport1978",
+    title: "Time, Clocks, and the Ordering of Events in a Distributed System",
+    authors: ["Leslie Lamport"],
+    year: 1978,
+    abstract:
+      "Lamport introduces logical clocks — a mechanism for assigning timestamps to events in a distributed system — and defines the 'happened-before' partial ordering relation consistent with causality. The paper shows how logical clocks can impose a total ordering on all events and uses this to solve distributed mutual exclusion without a central coordinator. This foundational result underpins distributed systems theory including vector clocks, eventual consistency, and distributed database design.",
+    journal: "Communications of the ACM",
+    doi: "10.1145/359545.359563",
+    url: "https://dl.acm.org/doi/10.1145/359545.359563",
+    citationCount: 15000,
+    source: "ACM",
+  },
+  "mapreduce-dean": {
+    id: "dean2004",
+    title: "MapReduce: Simplified Data Processing on Large Clusters",
+    authors: ["Jeffrey Dean", "Sanjay Ghemawat"],
+    year: 2004,
+    abstract:
+      "MapReduce is a programming model and implementation for processing and generating large datasets across clusters of commodity machines, in which users specify a map function producing intermediate key-value pairs and a reduce function merging values for each key. The runtime system automatically partitions input, schedules execution, handles machine failures, and manages inter-machine communication, enabling non-expert programmers to harness large distributed systems. MapReduce became Google's primary data processing framework and inspired Apache Hadoop, transforming large-scale data engineering.",
+    journal: "OSDI 2004",
+    doi: "10.1145/1327452.1327492",
+    url: "https://dl.acm.org/doi/10.1145/1327452.1327492",
+    citationCount: 18000,
+    source: "ACM",
+  },
+  "gfs-ghemawat": {
+    id: "ghemawat2003",
+    title: "The Google File System",
+    authors: ["Sanjay Ghemawat", "Howard Gobioff", "Shun-Tak Leung"],
+    year: 2003,
+    abstract:
+      "The Google File System (GFS) is a scalable distributed file system designed for large data-intensive applications on clusters of inexpensive commodity hardware, making design choices including a single master for metadata, 64 MB chunks, and atomic record append operations optimized for large sequential reads and appends. GFS relaxes POSIX consistency to achieve high throughput and fault tolerance across thousands of machines through replication and master-coordinated recovery. GFS has influenced subsequent distributed storage systems including Hadoop HDFS and serves as a foundational design in cloud storage architecture.",
+    journal: "SOSP 2003",
+    doi: "10.1145/945445.945450",
+    url: "https://dl.acm.org/doi/10.1145/945445.945450",
+    citationCount: 14000,
+    source: "ACM",
+  },
+  // ── Database Systems ──────────────────────────────────────────
+  "relational-codd": {
+    id: "codd1970",
+    title: "A Relational Model of Data for Large Shared Data Banks",
+    authors: ["Edgar F. Codd"],
+    year: 1970,
+    abstract:
+      "Codd proposes a relational model of data based on mathematical set theory and first-order predicate logic, in which data is represented as relations (tables) with rows and columns and operations such as selection, projection, and join are defined as set operations. The model decouples the physical storage representation of data from its logical structure, enabling data independence and a foundation for declarative query languages. This paper gave rise to relational database management systems and SQL, transforming enterprise data management.",
+    journal: "Communications of the ACM",
+    doi: "10.1145/362384.362685",
+    url: "https://dl.acm.org/doi/10.1145/362384.362685",
+    citationCount: 22000,
+    source: "ACM",
+  },
+  "dynamo-decandia": {
+    id: "decandia2007",
+    title: "Dynamo: Amazon's Highly Available Key-value Store",
+    authors: [
+      "Giuseppe DeCandia",
+      "Deniz Hastorun",
+      "Madan Jampani",
+      "Gunavardhan Kakulapati",
+      "Avinash Lakshman",
+      "Alex Pilchin",
+      "Swaminathan Sivasubramanian",
+      "Peter Vosshall",
+      "Werner Vogels",
+    ],
+    year: 2007,
+    abstract:
+      "Amazon's Dynamo is a highly available key-value storage system that sacrifices consistency under certain failure scenarios in favor of availability and partition tolerance, combining consistent hashing for data partitioning, vector clocks for versioning, anti-entropy with Merkle trees for replica synchronization, and a gossip protocol for failure detection. Dynamo's always-writable design ensures that shopping carts and other critical services remain available even during network partitions or server failures. This paper has been foundational in the design of NoSQL databases and the formulation of the CAP theorem trade-offs.",
+    journal: "SOSP 2007",
+    doi: "10.1145/1294261.1294281",
+    url: "https://dl.acm.org/doi/10.1145/1294261.1294281",
+    citationCount: 8000,
+    source: "ACM",
+  },
+  "bigtable-chang": {
+    id: "chang2006",
+    title: "Bigtable: A Distributed Storage System for Structured Data",
+    authors: [
+      "Fay Chang",
+      "Jeffrey Dean",
+      "Sanjay Ghemawat",
+      "Wilson C. Hsieh",
+      "Deborah A. Wallach",
+      "Mike Burrows",
+      "Tushar Chandra",
+      "Andrew Fikes",
+      "Robert E. Gruber",
+    ],
+    year: 2006,
+    abstract:
+      "Bigtable is a distributed storage system for structured data at Google, designed to scale to petabytes across thousands of commodity servers, organized as a sparse, distributed, persistent, multi-dimensional sorted map indexed by row key, column key, and timestamp. Bigtable supports a wide range of demanding workloads across Google Search, Google Maps, and Google Analytics by providing flexible schema and tunable performance characteristics. Bigtable has inspired subsequent wide-column stores including Apache HBase and Apache Cassandra.",
+    journal: "OSDI 2006",
+    doi: "10.1145/1365815.1365816",
+    url: "https://dl.acm.org/doi/10.1145/1365815.1365816",
+    citationCount: 10000,
+    source: "ACM",
+  },
+  "nosql-stonebraker": {
+    id: "stonebraker2011",
+    title: "Ten Rules for Scalable Performance in 'Simple Operation' Datastores",
+    authors: ["Michael Stonebraker", "Rick Cattel"],
+    year: 2011,
+    abstract:
+      "Stonebraker and Cattel identify ten rules that distinguish scalable 'simple operation' datastores — including key-value stores and document databases — from traditional relational systems, covering schema-less data models, horizontal partitioning and replication, distributed query processing, and relaxed ACID semantics. The rules explain why certain high-throughput workloads benefit from NoSQL architectures and frame the trade-offs between consistency, availability, and performance at scale. This paper provides a principled framework for evaluating and selecting modern database systems.",
+    journal: "Communications of the ACM",
+    doi: "10.1145/1995376.1995400",
+    url: "https://dl.acm.org/doi/10.1145/1995376.1995400",
+    citationCount: 1500,
+    source: "ACM",
+  },
+  "cassandra-lakshman": {
+    id: "lakshman2010",
+    title: "Cassandra: A Decentralized Structured Storage System",
+    authors: ["Avinash Lakshman", "Prashant Malik"],
+    year: 2010,
+    abstract:
+      "Apache Cassandra is a highly scalable, high-performance distributed storage system for managing very large amounts of structured data across commodity servers, combining the distributed hash table approach of Amazon's Dynamo with the column-family data model of Google's Bigtable. Cassandra provides tunable consistency levels, allowing operators to trade consistency for availability on a per-request basis, and was designed for Facebook's Inbox Search to handle massive write throughput with no single point of failure. The system's decentralized peer-to-peer architecture and linear scalability made it a foundational technology for internet-scale applications.",
+    journal: "ACM SIGOPS Operating Systems Review",
+    doi: "10.1145/1773912.1773922",
+    url: "https://dl.acm.org/doi/10.1145/1773912.1773922",
+    citationCount: 6000,
+    source: "ACM",
+  },
+  // ── Cybersecurity ─────────────────────────────────────────────
+  "rsa-rivest": {
+    id: "rivest1978",
+    title: "A Method for Obtaining Digital Signatures and Public-Key Cryptosystems",
+    authors: ["Ronald L. Rivest", "Adi Shamir", "Leonard Adleman"],
+    year: 1978,
+    abstract:
+      "Rivest, Shamir, and Adleman introduce the RSA public-key cryptosystem based on the computational difficulty of factoring the product of two large prime numbers, providing both encryption and digital signature functionality. A message encrypted with a recipient's public key can only be decrypted with their private key, enabling secure communication without prior shared secret exchange. RSA has become the most widely deployed public-key cryptosystem, forming the basis of HTTPS, PGP, digital certificates, and secure internet infrastructure.",
+    journal: "Communications of the ACM",
+    doi: "10.1145/359340.359342",
+    url: "https://dl.acm.org/doi/10.1145/359340.359342",
+    citationCount: 18000,
+    source: "ACM",
+  },
+  "diffie-hellman": {
+    id: "diffie1976",
+    title: "New Directions in Cryptography",
+    authors: ["Whitfield Diffie", "Martin E. Hellman"],
+    year: 1976,
+    abstract:
+      "Diffie and Hellman introduce the concept of public-key cryptography, in which communicating parties can share a public key while keeping a private key secret, eliminating the need for a previously exchanged secret key. The paper proposes a key exchange protocol based on the computational difficulty of discrete logarithms, allowing two parties to establish a shared secret over an insecure channel that an eavesdropper cannot compute. This work revolutionized cryptography, laid the mathematical foundation for secure communications on public networks, and predates the RSA algorithm.",
+    journal: "IEEE Transactions on Information Theory",
+    doi: "10.1109/TIT.1976.1055638",
+    url: "https://ieeexplore.ieee.org/document/1055638",
+    citationCount: 25000,
+    source: "IEEE",
+  },
+  "tls13-rescorla": {
+    id: "rescorla2018",
+    title: "The Transport Layer Security (TLS) Protocol Version 1.3",
+    authors: ["Eric Rescorla"],
+    year: 2018,
+    abstract:
+      "TLS 1.3, standardized in RFC 8446, is a major revision of the TLS protocol that reduces handshake latency to one round-trip time (1-RTT) by default and supports 0-RTT session resumption, while removing obsolete and insecure cryptographic constructs including RSA key transport, CBC-mode ciphers, and MD5/SHA-1. All traffic is forward-secret by default, preventing decryption of recorded traffic even if long-term keys are later compromised. TLS 1.3 is the foundation of secure web communications and has been rapidly adopted across HTTPS, email, and VPN protocols.",
+    journal: "RFC 8446, IETF",
+    doi: "10.17487/RFC8446",
+    url: "https://www.rfc-editor.org/rfc/rfc8446",
+    citationCount: 3000,
+    source: "IETF RFC",
+  },
+  "security-engineering-anderson": {
+    id: "anderson2020",
+    title: "Security Engineering: A Guide to Building Dependable Distributed Systems",
+    authors: ["Ross J. Anderson"],
+    year: 2020,
+    abstract:
+      "Anderson's Security Engineering provides a comprehensive treatment of how to build dependable distributed systems that are secure against both technical attacks and human and organizational factors, covering threat modeling, cryptographic protocols, access control, network security, and psychological aspects of security failures. The book synthesizes decades of real-world security incidents into practical design principles for trustworthy systems across banking, healthcare, military, and critical infrastructure. The third edition reflects lessons from modern adversarial environments including nation-state attacks, ransomware, and privacy regulation.",
+    journal: "Wiley",
+    url: "https://www.cl.cam.ac.uk/~rja14/book.html",
+    citationCount: 5000,
+    source: "Wiley",
+  },
+  "shor-quantum": {
+    id: "shor1994",
+    title: "Algorithms for Quantum Computation: Discrete Logarithms and Factoring",
+    authors: ["Peter W. Shor"],
+    year: 1994,
+    abstract:
+      "Shor presents polynomial-time quantum algorithms for integer factorization and the discrete logarithm problem, both of which underlie the security of RSA and Diffie-Hellman cryptosystems used throughout internet security. The algorithms exploit quantum parallelism and the quantum Fourier transform to find the period of a modular function exponentially faster than any known classical algorithm. Shor's algorithm demonstrates that sufficiently large quantum computers would render current public-key cryptography insecure, directly motivating the field of post-quantum cryptography.",
+    journal: "Proceedings of the 35th Annual Symposium on Foundations of Computer Science (FOCS)",
+    doi: "10.1109/SFCS.1994.365700",
+    url: "https://ieeexplore.ieee.org/document/365700",
+    citationCount: 12000,
+    source: "IEEE",
+  },
+  // ── Cloud Computing ───────────────────────────────────────────
+  "cloud-armbrust": {
+    id: "armbrust2010",
+    title: "A View of Cloud Computing",
+    authors: [
+      "Michael Armbrust",
+      "Armando Fox",
+      "Rean Griffith",
+      "Anthony D. Joseph",
+      "Randy Katz",
+      "Andy Konwinski",
+      "Gunho Lee",
+      "David Patterson",
+      "Ariel Rabkin",
+      "Ion Stoica",
+      "Matei Zaharia",
+    ],
+    year: 2010,
+    abstract:
+      "Armbrust and colleagues from UC Berkeley define cloud computing as the delivery of computing resources — servers, storage, networking, and software — over the internet with on-demand access and pay-per-use pricing, and identify ten obstacles and opportunities including data confidentiality, software licensing, data transfer bottlenecks, and unpredictable performance. The paper distinguishes cloud computing from prior outsourcing by its elasticity and the illusion of infinite compute resources, and characterizes three cloud service models: IaaS, PaaS, and SaaS. This work has become a canonical definition and analysis of cloud computing concepts and economic trade-offs.",
+    journal: "Communications of the ACM",
+    doi: "10.1145/1721654.1721672",
+    url: "https://dl.acm.org/doi/10.1145/1721654.1721672",
+    citationCount: 15000,
+    source: "ACM",
+  },
+  "xen-barham": {
+    id: "barham2003",
+    title: "Xen and the Art of Virtualization",
+    authors: [
+      "Paul Barham",
+      "Boris Dragovic",
+      "Keir Fraser",
+      "Steven Hand",
+      "Tim Harris",
+      "Alex Ho",
+      "Rolf Neugebauer",
+      "Ian Pratt",
+      "Andrew Warfield",
+    ],
+    year: 2003,
+    abstract:
+      "Xen introduces paravirtualization, a technique that allows multiple operating systems to run simultaneously on a single physical machine with near-native performance by modifying the guest OS to use a thin virtual machine monitor (VMM) API instead of privileged hardware instructions. Xen achieves much lower overhead than full virtualization — within a few percent of native performance for most workloads — while supporting strong isolation between guest domains. Xen formed the basis of commercial cloud infrastructure, including early Amazon EC2, and demonstrated the viability of virtual machine technology for data center workloads.",
+    journal: "SOSP 2003",
+    doi: "10.1145/945445.945462",
+    url: "https://dl.acm.org/doi/10.1145/945445.945462",
+    citationCount: 8000,
+    source: "ACM",
+  },
+  "docker-merkel": {
+    id: "merkel2014",
+    title: "Docker: Lightweight Linux Containers for Consistent Development and Deployment",
+    authors: ["Dirk Merkel"],
+    year: 2014,
+    abstract:
+      "Docker is an open platform for building, shipping, and running distributed applications using Linux container technology — namespaces and cgroups — providing lightweight process isolation without the overhead of full virtual machines, enabling faster startup and higher density per host. Docker's layered image format, Dockerfile build specification, and registry ecosystem made application packaging and environment reproducibility accessible to developers without deep systems knowledge. Docker revolutionized software deployment practices and became the foundation of cloud-native application delivery and container orchestration.",
+    journal: "Linux Journal",
+    url: "https://www.linuxjournal.com/content/docker-lightweight-linux-containers-consistent-development-and-deployment",
+    citationCount: 4000,
+    source: "Linux Journal",
+  },
+  "kubernetes-burns": {
+    id: "burns2016",
+    title: "Borg, Omega, and Kubernetes",
+    authors: ["Brendan Burns", "Brian Grant", "David Oppenheimer", "Eric Brewer", "John Wilkes"],
+    year: 2016,
+    abstract:
+      "Burns and colleagues describe the evolution from Google's Borg and Omega internal cluster management systems to Kubernetes, an open-source container orchestration platform incorporating lessons learned from a decade of production cluster management at scale. The paper explains key design decisions in Kubernetes including pods as the unit of scheduling, label selectors for grouping, service abstraction for discovery, and declarative configuration for desired state management. Kubernetes has become the de facto standard for container orchestration and has shaped how distributed applications are deployed in production cloud environments.",
+    journal: "ACM Queue",
+    doi: "10.1145/2898442.2898444",
+    url: "https://dl.acm.org/doi/10.1145/2898442.2898444",
+    citationCount: 3000,
+    source: "ACM",
+  },
+  "cluster-fox": {
+    id: "fox1997",
+    title: "Cluster-Based Scalable Network Services",
+    authors: [
+      "Armando Fox",
+      "Steven D. Gribble",
+      "Yatin Chawathe",
+      "Eric A. Brewer",
+      "Paul Gauthier",
+    ],
+    year: 1997,
+    abstract:
+      "Fox and colleagues present the design of cluster-based scalable network services using a base station architecture that partitions services into stateless front ends and stateful back ends across commodity PC clusters, introducing fast restartable processes and the BASE (basically available, soft state, eventually consistent) properties as an alternative to strict ACID for high-availability internet services. The paper demonstrates that commodity hardware clusters can deliver high availability and scalability for web services at a fraction of the cost of specialized hardware. This work anticipated key principles of modern microservices and cloud architecture and laid the intellectual groundwork for the CAP theorem.",
+    journal: "SOSP 1997",
+    doi: "10.1145/268998.269023",
+    url: "https://dl.acm.org/doi/10.1145/268998.269023",
+    citationCount: 2000,
+    source: "ACM",
+  },
+  // ── Computer Vision (new) ─────────────────────────────────────
+  "fast-rcnn": {
+    id: "girshick2015",
+    title: "Fast R-CNN",
+    authors: ["Ross Girshick"],
+    year: 2015,
+    abstract:
+      "Fast R-CNN improves upon R-CNN and SPPnet for object detection by jointly training a convolutional feature extractor, a region of interest (RoI) pooling layer, and classification and bounding-box regression heads in a single end-to-end network, eliminating the multi-stage training pipeline. The unified architecture processes the entire image with a single ConvNet forward pass and achieves 9× faster training and 213× faster inference than R-CNN while improving detection accuracy. Fast R-CNN achieved state-of-the-art results on PASCAL VOC 2010-12 and formed the basis of subsequent two-stage object detectors including Faster R-CNN.",
+    journal: "ICCV 2015",
+    doi: "10.1109/ICCV.2015.169",
+    url: "https://arxiv.org/abs/1504.08083",
+    citationCount: 20000,
+    source: "arXiv",
+  },
+  // ── NLP Advanced ──────────────────────────────────────────────
+  "roberta-liu": {
+    id: "liu2019roberta",
+    title: "RoBERTa: A Robustly Optimized BERT Pretraining Approach",
+    authors: [
+      "Yinhan Liu",
+      "Myle Ott",
+      "Naman Goyal",
+      "Jingfei Du",
+      "Mandar Joshi",
+      "Danqi Chen",
+      "Omer Levy",
+      "Mike Lewis",
+      "Luke Zettlemoyer",
+      "Veselin Stoyanov",
+    ],
+    year: 2019,
+    abstract:
+      "RoBERTa revisits the BERT pretraining procedure and demonstrates that BERT was significantly undertrained, showing that training longer with bigger batches, removing the next sentence prediction objective, training on longer sequences, and using a larger byte-pair encoding vocabulary substantially improves performance. RoBERTa matches or exceeds the performance of all post-BERT methods on GLUE, SQuAD, and RACE benchmarks without architectural changes. The study establishes rigorous baselines for BERT-style pretraining and shows that data and compute choices matter as much as architecture.",
+    journal: "arXiv",
+    doi: "10.48550/arXiv.1907.11692",
+    url: "https://arxiv.org/abs/1907.11692",
+    citationCount: 18000,
+    source: "arXiv",
+  },
+  "llama-touvron": {
+    id: "touvron2023",
+    title: "LLaMA: Open and Efficient Foundation Language Models",
+    authors: [
+      "Hugo Touvron",
+      "Thibaut Lavril",
+      "Gautier Izacard",
+      "Xavier Martinet",
+      "Marie-Anne Lachaux",
+      "Timothée Lacroix",
+      "Baptiste Rozière",
+      "Naman Goyal",
+      "Eric Hambro",
+      "Faisal Azhar",
+    ],
+    year: 2023,
+    abstract:
+      "LLaMA introduces a collection of foundation language models ranging from 7B to 65B parameters trained exclusively on publicly available datasets, demonstrating that training smaller models on more data yields better performance per inference compute than training larger models on less data. LLaMA-13B outperforms GPT-3 (175B) on most NLP benchmarks, and LLaMA-65B is competitive with Chinchilla and PaLM-540B. By releasing model weights to the research community, LLaMA enabled a wave of open research on large language model fine-tuning, alignment, and applications.",
+    journal: "arXiv",
+    doi: "10.48550/arXiv.2302.13971",
+    url: "https://arxiv.org/abs/2302.13971",
+    citationCount: 20000,
+    source: "arXiv",
+  },
+  "xlnet-yang": {
+    id: "yang2019xlnet",
+    title: "XLNet: Generalized Autoregressive Pretraining for Language Understanding",
+    authors: [
+      "Zhilin Yang",
+      "Zihang Dai",
+      "Yiming Yang",
+      "Jaime Carbonell",
+      "Ruslan Salakhutdinov",
+      "Quoc V. Le",
+    ],
+    year: 2019,
+    abstract:
+      "XLNet is a generalized autoregressive language model that overcomes the pretrain-finetune discrepancy of masked language models by learning to predict tokens in all possible permutation orders of the input sequence. By combining permutation language modeling with Transformer-XL's segment-level recurrence, XLNet captures bidirectional context without relying on the corrupting [MASK] token, avoiding the independence assumption of BERT's masked positions. XLNet outperforms BERT on 20 tasks including question answering, natural language inference, sentiment analysis, and document ranking.",
+    journal: "NeurIPS 2019",
+    doi: "10.48550/arXiv.1906.08237",
+    url: "https://arxiv.org/abs/1906.08237",
+    citationCount: 8000,
+    source: "arXiv",
+  },
+  "bart-lewis": {
+    id: "lewis2020bart",
+    title: "BART: Denoising Sequence-to-Sequence Pre-training for Natural Language Generation, Translation, and Comprehension",
+    authors: [
+      "Mike Lewis",
+      "Yinhan Liu",
+      "Naman Goyal",
+      "Marjan Ghazvininejad",
+      "Abdelrahman Mohamed",
+      "Omer Levy",
+      "Veselin Stoyanov",
+      "Luke Zettlemoyer",
+    ],
+    year: 2020,
+    abstract:
+      "BART is a denoising autoencoder for pretraining sequence-to-sequence models, trained by corrupting text with arbitrary noising functions — token masking, deletion, permutation, and document rotation — and learning to reconstruct the original text with a bidirectional encoder and autoregressive decoder. The architecture generalizes BERT (bidirectional encoder) and GPT (left-to-right decoder), making it effective for both text understanding and generation tasks. BART achieves state-of-the-art results on abstractive summarization (CNN/DM, XSum), machine translation, and conversational question answering.",
+    journal: "ACL 2020",
+    doi: "10.18653/v1/2020.acl-main.703",
+    url: "https://arxiv.org/abs/1910.13461",
+    citationCount: 8000,
+    source: "arXiv",
+  },
+  "electra-clark": {
+    id: "clark2020electra",
+    title: "ELECTRA: Pre-training Text Encoders as Discriminators Rather Than Generators",
+    authors: ["Kevin Clark", "Minh-Thang Luong", "Quoc V. Le", "Christopher D. Manning"],
+    year: 2020,
+    abstract:
+      "ELECTRA introduces a more sample-efficient pretraining method that trains a discriminator to distinguish real input tokens from plausible but synthetically generated replacements produced by a small generator network, rather than predicting masked tokens. Unlike BERT's masked language modeling objective — which only learns from 15% of tokens per step — ELECTRA's replaced token detection loss applies to every input token, yielding significantly better performance with the same compute budget. A small ELECTRA model trained on one GPU for four days outperforms GPT on the GLUE benchmark, and ELECTRA-Large matches RoBERTa with only 25% of the compute.",
+    journal: "ICLR 2020",
+    doi: "10.48550/arXiv.2003.10555",
+    url: "https://arxiv.org/abs/2003.10555",
+    citationCount: 5000,
+    source: "arXiv",
+  },
+  // ── Software Engineering ──────────────────────────────────────
+  "microservices-fowler": {
+    id: "fowler2014microservices",
+    title: "Microservices",
+    authors: ["Martin Fowler", "James Lewis"],
+    year: 2014,
+    abstract:
+      "Fowler and Lewis define the microservices architectural style as an approach to developing a single application as a suite of small, independently deployable services, each running in its own process and communicating with lightweight mechanisms such as HTTP APIs, organized around business capabilities. Microservices enable independent deployment, technology heterogeneity, and fine-grained scalability, but introduce distributed systems complexity including network latency, partial failure, and operational overhead compared to monolithic architectures. The article has been widely cited as the defining reference for microservices architecture and the trade-offs compared to monoliths.",
+    journal: "martinfowler.com",
+    url: "https://martinfowler.com/articles/microservices.html",
+    citationCount: 3000,
+    source: "martinfowler.com",
+  },
+  "agile-manifesto": {
+    id: "beck2001agile",
+    title: "Manifesto for Agile Software Development",
+    authors: [
+      "Kent Beck",
+      "Mike Beedle",
+      "Arie van Bennekum",
+      "Alistair Cockburn",
+      "Ward Cunningham",
+      "Martin Fowler",
+      "James Grenning",
+      "Jim Highsmith",
+      "Andrew Hunt",
+      "Ron Jeffries",
+    ],
+    year: 2001,
+    abstract:
+      "The Agile Manifesto articulates four values — individuals and interactions over processes and tools, working software over comprehensive documentation, customer collaboration over contract negotiation, and responding to change over following a plan — and twelve principles for iterative, customer-centric software delivery. The manifesto synthesizes practices from extreme programming, Scrum, DSDM, and related lightweight methods into a shared philosophical foundation for software teams. It catalyzed the worldwide adoption of agile methodologies and fundamentally transformed software engineering practice and project management.",
+    journal: "agilemanifesto.org",
+    url: "https://agilemanifesto.org",
+    citationCount: 5000,
+    source: "agilemanifesto.org",
+  },
+  "continuous-delivery-humble": {
+    id: "humble2010",
+    title: "Continuous Delivery: Reliable Software Releases through Build, Test, and Deployment Automation",
+    authors: ["Jez Humble", "David Farley"],
+    year: 2010,
+    abstract:
+      "Humble and Farley present continuous delivery, a discipline in which software is always in a releasable state by keeping the build, test, and deployment pipeline automated and fast enough to support multiple production releases per day. The book covers deployment pipelines, automated testing strategies including unit, acceptance, and exploratory tests, configuration management, environment provisioning, and the organizational changes needed to adopt continuous delivery practices. Continuous delivery has become foundational to modern DevOps practice, cloud-native application development, and site reliability engineering.",
+    journal: "Addison-Wesley Professional",
+    url: "https://continuousdelivery.com",
+    citationCount: 4000,
+    source: "Addison-Wesley",
+  },
+  // ── Blockchain ────────────────────────────────────────────────
+  "bitcoin-nakamoto": {
+    id: "nakamoto2008",
+    title: "Bitcoin: A Peer-to-Peer Electronic Cash System",
+    authors: ["Satoshi Nakamoto"],
+    year: 2008,
+    abstract:
+      "Nakamoto proposes Bitcoin, a peer-to-peer electronic cash system that allows online payments to be sent directly between parties without going through a financial institution, using a chain of digital signatures to transfer ownership and a proof-of-work consensus mechanism to prevent double-spending. Nodes in the network collect transactions into blocks, compete to solve a cryptographic puzzle to append the next block, and accept the longest chain as the authoritative history. Bitcoin introduced blockchain technology and demonstrated the viability of decentralized digital currency secured by cryptography and economic incentives.",
+    journal: "bitcoin.org",
+    url: "https://bitcoin.org/bitcoin.pdf",
+    citationCount: 25000,
+    source: "bitcoin.org",
+  },
+  "ethereum-buterin": {
+    id: "buterin2014",
+    title: "Ethereum: A Next-Generation Smart Contract and Decentralized Application Platform",
+    authors: ["Vitalik Buterin"],
+    year: 2014,
+    abstract:
+      "Buterin proposes Ethereum as a blockchain platform with a Turing-complete scripting language enabling arbitrary stateful computations through smart contracts — self-executing code stored on-chain — that generalize Bitcoin's scripting capabilities to support decentralized applications, tokens, and governance. The white paper describes the account model, gas pricing for computation, and the Ethereum Virtual Machine (EVM) as a sandboxed execution environment replicated across all nodes. Ethereum has become the foundational infrastructure for decentralized finance (DeFi), non-fungible tokens (NFTs), and decentralized autonomous organizations (DAOs).",
+    journal: "ethereum.org",
+    url: "https://ethereum.org/en/whitepaper/",
+    citationCount: 10000,
+    source: "ethereum.org",
+  },
+  "smart-contracts-szabo": {
+    id: "szabo1997",
+    title: "Formalizing and Securing Relationships on Public Networks",
+    authors: ["Nick Szabo"],
+    year: 1997,
+    abstract:
+      "Szabo defines smart contracts as computerized transaction protocols that execute the terms of a contract, embedding contractual clauses in hardware and software to make breach costly and minimize reliance on trusted intermediaries. The paper extends the concept to digital cash, payment networks, and financial derivatives, demonstrating how protocols can cryptographically enforce contractual obligations without central authorities. This foundational article anticipated blockchain-based smart contracts by more than a decade and introduced the vocabulary and conceptual framework now used throughout distributed ledger technology.",
+    journal: "First Monday",
+    doi: "10.5210/fm.v2i9.548",
+    url: "https://firstmonday.org/ojs/index.php/fm/article/view/548",
+    citationCount: 3000,
+    source: "First Monday",
+  },
+  "hyperledger-androulaki": {
+    id: "androulaki2018",
+    title: "Hyperledger Fabric: A Distributed Operating System for Permissioned Blockchains",
+    authors: [
+      "Elli Androulaki",
+      "Artem Barger",
+      "Vita Bortnikov",
+      "Christian Cachin",
+      "Konstantinos Christidis",
+      "Angelo De Caro",
+      "David Enyeart",
+      "Christopher Ferris",
+      "Gennady Laventman",
+      "Yacov Manevich",
+    ],
+    year: 2018,
+    abstract:
+      "Hyperledger Fabric is a permissioned blockchain platform for enterprise use cases that separates transaction execution, ordering, and validation into distinct phases carried out by separate node types — peers, orderers, and endorsers — enabling modular consensus and pluggable membership services. Unlike public blockchains, Fabric supports private channels for data confidentiality, fine-grained access control, and chaincode (smart contracts) in general-purpose programming languages. The execute-order-validate architecture achieves high throughput and horizontal scalability while maintaining Byzantine fault tolerance for enterprise blockchain applications.",
+    journal: "EuroSys 2018",
+    doi: "10.1145/3190508.3190538",
+    url: "https://dl.acm.org/doi/10.1145/3190508.3190538",
+    citationCount: 4000,
+    source: "ACM",
+  },
+  // ── IoT & Edge Computing ──────────────────────────────────────
+  "iot-atzori": {
+    id: "atzori2010",
+    title: "The Internet of Things: A Survey",
+    authors: ["Luigi Atzori", "Antonio Iera", "Giacomo Morabito"],
+    year: 2010,
+    abstract:
+      "Atzori and colleagues provide a comprehensive survey of the Internet of Things, characterizing it as a convergence of sensing, communication, and information processing technologies that enable physical objects to sense, communicate, and act in their environment across RFID, sensor networks, embedded systems, and middleware platforms. The survey covers IoT applications in smart cities, healthcare, transportation, and industrial automation, and identifies key research challenges in scalability, security, privacy, and standardization. This paper remains a foundational reference that defined the IoT research agenda and has been widely cited across computer science, engineering, and policy communities.",
+    journal: "Computer Networks",
+    doi: "10.1016/j.comnet.2010.05.010",
+    url: "https://www.sciencedirect.com/science/article/pii/S1389128610001568",
+    citationCount: 20000,
+    source: "Elsevier",
+  },
+  "edge-computing-shi": {
+    id: "shi2016",
+    title: "Edge Computing: Vision and Challenges",
+    authors: ["Weisong Shi", "Jie Cao", "Quan Zhang", "Youhuizi Li", "Lanyu Xu"],
+    year: 2016,
+    abstract:
+      "Shi and colleagues introduce edge computing as a paradigm that pushes computation, storage, and networking from centralized cloud data centers to the edge of the network, near where data is produced and consumed by IoT devices, to reduce latency, conserve bandwidth, and enable real-time processing that cloud round-trip delays cannot support. The paper defines the edge computing architecture, distinguishes it from related paradigms including fog computing and cloudlets, and discusses enabling technologies and open challenges including heterogeneity, security, and resource management. This paper has become the standard reference for edge computing research and shaped the development of MEC (mobile edge computing) standards.",
+    journal: "IEEE Internet of Things Journal",
+    doi: "10.1109/JIOT.2016.2579198",
+    url: "https://ieeexplore.ieee.org/document/7488250",
+    citationCount: 10000,
+    source: "IEEE",
+  },
+  "iot-vision-gubbi": {
+    id: "gubbi2013",
+    title: "Internet of Things (IoT): A Vision, Architectural Elements, and Future Directions",
+    authors: ["Jayavardhana Gubbi", "Rajkumar Buyya", "Slaven Marusic", "Marimuthu Palaniswami"],
+    year: 2013,
+    abstract:
+      "Gubbi and colleagues present a vision and three-layer architecture for the Internet of Things comprising sensing, network transport, and cloud back-end layers, positioning cloud computing as the infrastructure for IoT data storage, processing, and analytics at scale. The paper surveys smart environment applications — smart homes, smart cities, connected health, and intelligent transportation — and identifies open research challenges including scalability, interoperability, security, and privacy. This widely cited paper helped crystallize the IoT ecosystem concept and motivated subsequent work on IoT platforms, cloud integration, and large-scale sensor data management.",
+    journal: "Future Generation Computer Systems",
+    doi: "10.1016/j.future.2013.01.010",
+    url: "https://www.sciencedirect.com/science/article/pii/S0167739X13000241",
+    citationCount: 12000,
+    source: "Elsevier",
+  },
+  // ── Data Structures & Algorithms ──────────────────────────────
+  "intro-algorithms-cormen": {
+    id: "cormen2009",
+    title: "Introduction to Algorithms",
+    authors: [
+      "Thomas H. Cormen",
+      "Charles E. Leiserson",
+      "Ronald L. Rivest",
+      "Clifford Stein",
+    ],
+    year: 2009,
+    abstract:
+      "Introduction to Algorithms (CLRS) is the definitive algorithms textbook covering a broad range of algorithms in depth using design techniques including divide-and-conquer, dynamic programming, greedy algorithms, and amortized analysis, with rigorous mathematical proofs of correctness and complexity. The book spans sorting and searching, graph algorithms (BFS, DFS, shortest paths, minimum spanning trees), data structures (heaps, hash tables, balanced BSTs), NP-completeness, and approximation algorithms. CLRS has been the standard algorithms reference for computer science students and practitioners for three decades across undergraduate and graduate education.",
+    journal: "MIT Press",
+    url: "https://mitpress.mit.edu/9780262046305/introduction-to-algorithms/",
+    citationCount: 30000,
+    source: "MIT Press",
+  },
+  "bloom-filter": {
+    id: "bloom1970",
+    title: "Space/Time Trade-offs in Hash Coding with Allowable Errors",
+    authors: ["Burton H. Bloom"],
+    year: 1970,
+    abstract:
+      "Bloom introduces a space-efficient probabilistic data structure — the Bloom filter — that tests set membership using a bit array and multiple hash functions, allowing false positives (an element may be reported as present when it is not) but never false negatives (a truly present element is always found). The false positive rate is controllable by tuning the bit array size and the number of hash functions, enabling dramatic memory savings compared to exact membership structures at the cost of a small configurable error rate. Bloom filters have become a foundational component in database systems, network routers, distributed caches, and stream processing where memory efficiency is critical.",
+    journal: "Communications of the ACM",
+    doi: "10.1145/362686.362692",
+    url: "https://dl.acm.org/doi/10.1145/362686.362692",
+    citationCount: 8000,
+    source: "ACM",
+  },
+  "hyperloglog-flajolet": {
+    id: "flajolet2007",
+    title: "HyperLogLog: The Analysis of a Near-Optimal Cardinality Estimation Algorithm",
+    authors: ["Philippe Flajolet", "Éric Fusy", "Olivier Gandouet", "Frédéric Meunier"],
+    year: 2007,
+    abstract:
+      "Flajolet and colleagues present HyperLogLog, an algorithm for estimating the cardinality (count of distinct elements) of a multiset using a fixed amount of memory by exploiting the statistical regularity of hash values — specifically, the expected position of the leading zero run — to estimate the number of distinct inputs with a standard error of approximately 1.04/√m for m registers. The algorithm uses stochastic averaging across multiple hash sub-streams to reduce variance while maintaining the sub-linear memory footprint. HyperLogLog is widely deployed in analytics databases such as BigQuery and Redis, stream processing systems, and distributed counting applications where exact counts are infeasible.",
+    journal: "Discrete Mathematics and Theoretical Computer Science (DMTCS)",
+    url: "https://hal.science/hal-00406166",
+    citationCount: 2000,
+    source: "DMTCS",
+  },
+  // ── Genetics & Biotech ────────────────────────────────────────
+  "dna-watson-crick": {
+    id: "watson1953",
+    title: "Molecular Structure of Nucleic Acids: A Structure for Deoxyribose Nucleic Acid",
+    authors: ["James D. Watson", "Francis H. C. Crick"],
+    year: 1953,
+    abstract:
+      "Watson and Crick report the double helix structure of deoxyribonucleic acid (DNA), showing that DNA consists of two anti-parallel helical chains coiled around a common axis with complementary base pairing — adenine with thymine, and guanine with cytosine — held together by hydrogen bonds. This specific base-pairing mechanism immediately suggests a copying mechanism for genetic material in which each strand serves as a template for a complementary strand, explaining the faithful transmission of hereditary information. This 900-word letter launched the field of molecular biology and is one of the most cited papers in all of science.",
+    journal: "Nature",
+    doi: "10.1038/171737a0",
+    url: "https://www.nature.com/articles/171737a0",
+    citationCount: 15000,
+    source: "Nature",
+  },
+  "human-genome-lander": {
+    id: "lander2001",
+    title: "Initial Sequencing and Analysis of the Human Genome",
+    authors: [
+      "Eric S. Lander",
+      "Lauren M. Linton",
+      "Bruce Birren",
+      "Chad Nusbaum",
+      "Michael C. Zody",
+      "Jennifer Baldwin",
+      "Keri Devon",
+      "Ken Dewar",
+      "Michael Doyle",
+      "William FitzHugh",
+    ],
+    year: 2001,
+    abstract:
+      "The International Human Genome Sequencing Consortium reports the initial draft sequence of the human genome comprising approximately 2.91 billion base pairs, revealing approximately 30,000–40,000 protein-coding genes — far fewer than anticipated — along with extensive repetitive element content and structural variation across populations. The analysis characterizes genome organization, gene density, and patterns of genetic variation that illuminate human evolution, population history, and the genetic basis of disease. This landmark paper provides the foundational reference sequence for understanding human biology and catalyzed the genomics era of biomedical research.",
+    journal: "Nature",
+    doi: "10.1038/35057062",
+    url: "https://www.nature.com/articles/35057062",
+    citationCount: 25000,
+    source: "Nature",
+  },
 };
 
 export const STATIC_PAPER_IDS: ReadonlySet<string> = new Set([
@@ -2842,6 +3565,64 @@ export const STATIC_PAPER_IDS: ReadonlySet<string> = new Set([
   "velickovic2018",
   // Federated Learning
   "mcmahan2017",
+  // Computer Networks
+  "postel1981",
+  "postel1980",
+  "fielding2000",
+  "bernerslee1994",
+  "iyengar2021",
+  // Operating Systems
+  "ritchie1974",
+  "dijkstra1965",
+  "lamport1978",
+  "dean2004",
+  "ghemawat2003",
+  // Database Systems
+  "codd1970",
+  "decandia2007",
+  "chang2006",
+  "stonebraker2011",
+  "lakshman2010",
+  // Cybersecurity
+  "rivest1978",
+  "diffie1976",
+  "rescorla2018",
+  "anderson2020",
+  "shor1994",
+  // Cloud Computing
+  "armbrust2010",
+  "barham2003",
+  "merkel2014",
+  "burns2016",
+  "fox1997",
+  // Computer Vision (new)
+  "girshick2015",
+  // NLP Advanced
+  "liu2019roberta",
+  "touvron2023",
+  "yang2019xlnet",
+  "lewis2020bart",
+  "clark2020electra",
+  // Software Engineering
+  "fowler2014microservices",
+  "beck2001agile",
+  "humble2010",
+  // Blockchain
+  "nakamoto2008",
+  "buterin2014",
+  "szabo1997",
+  "androulaki2018",
+  // IoT & Edge Computing
+  "atzori2010",
+  "shi2016",
+  "gubbi2013",
+  // Data Structures & Algorithms
+  "cormen2009",
+  "bloom1970",
+  "flajolet2007",
+  // Genetics & Biotech
+  "watson1953",
+  "lander2001",
 ]);
 
 // Foundational injection levels:
@@ -3293,6 +4074,448 @@ function getFoundationalPapers(query: string): {
     )
   )
     add("fedavg", /fedavg|mcmahan.*2017/i.test(query) ? "required" : "helpful");
+
+  // ── Computer Networks ─────────────────────────────────────────
+  if (
+    /\btcp\b|transmission control protocol|tcp.*handshake|tcp.*reliability|tcp.*congestion|postel.*1981|rfc.*793/i.test(
+      query,
+    )
+  )
+    add("tcp-rfc793", /postel.*1981|rfc.*793/i.test(query) ? "required" : "helpful");
+
+  if (
+    /\budp\b|user datagram protocol|connectionless.*transport|datagram.*protocol|postel.*1980|rfc.*768/i.test(
+      query,
+    )
+  )
+    add("udp-rfc768", /postel.*1980|rfc.*768/i.test(query) ? "required" : "helpful");
+
+  if (
+    /\brest\b|restful|representational state transfer|fielding.*dissert|rest.*api.*design|rest.*architectural/i.test(
+      query,
+    )
+  )
+    add("rest-fielding", /fielding.*2000|rest.*dissert/i.test(query) ? "required" : "helpful");
+
+  if (
+    /world wide web|www.*berners|berners.?lee|history.*web|http.*html.*url|web.*architecture.*1994/i.test(
+      query,
+    )
+  )
+    add("www-berners-lee", /berners.?lee/i.test(query) ? "required" : "helpful");
+
+  if (
+    /\bquic\b|http\/3|http3|udp.*transport.*reliable|quic.*protocol|rfc.*9000/i.test(
+      query,
+    )
+  )
+    add("quic-rfc9000", /\bquic\b|rfc.*9000/i.test(query) ? "required" : "helpful");
+
+  if (
+    /tcp.*udp|network.*protocol.*compare|transport.*layer.*protocol|tcp vs udp|latency.*transport/i.test(
+      query,
+    )
+  ) {
+    add("tcp-rfc793", "helpful");
+    add("udp-rfc768", "helpful");
+    add("quic-rfc9000", "optional");
+  }
+
+  // ── Operating Systems ─────────────────────────────────────────
+  if (
+    /\bunix\b|unix.*operating system|ritchie.*thompson|unix.*design|everything.*file.*os|pipe.*process.*unix/i.test(
+      query,
+    )
+  )
+    add("unix-ritchie", /ritchie|thompson.*1974|unix.*1974/i.test(query) ? "required" : "helpful");
+
+  if (
+    /\bsemaphore\b|mutual exclusion|cooperating.*sequential|dijkstra.*1965|dining philosophers|producer.*consumer.*os/i.test(
+      query,
+    )
+  )
+    add("cooperating-dijkstra", /dijkstra.*1965/i.test(query) ? "required" : "helpful");
+
+  if (
+    /logical clock|happened.?before|lamport.*clock|distributed.*ordering|causal.*ordering.*event|vector clock/i.test(
+      query,
+    )
+  )
+    add(
+      "time-clocks-lamport",
+      /lamport.*1978|lamport.*clock/i.test(query) ? "required" : "helpful",
+    );
+
+  if (
+    /\bmapreduce\b|map.*reduce.*google|dean.*ghemawat|hadoop.*mapreduce|distributed.*data.*processing.*google/i.test(
+      query,
+    )
+  )
+    add("mapreduce-dean", /mapreduce|dean.*ghemawat/i.test(query) ? "required" : "helpful");
+
+  if (
+    /google file system|\bgfs\b|ghemawat.*2003|distributed.*file.*system.*google|chunk.*server.*gfs/i.test(
+      query,
+    )
+  )
+    add("gfs-ghemawat", /\bgfs\b|ghemawat.*2003/i.test(query) ? "required" : "helpful");
+
+  if (
+    /distributed systems.*fundamentals|operating system.*overview|systems.*research.*classic/i.test(
+      query,
+    )
+  ) {
+    add("unix-ritchie", "helpful");
+    add("lamport1978", "helpful");
+    add("mapreduce-dean", "optional");
+  }
+
+  // ── Database Systems ──────────────────────────────────────────
+  if (
+    /relational model|relational database|codd.*1970|sql.*origin|rdbms.*history|relation.*tuple.*attribute/i.test(
+      query,
+    )
+  )
+    add("relational-codd", /codd.*1970/i.test(query) ? "required" : "helpful");
+
+  if (
+    /\bdynamo\b|amazon.*key.?value|dynamodb.*origin|decandia.*2007|consistent hashing.*amazon|eventual consistency.*amazon/i.test(
+      query,
+    )
+  )
+    add("dynamo-decandia", /dynamo|decandia.*2007/i.test(query) ? "required" : "helpful");
+
+  if (
+    /\bbigtable\b|google.*wide.?column|chang.*2006|bigtable.*storage|row.*column.*timestamp.*google/i.test(
+      query,
+    )
+  )
+    add("bigtable-chang", /bigtable|chang.*2006/i.test(query) ? "required" : "helpful");
+
+  if (
+    /\bcassandra\b|lakshman.*malik|apache.*cassandra|decentralized.*storage.*nosql|tunable consistency/i.test(
+      query,
+    )
+  )
+    add("cassandra-lakshman", /cassandra|lakshman.*2010/i.test(query) ? "required" : "helpful");
+
+  if (
+    /nosql.*database|key.?value.*store|document.*database|wide.?column.*store|nosql.*vs.*sql/i.test(
+      query,
+    )
+  ) {
+    add("dynamo-decandia", "helpful");
+    add("bigtable-chang", "helpful");
+    add("cassandra-lakshman", "optional");
+    add("relational-codd", "optional");
+  }
+
+  if (
+    /stonebraker.*scalable|ten rules.*scalable|new.*sql.*rules|nosql.*performance.*rules/i.test(
+      query,
+    )
+  )
+    add("nosql-stonebraker", "required");
+
+  // ── Cybersecurity ─────────────────────────────────────────────
+  if (
+    /\brsa\b|public.?key cryptosystem|rivest.*shamir.*adleman|rsa.*encrypt|rsa.*signature|integer factoring.*crypto/i.test(
+      query,
+    )
+  )
+    add("rsa-rivest", /\brsa\b|rivest.*shamir|1978.*crypto/i.test(query) ? "required" : "helpful");
+
+  if (
+    /diffie.?hellman|key exchange.*public|new directions.*cryptography|discrete logarithm.*crypto|dh.*key.*agreement/i.test(
+      query,
+    )
+  )
+    add(
+      "diffie-hellman",
+      /diffie.?hellman|diffie.*1976/i.test(query) ? "required" : "helpful",
+    );
+
+  if (
+    /\btls\b.*1\.3|\btls1\.3\b|rfc.*8446|transport layer security.*1\.3|tls.*handshake.*1rtt|forward secrecy.*tls/i.test(
+      query,
+    )
+  )
+    add("tls13-rescorla", /tls.*1\.3|rfc.*8446/i.test(query) ? "required" : "helpful");
+
+  if (
+    /security engineering|anderson.*security|building.*secure.*system|threat model.*overview|security.*survey.*book/i.test(
+      query,
+    )
+  )
+    add("security-engineering-anderson", "helpful");
+
+  if (
+    /shor.*algorithm|quantum.*factor|quantum.*cryptography.*break|post.?quantum|quantum.*rsa|quantum.*discrete.?log/i.test(
+      query,
+    )
+  )
+    add("shor-quantum", /shor.*algorithm|shor.*1994/i.test(query) ? "required" : "helpful");
+
+  if (
+    /cryptography.*overview|public.?key cryptography|asymmetric.*encrypt|secure.*communication.*protocol/i.test(
+      query,
+    )
+  ) {
+    add("diffie-hellman", "helpful");
+    add("rsa-rivest", "helpful");
+    add("tls13-rescorla", "optional");
+  }
+
+  // ── Cloud Computing ───────────────────────────────────────────
+  if (
+    /cloud computing.*overview|view.*cloud.*computing|armbrust.*2010|iaas.*paas.*saas|cloud.*elasticity.*survey/i.test(
+      query,
+    )
+  )
+    add("cloud-armbrust", /armbrust.*2010/i.test(query) ? "required" : "helpful");
+
+  if (
+    /\bxen\b|paravirtualization|barham.*2003|virtual machine.*hypervisor.*performance|xen.*virtualization/i.test(
+      query,
+    )
+  )
+    add("xen-barham", /\bxen\b|barham.*2003/i.test(query) ? "required" : "helpful");
+
+  if (
+    /\bdocker\b|linux container|container.*deploy|merkel.*2014|dockerfile|container.*image.*layer/i.test(
+      query,
+    )
+  )
+    add("docker-merkel", /\bdocker\b|merkel.*2014/i.test(query) ? "required" : "helpful");
+
+  if (
+    /\bkubernetes\b|\bk8s\b|container orchestrat|burns.*2016|borg.*omega.*kubernetes|pod.*scheduling.*cluster/i.test(
+      query,
+    )
+  )
+    add("kubernetes-burns", /\bkubernetes\b|\bk8s\b|burns.*2016/i.test(query) ? "required" : "helpful");
+
+  if (
+    /cluster.*network.*service|fox.*brewer.*1997|BASE.*properties|basically available.*soft state|scalable.*web.*service.*cluster/i.test(
+      query,
+    )
+  )
+    add("cluster-fox", /fox.*1997|brewer.*fox/i.test(query) ? "required" : "helpful");
+
+  if (
+    /cloud.*infrastructure|virtualization.*overview|container.*vs.*vm|devops.*cloud|cloud.*native/i.test(
+      query,
+    )
+  ) {
+    add("cloud-armbrust", "helpful");
+    add("docker-merkel", "helpful");
+    add("kubernetes-burns", "helpful");
+    add("xen-barham", "optional");
+  }
+
+  // ── Computer Vision (Fast R-CNN) ──────────────────────────────
+  if (
+    /fast.*r.?cnn|\bfaster.*rcnn\b|girshick.*2015|region.*proposal.*detect|roi.*pool|two.?stage.*detect/i.test(
+      query,
+    )
+  )
+    add("fast-rcnn", /girshick.*2015|fast.*r.?cnn/i.test(query) ? "required" : "helpful");
+
+  if (
+    /object detection.*overview|r.?cnn.*family|region.*based.*detect/i.test(query)
+  ) {
+    add("fast-rcnn", "helpful");
+    add("yolo", "helpful");
+  }
+
+  // ── NLP Advanced ──────────────────────────────────────────────
+  if (
+    /\broberta\b|robustly optimized.*bert|liu.*2019.*roberta|bert.*pretraining.*optimiz/i.test(
+      query,
+    )
+  )
+    add("roberta-liu", /\broberta\b|liu.*2019.*roberta/i.test(query) ? "required" : "helpful");
+
+  if (
+    /\bllama\b|touvron.*2023|open.*foundation.*llm|llama.*language model|meta.*llm.*open/i.test(
+      query,
+    )
+  )
+    add("llama-touvron", /\bllama\b|touvron.*2023/i.test(query) ? "required" : "helpful");
+
+  if (
+    /\bxlnet\b|permutation.*language model|yang.*2019.*xlnet|autoregressive.*pretraining.*bidirectional/i.test(
+      query,
+    )
+  )
+    add("xlnet-yang", /\bxlnet\b|yang.*2019.*xlnet/i.test(query) ? "required" : "helpful");
+
+  if (
+    /\bbart\b|denoising.*seq2seq|lewis.*2020.*bart|bart.*summariz|sequence.?to.?sequence.*pretrain.*denoise/i.test(
+      query,
+    )
+  )
+    add("bart-lewis", /\bbart\b.*model|lewis.*2020.*bart/i.test(query) ? "required" : "helpful");
+
+  if (
+    /\belectra\b|replaced token detection|clark.*2020.*electra|discriminator.*pretraining.*nlp/i.test(
+      query,
+    )
+  )
+    add("electra-clark", /\belectra\b|clark.*2020/i.test(query) ? "required" : "helpful");
+
+  if (
+    /nlp.*pretrained.*model|language model.*comparison|bert.*variant|post.?bert.*model/i.test(
+      query,
+    )
+  ) {
+    add("roberta-liu", "helpful");
+    add("xlnet-yang", "helpful");
+    add("electra-clark", "optional");
+    add("bart-lewis", "optional");
+  }
+
+  // ── Software Engineering ──────────────────────────────────────
+  if (
+    /microservice.*architecture|microservices.*monolith|fowler.*lewis.*microservic|service.*decomposition.*deploy/i.test(
+      query,
+    )
+  )
+    add(
+      "microservices-fowler",
+      /fowler.*lewis.*microservic|microservices.*fowler/i.test(query) ? "required" : "helpful",
+    );
+
+  if (
+    /agile.*manifest|agile.*software.*development|agile.*principles|scrum.*xp.*agile.*origin|beck.*2001.*agile/i.test(
+      query,
+    )
+  )
+    add(
+      "agile-manifesto",
+      /agile.*manifest|beck.*2001/i.test(query) ? "required" : "helpful",
+    );
+
+  if (
+    /continuous delivery|continuous deployment|deployment pipeline|humble.*farley|devops.*release.*automat/i.test(
+      query,
+    )
+  )
+    add(
+      "continuous-delivery-humble",
+      /humble.*farley|continuous delivery.*book/i.test(query) ? "required" : "helpful",
+    );
+
+  // ── Blockchain ────────────────────────────────────────────────
+  if (
+    /blockchain|bitcoin|ethereum|smart contract|distributed ledger|cryptocurrency|defi/i.test(
+      query,
+    )
+  ) {
+    add("bitcoin-nakamoto", "required");
+    add("ethereum-buterin", "required");
+  }
+
+  if (
+    /smart contract.*origin|szabo.*1997|formalizing.*securing.*relationships|contract.*code.*blockchain.*history/i.test(
+      query,
+    )
+  )
+    add("smart-contracts-szabo", /szabo.*1997/i.test(query) ? "required" : "helpful");
+
+  if (
+    /hyperledger fabric|permissioned blockchain|androulaki.*2018|enterprise.*blockchain|fabric.*chaincode/i.test(
+      query,
+    )
+  )
+    add("hyperledger-androulaki", /hyperledger.*fabric|androulaki/i.test(query) ? "required" : "helpful");
+
+  // ── IoT & Edge Computing ──────────────────────────────────────
+  if (
+    /internet of things.*survey|iot.*overview|atzori.*2010|iot.*sensor.*network.*survey|smart.*devices.*survey/i.test(
+      query,
+    )
+  )
+    add("iot-atzori", /atzori.*2010/i.test(query) ? "required" : "helpful");
+
+  if (
+    /edge computing|mobile.*edge.*computing|\bmec\b|fog computing|shi.*2016.*edge|edge.*latency.*iot/i.test(
+      query,
+    )
+  )
+    add("edge-computing-shi", /shi.*2016|edge computing.*vision/i.test(query) ? "required" : "helpful");
+
+  if (
+    /iot.*cloud.*architecture|internet.*things.*vision|gubbi.*2013|smart city.*iot.*architecture|iot.*platform.*cloud/i.test(
+      query,
+    )
+  )
+    add("iot-vision-gubbi", /gubbi.*2013/i.test(query) ? "required" : "helpful");
+
+  if (
+    /\biot\b|internet of things|connected devices|sensor.*network.*application/i.test(
+      query,
+    )
+  ) {
+    add("iot-atzori", "helpful");
+    add("edge-computing-shi", "helpful");
+    add("iot-vision-gubbi", "optional");
+  }
+
+  // ── Data Structures & Algorithms ──────────────────────────────
+  if (
+    /\bclrs\b|introduction.*algorithms.*cormen|cormen.*leiserson.*rivest|algorithms.*textbook|clrs.*algorithm/i.test(
+      query,
+    )
+  )
+    add("intro-algorithms-cormen", /cormen|clrs/i.test(query) ? "required" : "helpful");
+
+  if (
+    /bloom filter|space.*time.*hash.*allowable.*error|bloom.*1970|probabilistic.*membership|false positive.*membership/i.test(
+      query,
+    )
+  )
+    add("bloom-filter", /bloom.*filter|bloom.*1970/i.test(query) ? "required" : "helpful");
+
+  if (
+    /\bhyperloglog\b|cardinality estimation|count distinct.*approximate|flajolet.*2007|hll.*algorithm|distinct.*elements.*sketch/i.test(
+      query,
+    )
+  )
+    add("hyperloglog-flajolet", /hyperloglog|flajolet.*2007/i.test(query) ? "required" : "helpful");
+
+  if (
+    /probabilistic data structure|approximate.*counting|streaming.*algorithm|sketch.*data structure/i.test(
+      query,
+    )
+  ) {
+    add("bloom-filter", "helpful");
+    add("hyperloglog-flajolet", "helpful");
+  }
+
+  // ── Genetics & Biotech ────────────────────────────────────────
+  if (
+    /\bdna\b.*double helix|watson.*crick|deoxyribonucleic acid.*structure|base pairing.*dna|dna.*molecular structure/i.test(
+      query,
+    )
+  )
+    add("dna-watson-crick", /watson.*crick|1953.*dna/i.test(query) ? "required" : "helpful");
+
+  if (
+    /human genome.*sequenc|genome.*sequencing.*project|lander.*2001|hgp.*human genome|genome.*draft.*sequence/i.test(
+      query,
+    )
+  )
+    add("human-genome-lander", /lander.*2001|human genome.*project/i.test(query) ? "required" : "helpful");
+
+  if (
+    /genomics.*overview|molecular biology.*central dogma|dna.*rna.*protein|genetics.*sequencing/i.test(
+      query,
+    )
+  ) {
+    add("dna-watson-crick", "helpful");
+    add("human-genome-lander", "helpful");
+  }
 
   // ── Misc ─────────────────────────────────────────────────────
   if (/word2vec|word embeddings|skip.?gram/i.test(query))

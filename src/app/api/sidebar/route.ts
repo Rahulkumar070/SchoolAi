@@ -43,11 +43,11 @@ export async function GET() {
     }
 
     const conversations = await ConversationModel.find({ userId: user._id })
-      .select("title updatedAt")
+      .select("title updatedAt type")
       .sort({ updatedAt: -1 })
       .limit(50)
       .lean<
-        { _id: mongoose.Types.ObjectId; title: string; updatedAt: Date }[]
+        { _id: mongoose.Types.ObjectId; title: string; updatedAt: Date; type?: string }[]
       >();
 
     const now = new Date();
@@ -64,6 +64,7 @@ export async function GET() {
         _id: c._id.toString(),
         title: c.title,
         updatedAt: c.updatedAt,
+        type: c.type ?? "search",
       })),
       searchesToday: isNewDay ? 0 : (user.searchesToday ?? 0),
       searchesThisMonth: isNewMonth ? 0 : (user.searchesThisMonth ?? 0),
