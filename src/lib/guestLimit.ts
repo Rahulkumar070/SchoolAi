@@ -17,7 +17,7 @@ import { connectDB } from "@/lib/mongodb";
 import { CacheModel } from "@/models/Cache";
 import crypto from "crypto";
 
-const GUEST_DAILY_LIMIT = 3; // IMPROVED: was 2
+const GUEST_DAILY_LIMIT = 2; // IMPROVED: was 2
 const SECRET = process.env.NEXTAUTH_SECRET ?? "researchly-secret";
 
 // ── Fingerprint: stable hash of IP + UserAgent + Accept-Language ──────────
@@ -66,7 +66,7 @@ async function incrementCount(id: string): Promise<void> {
         papers: [],
         createdAt: new Date(),
       },
-      { upsert: true }
+      { upsert: true },
     );
   } catch {
     // Increment failure should not break the app

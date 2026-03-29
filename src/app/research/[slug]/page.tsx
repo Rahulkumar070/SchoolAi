@@ -362,10 +362,50 @@ export default async function PublicResearchPage({ params }: Props) {
       `}</style>
 
       <div className="pr-page">
+        {/* JSON-LD Article structured data */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "Article",
+              headline: data.query,
+              description: stripCitations(data.answer).slice(0, 160),
+              datePublished: data.createdAt,
+              dateModified: data.createdAt,
+              author: {
+                "@type": "Organization",
+                name: "Researchly by Exovio",
+                url: "https://researchly.in",
+              },
+              publisher: {
+                "@type": "Organization",
+                name: "Researchly",
+                logo: {
+                  "@type": "ImageObject",
+                  url: "https://researchly.in/researchly-icon-dark.svg",
+                },
+              },
+              mainEntityOfPage: {
+                "@type": "WebPage",
+                "@id": `https://researchly.in/research/${data.slug}`,
+              },
+              image: "https://researchly.in/api/og",
+              citation: data.papers.slice(0, 10).map((p) => ({
+                "@type": "ScholarlyArticle",
+                name: p.title,
+                author: p.authors?.map((a) => ({ "@type": "Person", name: a })),
+                datePublished: p.year?.toString(),
+                url: p.url || (p.doi ? `https://doi.org/${p.doi}` : undefined),
+              })),
+            }),
+          }}
+        />
         {/* ── STICKY TOP BANNER ── */}
         <div className="pr-top-banner">
           <span className="pr-top-banner-text">
-            🔍 Research any topic with AI-powered citations — Try Researchly free
+            🔍 Research any topic with AI-powered citations — Try Researchly
+            free
           </span>
           <Link href="/search" className="pr-top-banner-btn">
             Start Researching <ArrowRight size={12} />

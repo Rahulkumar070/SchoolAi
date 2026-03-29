@@ -8,11 +8,36 @@ export const revalidate = 3600;
 const BASE = "https://researchly.in";
 
 const STATIC: MetadataRoute.Sitemap = [
-  { url: BASE, lastModified: new Date(), priority: 1.0 },
-  { url: `${BASE}/search`, lastModified: new Date(), priority: 0.9 },
-  { url: `${BASE}/review`, lastModified: new Date(), priority: 0.8 },
-  { url: `${BASE}/upload`, lastModified: new Date(), priority: 0.7 },
-  { url: `${BASE}/pricing`, lastModified: new Date(), priority: 0.8 },
+  {
+    url: BASE,
+    lastModified: new Date(),
+    priority: 1.0,
+    changeFrequency: "daily",
+  },
+  {
+    url: `${BASE}/search`,
+    lastModified: new Date(),
+    priority: 0.9,
+    changeFrequency: "daily",
+  },
+  {
+    url: `${BASE}/review`,
+    lastModified: new Date(),
+    priority: 0.8,
+    changeFrequency: "weekly",
+  },
+  {
+    url: `${BASE}/upload`,
+    lastModified: new Date(),
+    priority: 0.7,
+    changeFrequency: "weekly",
+  },
+  {
+    url: `${BASE}/pricing`,
+    lastModified: new Date(),
+    priority: 0.8,
+    changeFrequency: "monthly",
+  },
 ];
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
@@ -27,6 +52,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       url: `${BASE}/research/${d.slug}`,
       lastModified: d.createdAt ?? new Date(),
       priority: 0.7,
+      changeFrequency: "monthly" as const,
     }));
 
     return [...STATIC, ...researchUrls];
