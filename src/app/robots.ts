@@ -6,12 +6,24 @@ export default function robots(): MetadataRoute.Robots {
       {
         userAgent: "*",
         allow: ["/", "/search", "/review", "/upload", "/pricing", "/research/"],
-        disallow: ["/api/", "/dashboard/", "/auth/"],
+        disallow: [
+          "/api/",
+          "/dashboard/",
+          "/auth/",
+          "/favicon.ico",
+          "/favicon.svg",
+        ],
       },
       {
         userAgent: "Googlebot",
         allow: "/",
-        disallow: ["/api/", "/dashboard/", "/auth/"],
+        disallow: [
+          "/api/",
+          "/dashboard/",
+          "/auth/",
+          "/favicon.ico",
+          "/favicon.svg",
+        ],
       },
     ],
     sitemap: "https://researchly.in/sitemap.xml",
